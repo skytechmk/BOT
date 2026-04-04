@@ -1,0 +1,45 @@
+{
+  "pair_ETHUSDT": {
+    "result": "\ud83d\udcca **TECHNICAL STATUS**: Consolidation after recent dip. Price near mid-range.\n\ud83d\udcc8 **MOMENTUM**: MACD bullish, RSI neutral-bullish (64.2). ADX (25.9) suggests moderate trend strength.\n\u2696\ufe0f **KEY LEVELS**: Watch for potential support around $2200-$2300. Resistance ~$2400.\n\ud83d\udd0d **PATTERN**: Harami pattern observed \u2013 potential reversal signal, needs confirmation.\n\ud83d\udccb **SUMMARY**: Mixed signals. Market indecision. Monitoring for breakout/breakdown. \u26a0\ufe0f",
+    "data": {
+      "pair": "ETHUSDT",
+      "latest_data": {
+        "close": 2321.36,
+        "open": 2351.66,
+        "high": 2377.0,
+        "low": 2292.57,
+        "volume": 4713670.573,
+        "price_change_24h": -1.2884515618754298
+      },
+      "indicators": {
+        "rsi_14": 64.17120990673712,
+        "rsi_21": 56.38319163513916,
+        "macd": 33.590565315362255,
+        "macd_signal": -15.754129421006013,
+        "macd_histogram": 49.34469473636827,
+        "adx": 25.91545137247675,
+        "plus_di": 34.265937459623714,
+        "minus_di": 13.607490913471937,
+        "stoch_k": 85.12970757189092,
+        "stoch_d": 74.29452978619956,
+        "mfi": 82.94695890321886,
+        "willr": -13.444641552749673,
+        "atr": 123.46837446097915,
+        "sma_20": 2056.713500000008,
+        "sma_50": 2117.2807999999977,
+        "sma_200": 3214.0902499999975,
+        "ema_20": 2102.286324015631,
+        "ema_50": 2217.602991257951,
+        "tenkan_sen": 2156.9900000000002,
+        "kijun_sen": 2090.8900000000003,
+        "bb_position": 1.0809551150646803,
+        "price_vs_vwap": 0.7906938599617879,
+        "price_vs_sma20": 1.1286744604924268,
+        "price_vs_sma50": 1.096387404070354,
+        "volume_ratio": 0.8306358820996831,
+        "recent_high": 2385.78,
+        "recent_low": 1834.06,
+        "cloud_position": "Inside Cloud (Neutral)"
+      },
+      "patterns": {
+        "pattern_name": 

@@ -1,0 +1,443 @@
+[
+  {
+    "timestamp": "2026-04-04 01:13:38",
+    "type": "AUDIT_QUICK",
+    "details": {
+      "type": "security_scan"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 01:18:10",
+    "type": "AUDIT_QUICK",
+    "details": {
+      "type": "security_scan"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 01:46:18",
+    "type": "SEND_MESSAGE",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 01:46:37",
+    "type": "START_CONVERSATION",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 01:46:38",
+    "type": "GET_ADMINS",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 01:50:59",
+    "type": "AUTONOMOUS_ENGAGEMENT",
+    "details": {
+      "chat_id": "-1002209928687",
+      "forced": true
+    }
+  },
+  {
+    "timestamp": "2026-04-04 01:55:29",
+    "type": "OPS_AUTONOMOUS_ENGAGEMENT",
+    "details": {
+      "chat_id": "-1003706659588",
+      "forced": true
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:02:31",
+    "type": "START_CONVERSATION",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:02:31",
+    "type": "ANALYZE_MESSAGE",
+    "details": {
+      "chat_id": "-1003706659588",
+      "user_id": 999888777
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:02:46",
+    "type": "START_CONVERSATION",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:03:54",
+    "type": "SEND_MESSAGE",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:03:54",
+    "type": "ANALYZE_MESSAGE",
+    "details": {
+      "chat_id": "-1003706659588",
+      "user_id": 999888777
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:03:54",
+    "type": "START_CONVERSATION",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:08:59",
+    "type": "ANALYZE_MESSAGE",
+    "details": {
+      "chat_id": "-1003706659588",
+      "user_id": 123456789
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:09:50",
+    "type": "ANALYZE_MESSAGE",
+    "details": {
+      "chat_id": "-1003706659588",
+      "user_id": 123456789
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:10:13",
+    "type": "START_CONVERSATION",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:10:13",
+    "type": "ANALYZE_MESSAGE",
+    "details": {
+      "chat_id": "-1003706659588",
+      "user_id": 999888777
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:15:04",
+    "type": "MEMBER_CONVERSATION_INITIATED",
+    "details": {
+      "conversation_type": "technical"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:15:04",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "test_user"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:16:00",
+    "type": "MEMBER_CONVERSATION_INITIATED",
+    "details": {
+      "conversation_type": "technical"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:16:00",
+    "type": "MEMBER_CONVERSATION_INITIATED",
+    "details": {
+      "conversation_type": "trading"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:16:00",
+    "type": "MEMBER_CONVERSATION_INITIATED",
+    "details": {
+      "conversation_type": "feedback"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:16:00",
+    "type": "MEMBER_CONVERSATION_INITIATED",
+    "details": {
+      "conversation_type": "general"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:16:18",
+    "type": "MEMBER_CONVERSATION_INITIATED",
+    "details": {
+      "conversation_type": "technical"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:16:32",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "ops_team_member"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:18:59",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "general"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:18:59",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "technical"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:19:48",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "general"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:19:48",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "technical"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:19:48",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "trading"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:25:24",
+    "type": "OPS_MEMBER_LIST_RETRIEVED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-04 02:25:24",
+    "type": "REAL_OPS_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "ops_focus"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:25:24",
+    "type": "SCAN_AND_TAG_REAL_MEMBERS",
+    "details": {
+      "count": 2,
+      "conversation_type": "technical"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:26:09",
+    "type": "REAL_OPS_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "ops_focus"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:26:09",
+    "type": "SCAN_AND_TAG_REAL_MEMBERS",
+    "details": {
+      "count": 2,
+      "conversation_type": "technical"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:28:32",
+    "type": "ALL_OPS_MEMBERS_FETCHED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-04 02:28:32",
+    "type": "REAL_OPS_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "ops_focus"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:29:45",
+    "type": "ALL_OPS_MEMBERS_FETCHED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-04 02:29:45",
+    "type": "REAL_OPS_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "ops_focus"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:29:45",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "general"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:30:01",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "technical"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:30:03",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "trading"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:30:06",
+    "type": "RANDOM_MEMBER_TAGGED",
+    "details": {
+      "conversation_type": "ops_focus"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:30:25",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "ops_manager"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:30:25",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "system_admin"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:30:25",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "trading_analyst"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:32:54",
+    "type": "REAL_MEMBERS_COMBINED_FETCHED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-04 02:33:00",
+    "type": "ALL_OPS_MEMBERS_FETCHED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-04 02:33:22",
+    "type": "ALL_OPS_MEMBERS_FETCHED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-04 02:33:22",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "Binance_Hunter_Bot"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:33:24",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "s53ctr3"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:42:48",
+    "type": "INTERNET_SEARCH_PERFORMED",
+    "details": {
+      "query": "trading signals best practices",
+      "engine": "duckduckgo"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:42:54",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "cryptocurrency market analysis"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:43:02",
+    "type": "MARKET_DATA_SEARCHED",
+    "details": {
+      "symbol": "BTC"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:43:22",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "cryptocurrency trading trends 2024"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:43:23",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "s53ctr3"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:43:31",
+    "type": "MARKET_DATA_SEARCHED",
+    "details": {
+      "symbol": "BTC"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:43:31",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "Binance_Hunter_Bot"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:43:32",
+    "type": "INTERNET_SEARCH_PERFORMED",
+    "details": {
+      "query": "trading signal accuracy best practices",
+      "engine": "duckduckgo"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:43:33",
+    "type": "MEMBER_RESPONSE_SENT",
+    "details": {
+      "member_username": "ops_manager"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:45:36",
+    "type": "INTERNET_SEARCH_PERFORMED",
+    "details": {
+      "query": "AI trading systems",
+      "engine": "duckduckgo"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:45:42",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "bitcoin price analysis"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 02:45:50",
+    "type": "MARKET_DATA_SEARCHED",
+    "details": {
+      "symbol": "ETH"
+    }
+  }
+]

@@ -1,0 +1,50 @@
+name: binance-hunter-minimal
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # Python version
+  - python=3.11
+
+  # Essential Core Dependencies
+  - pandas=2.1.4
+  - numpy=1.24.3
+  - scipy=1.11.4
+  - scikit-learn=1.3.2
+  - xgboost=2.0.3
+  - joblib=1.3.2
+
+  # Deep Learning
+  - pytorch=2.1.2
+  - cpuonly  # Remove this line if you have CUDA GPU
+
+  # Development Tools
+  - tqdm=4.66.1
+
+  # Environment Management
+  - python-dotenv=1.0.0
+
+  # Async Operations
+  - aiohttp=3.9.1
+
+  # Network
+  - requests=2.31.0
+
+  # pip dependencies
+  - pip
+  - pip:
+    # Trading APIs
+    - python-binance==1.0.19
+    
+    # Technical Analysis
+    - TA-Lib==0.4.28
+    
+    # Telegram Bot
+    - python-telegram-bot==20.7
+    
+    # Optional Advanced ML
+    - lightgbm==4.1.0
+    - catboost==1.2.2
+    
+    # Transformers
+    - transformers==4.36.2

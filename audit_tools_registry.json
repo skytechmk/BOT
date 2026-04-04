@@ -1,0 +1,11 @@
+{
+  "available_tools": [
+    "quick_security_scan",
+    "full_code_audit",
+    "analyze_specific_file",
+    "get_improvement_recommendations",
+    "save_audit_report"
+  ],
+  "description": "Code audit tools for comprehensive analysis",
+  "access_method": "Direct function calls or MCP bridge"
+}

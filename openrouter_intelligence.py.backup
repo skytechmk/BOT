@@ -1,0 +1,278 @@
+import os
+import requests
+import json
+from datetime import datetime
+from dotenv import load_dotenv
+from utils_logger import log_message
+
+
+load_dotenv()
+
+class OpenRouterIntelligence:
+    """
+    Advanced Institutional Reasoning Engine using OpenRouter (Qwen).
+    Focuses on systemic risk, narrative analysis, and black swan detection.
+    """
+    def __init__(self, api_key=None, model=None):
+        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
+        self.model = model or os.getenv("OPENROUTER_MODEL", "qwen/qwen3.6-plus-preview:free")
+        self.url = "https://openrouter.ai/api/v1/chat/completions"
+        self.cache_path = "performance_logs/openrouter_cache.json"
+        self.cache = self.load_cache()
+
+    def load_cache(self):
+        if os.path.exists(self.cache_path):
+            try:
+                with open(self.cache_path, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                return {}
+        return {}
+
+    def save_cache(self):
+        try:
+            os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+            with open(self.cache_path, 'w') as f:
+                json.dump(self.cache, f, indent=2)
+        except Exception:
+            pass
+
+    def analyze_market_narrative(self, market_context):
+        """
+        Deep analytical reasoning for systemic risk using OpenRouter.
+        """
+        cache_key = f"market_narrative_{datetime.now().strftime('%Y-%m-%d_%H')}"
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+
+        if not self.api_key:
+            return {"score": 0.5, "analysis": "OpenRouter API Key missing.", "risk": "Neutral"}
+
+        prompt = f"""
+        Act as an Institutional Risk Strategist for BlackRock's Aladdin. 
+        Analyze the following market context for Systemic Risks and Black Swan potential.
+        
+        CONTEXT:
+        - Fear & Greed: {market_context.get('fng', 'N/A')}
+        - Top 24h Moves: {market_context.get('moves', 'N/A')}
+        - Recent Headlines: {market_context.get('headlines', 'N/A')}
+        
+        Provide a JSON response:
+        {{
+            "institutional_score": 0.0 to 1.0,
+            "systemic_risk_level": "Low", "Medium", "High", "Critical",
+            "contrarian_warning": "...",
+            "black_swan_detected": boolean,
+            "recommended_position_multiplier": 0.0 to 1.2
+        }}
+        """
+
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/OpenRouterAI",
+                "X-Title": "Aladdin Trading Bot"
+            }
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": "You are an institutional risk analyzer specialized in systemic fragility."},
+                    {"role": "user", "content": prompt}
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.3
+            }
+            
+            response = requests.post(self.url, headers=headers, json=payload, timeout=45)
+            result = response.json()
+            
+            if 'choices' not in result:
+                raise ValueError(f"OpenRouter Error: {result.get('error', 'Unknown error')}")
+                
+            content = json.loads(result['choices'][0]['message']['content'])
+            
+            self.cache[cache_key] = content
+            self.save_cache()
+            return content
+        except Exception as e:
+            print(f"❌ OpenRouter Error: {e}")
+            return {"score": 0.5, "analysis": f"API Error: {str(e)}", "risk": "Neutral"}
+
+    def analyze_signal_robustness(self, symbol, tech_summary):
+        """
+        Final Gate analysis using AI to provide a multi-dimensional risk review.
+        """
+        # BUG-3 FIX: Include signal direction in cache + use 30-min windows
+        # Extract direction from tech_summary for cache key
+        direction = "LONG" if "Signal: LONG" in tech_summary or "Signal: BUY" in tech_summary else "SHORT"
+        half_hour = "00" if datetime.now().minute < 30 else "30"
+        cache_key = f"signal_{symbol}_{direction}_{datetime.now().strftime('%Y-%m-%d_h%H')}_{half_hour}"
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+
+        if not self.api_key:
+            return {"institutional_verdict": "PROCEED", "reasoning": "AI inactive."}
+
+        prompt = f"""
+        Act as an Lead Institutional Portfolio Manager for BlackRock's Aladdin.
+        Review a high-confidence technical signal for {symbol}.
+        
+        TECHNICAL DATA SUMMARY:
+        {tech_summary}
+        
+        TASK:
+        1. Evaluate if this signal has systemic structural support or represents a retail liquidity trap.
+        2. Consider the Chandelier Exit momentum and Volume Profile (POC/VAH/VAL) alignment.
+        3. Check for 'exhaustion' signs or immediate liquidity voids.
+        
+        Return JSON ONLY:
+        {{
+            "institutional_verdict": "PROCEED" or "REJECT",
+            "risk_score": 0.0 to 1.0,
+            "institutional_reasoning": "A one-sentence professional logic explanation.",
+            "contrarian_warning": "What to watch for if we proceed.",
+            "fragility_detected": boolean
+        }}
+        """
+
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/OpenRouterAI",
+                "X-Title": "Aladdin Trading Bot"
+            }
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": "You are a professional institutional trader. Provide balanced, data-driven verdicts. DO NOT auto-reject high probabilities unless they lack structural volume support."},
+                    {"role": "user", "content": prompt}
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1
+            }
+            
+            response = requests.post(self.url, headers=headers, json=payload, timeout=45)
+            result = response.json()
+            
+            if 'choices' not in result:
+                log_message(f"AI Gate API Error: {result}")
+                return {"institutional_verdict": "PROCEED", "reasoning": "API Delay"}
+
+            content_text = result['choices'][0]['message']['content']
+            content = json.loads(content_text)
+            
+            self.cache[cache_key] = content
+            self.save_cache()
+            return content
+        except Exception as e:
+            log_message(f"❌ OpenRouter Signal Error: {e}")
+            return {"institutional_verdict": "PROCEED", "reasoning": str(e)}
+
+    def analyze_systemic_fragility(self, news_headlines):
+        """
+        AI-driven systemic risk detection. 
+        Analyzes news headlines for early signs of market crashes.
+        """
+        cache_key = f"systemic_risk_{datetime.now().strftime('%Y-%m-%d_%H')}"
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+
+        if not self.api_key:
+            return {"fragility": 0.3, "risk_level": "LOW"}
+
+        prompt = f"""
+        Act as a Macro Risk Analyst for a global hedge fund.
+        Analyze these recent crypto/macro headlines for Systemic Fragility:
+        HEADLINES: {news_headlines}
+        
+        Is there a high chance of a market-wide liquidation cascade?
+        Return JSON:
+        {{
+            "fragility_score": 0.0 to 1.0 (1.0 is imminent crash),
+            "threat_vector": "...",
+            "severity": "LOW", "MEDIUM", "HIGH", "CRITICAL"
+        }}
+        """
+
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2
+            }
+            
+            response = requests.post(self.url, headers=headers, json=payload, timeout=45)
+            result = response.json()
+            content = json.loads(result['choices'][0]['message']['content'])
+            
+            self.cache[cache_key] = content
+            self.save_cache()
+            return content
+        except Exception as e:
+            print(f"❌ OpenRouter Fragility Error: {e}")
+            return {"fragility_score": 0.5, "severity": "MEDIUM"}
+
+    def query_ai(self, prompt, system_message="You are an institutional trading assistant.", model=None, tools=None, messages=None):
+        """
+        Generic query method with support for tools and conversation history.
+        """
+        if not self.api_key:
+            return "AI inactive (Missing API Key)."
+
+        current_model = model or self.model
+        
+        # Build messages if not provided
+        if messages is None:
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": prompt}
+            ]
+
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/OpenRouterAI",
+                "X-Title": "Aladdin Trading Bot"
+            }
+            
+            payload = {
+                "model": current_model,
+                "messages": messages,
+                "temperature": 0.5
+            }
+            
+            if tools:
+                payload["tools"] = tools
+            
+            response = requests.post(self.url, headers=headers, json=payload, timeout=45)
+            result = response.json()
+            
+            if 'choices' not in result:
+                log_message(f"OpenRouter API Error: {result}")
+                return f"Error: {result.get('error', 'Unknown').get('message', 'Unknown')}"
+            
+            choice = result['choices'][0]
+            message = choice['message']
+            
+            # Check for tool calls
+            if 'tool_calls' in message:
+                return message # Return the full message object for tool invocation
+            
+            return message.get('content', '')
+            
+        except Exception as e:
+            log_message(f"Query AI Error: {e}")
+            return f"Error connecting to AI: {e}"
+
+# Alias for backward compatibility if needed
+DeepSeekIntelligence = OpenRouterIntelligence

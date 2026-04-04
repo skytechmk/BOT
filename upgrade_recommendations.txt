@@ -1,0 +1,26 @@
+
+🚨 **IMMEDIATE ACTION REQUIRED**
+
+📈 **OpenRouter Plan Options:**
+• **FREE**: 113,187 tokens/month (CURRENT - EXCEEDED)
+• **BASIC**: $5/month - 200,000 tokens/month
+• **PRO**: $20/month - 1,000,000 tokens/month  
+• **BUSINESS**: $100/month - 5,000,000 tokens/month
+
+🔗 **Upgrade Link**: https://openrouter.ai/settings/credits
+
+💡 **Current Usage Analysis:**
+• You've used: 1,080,000 tokens
+• Limit: 113,187 tokens
+• Over usage: 966,813 tokens (854% over limit)
+
+⚡ **Recommended Plan**: PRO ($20/month)
+• Provides 1,000,000 tokens/month
+• Covers current usage with margin
+• Best value for heavy AI usage
+
+🛠️ **Alternative Solutions:**
+1. **Reduce Usage**: Disable non-essential AI functions
+2. **Optimize Prompts**: Use shorter, more specific prompts
+3. **Cache Responses**: Store and reuse common responses
+4. **Rate Limiting**: Implement strict usage limits

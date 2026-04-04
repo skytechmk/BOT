@@ -1,0 +1,15 @@
+{
+  "test-signal-123": {
+    "timestamp": 1775077722.1663084,
+    "message": "#ONT/USDT Target 1 achieved \ud83d\ude80",
+    "parsed_data": {
+      "signal_id": "ONT",
+      "pair": "ONTUSDT",
+      "targets": [
+        1.0
+      ],
+      "status": "TARGET_ACHIEVED"
+    },
+    "status": "TP_HIT"
+  }
+}

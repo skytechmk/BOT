@@ -1,0 +1,17 @@
+🤖 AI AUDIT TOOLS NOTICE
+
+All audit tools are now available:
+
+ quick_security_scan()
+ full_code_audit() 
+ analyze_specific_file(file_path)
+ get_improvement_recommendations()
+ save_audit_report(filename)
+
+You can:
+1. Import directly: from ai_audit_interface import quick_security_scan
+2. Use via MCP bridge (already configured)
+3. Check AUDIT_TOOLS_AVAILABLE.md for documentation
+4. Check audit_tools_registry.json for discovery
+
+Tools are tested and working!

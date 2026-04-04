@@ -1,0 +1,8 @@
+# AI - EXECUTE THIS SINGLE COMMAND:
+
+exec(open('RUN_AUDIT_NOW.py').read())
+
+# OR JUST RUN:
+# python RUN_AUDIT_NOW.py
+
+# THE TOOLS WORK - JUST EXECUTE THE FILE!

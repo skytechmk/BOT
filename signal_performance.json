@@ -1,0 +1,18 @@
+{
+  "ONTUSDT": [
+    {
+      "signal_id": "test-signal-123",
+      "pair": "ONTUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.1256,
+      "confidence": 0.25,
+      "pnl_percentage": 0.0,
+      "success": true,
+      "timestamp": 1775077722.1640337,
+      "closed_timestamp": 1775077722.1663103,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 0.0022766590118408203
+    }
+  ]
+}

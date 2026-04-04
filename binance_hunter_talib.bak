@@ -1,0 +1,1849 @@
+import pandas as pd
+import numpy as np
+import talib
+import xgboost as xgb
+import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from joblib import dump, load
+
+import os
+import time
+import asyncio
+import threading
+from datetime import datetime, timezone, timedelta
+from binance.client import Client
+from binance.exceptions import BinanceAPIException
+from dotenv import load_dotenv
+from requests.exceptions import ConnectTimeout
+from urllib3.exceptions import MaxRetryError
+from telegram import Bot
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Load environment variables
+load_dotenv()
+
+# Initialize transformer model
+TRANSFORMER_MODEL = "distilbert-base-uncased"
+tokenizer = AutoTokenizer.from_pretrained(TRANSFORMER_MODEL)
+transformer_model = AutoModelForSequenceClassification.from_pretrained(TRANSFORMER_MODEL, num_labels=2)
+
+# Load configuration from environment variables
+API_KEY = os.getenv('BINANCE_API_KEY')
+API_SECRET = os.getenv('BINANCE_API_SECRET')
+
+if not API_KEY or not API_SECRET:
+    raise ValueError("Binance API credentials not found in environment variables")
+
+client = Client(API_KEY, API_SECRET)
+
+# Telegram Bot configuration
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+
+if not TELEGRAM_TOKEN or not CHAT_ID:
+    raise ValueError("Telegram credentials not found in environment variables")
+
+bot = Bot(token=TELEGRAM_TOKEN)
+
+RATE_LIMIT = 1200
+REQUESTS_PER_SECOND = RATE_LIMIT / 60
+rate_limit_lock = threading.Lock()
+last_request_time = [0] * int(REQUESTS_PER_SECOND)
+
+LOG_FILE = "debug_log10.txt"
+
+def rate_limit():
+    with rate_limit_lock:
+        current_time = datetime.now(timezone.utc)
+        elapsed_time = current_time - datetime.fromtimestamp(last_request_time[0], tz=timezone.utc)
+        sleep_time = max(0, (1 / REQUESTS_PER_SECOND) - elapsed_time.total_seconds())
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        last_request_time.pop(0)
+        last_request_time.append(current_time.timestamp())
+
+def log_message(message, level="INFO"):
+    with open(LOG_FILE, "a") as log_file:
+        log_file.write(f"{datetime.now().isoformat()} - {level} - {message}\n")
+
+async def send_telegram_message(message):
+    try:
+        await bot.send_message(chat_id=CHAT_ID, text=message)
+        log_message(f"Telegram message sent: {message}")
+    except Exception as e:
+        log_message(f"Failed to send Telegram message: {e}")
+
+def calculate_rsi(data, period=14):
+    close_prices = data['close'].values
+    rsi = talib.RSI(close_prices, timeperiod=period)
+    return pd.Series(rsi, index=data.index)
+
+def calculate_bollinger_bands(df, period=20, std_dev=2):
+    close_prices = df['close'].values
+    upper, middle, lower = talib.BBANDS(close_prices, 
+                                      timeperiod=period,
+                                      nbdevup=std_dev,
+                                      nbdevdn=std_dev,
+                                      matype=0)  # 0 = SMA
+    df['SMA'] = middle
+    df['Upper Band'] = upper
+    df['Lower Band'] = lower
+    return df
+
+def calculate_vwap(df):
+    df['Cumulative Volume'] = df['volume'].cumsum()
+    df['Cumulative Volume Price'] = (df['close'] * df['volume']).cumsum()
+    df['VWAP'] = df['Cumulative Volume Price'] / df['Cumulative Volume']
+    return df
+
+def calculate_macd(df, short_window=12, long_window=26, signal_window=9):
+    close_prices = df['close'].values
+    macd, signal, hist = talib.MACD(close_prices,
+                                   fastperiod=short_window,
+                                   slowperiod=long_window,
+                                   signalperiod=signal_window)
+    df['MACD Line'] = macd
+    df['Signal Line'] = signal
+    df['MACD Histogram'] = hist
+    return df
+
+def calculate_atr(df, period=14):
+    high = df['high'].values
+    low = df['low'].values
+    close = df['close'].values
+    atr = talib.ATR(high, low, close, timeperiod=period)
+    df['ATR'] = atr
+    return df
+
+def calculate_ichimoku(df):
+    # Tenkan-sen (Conversion Line)
+    nine_period_high = df['high'].rolling(window=9).max()
+    nine_period_low = df['low'].rolling(window=9).min()
+    df['tenkan_sen'] = (nine_period_high + nine_period_low) / 2
+
+    # Kijun-sen (Base Line)
+    twenty_six_period_high = df['high'].rolling(window=26).max()
+    twenty_six_period_low = df['low'].rolling(window=26).min()
+    df['kijun_sen'] = (twenty_six_period_high + twenty_six_period_low) / 2
+
+    # Senkou Span A (Leading Span A)
+    df['senkou_span_a'] = ((df['tenkan_sen'] + df['kijun_sen']) / 2).shift(26)
+
+    # Senkou Span B (Leading Span B)
+    fifty_two_period_high = df['high'].rolling(window=52).max()
+    fifty_two_period_low = df['low'].rolling(window=52).min()
+    df['senkou_span_b'] = ((fifty_two_period_high + fifty_two_period_low) / 2).shift(26)
+
+    return df
+
+def detect_candlestick_patterns(df):
+    """Comprehensive candlestick pattern detection using TA-Lib"""
+    try:
+        open_prices = df['open'].values
+        high_prices = df['high'].values
+        low_prices = df['low'].values
+        close_prices = df['close'].values
+        
+        # Initialize pattern data
+        pattern_data = {
+            'Pattern': 'None',
+            'Pattern_Strength': 0,
+            'Pattern_Type': 'Neutral'
+        }
+        
+        # Bullish patterns
+        patterns = {
+            # Single candlestick patterns
+            'CDLHAMMER': ('Hammer', 'Bullish'),
+            'CDLINVERTEDHAMMER': ('Inverted Hammer', 'Bullish'),
+            'CDLDRAGONFLYDOJI': ('Dragonfly Doji', 'Bullish'),
+            'CDLENGULFING': ('Bullish Engulfing', 'Bullish'),
+            'CDLMORNINGSTAR': ('Morning Star', 'Bullish'),
+            'CDLPIERCING': ('Piercing Pattern', 'Bullish'),
+            'CDL3WHITESOLDIERS': ('Three White Soldiers', 'Bullish'),
+            'CDLMORNINGDOJISTAR': ('Morning Doji Star', 'Bullish'),
+            'CDLBELTHOLD': ('Belt Hold', 'Mixed'),
+            
+            # Bearish patterns
+            'CDLSHOOTINGSTAR': ('Shooting Star', 'Bearish'),
+            'CDLHANGINGMAN': ('Hanging Man', 'Bearish'),
+            'CDLGRAVESTONEDOJI': ('Gravestone Doji', 'Bearish'),
+            'CDLEVENINGSTAR': ('Evening Star', 'Bearish'),
+            'CDLDARKCLOUDCOVER': ('Dark Cloud Cover', 'Bearish'),
+            'CDL3BLACKCROWS': ('Three Black Crows', 'Bearish'),
+            'CDLEVENINGDOJISTAR': ('Evening Doji Star', 'Bearish'),
+            
+            # Reversal patterns
+            'CDLHARAMI': ('Harami', 'Mixed'),
+            'CDLHARAMICROSS': ('Harami Cross', 'Mixed'),
+            'CDLDOJI': ('Doji', 'Neutral'),
+            'CDLSPINNINGTOP': ('Spinning Top', 'Neutral'),
+            'CDLMARUBOZU': ('Marubozu', 'Mixed'),
+            
+            # Advanced patterns
+            'CDLTHRUSTING': ('Thrusting Pattern', 'Bearish'),
+            'CDLINNECK': ('In Neck Pattern', 'Bearish'),
+            'CDLONNECK': ('On Neck Pattern', 'Bearish'),
+            'CDLKICKING': ('Kicking Pattern', 'Mixed'),
+            'CDLGAPSIDESIDEWHITE': ('Up/Down Gap Side by Side White', 'Mixed'),
+            'CDLHIGHWAVE': ('High Wave Candle', 'Neutral'),
+            'CDLRICKSHAWMAN': ('Rickshaw Man', 'Neutral'),
+            'CDLSEPARATINGLINES': ('Separating Lines', 'Mixed'),
+            'CDLADVANCEBLOCK': ('Advance Block', 'Bearish'),
+            'CDLBREAKAWAY': ('Breakaway', 'Mixed'),
+            'CDLCLOSINGMARUBOZU': ('Closing Marubozu', 'Mixed'),
+            'CDLCONCEALBABYSWALL': ('Concealing Baby Swallow', 'Bullish'),
+            'CDLCOUNTERATTACK': ('Counterattack', 'Mixed'),
+            'CDLHOMINGPIGEON': ('Homing Pigeon', 'Bullish'),
+            'CDLIDENTICAL3CROWS': ('Identical Three Crows', 'Bearish'),
+            'CDLLADDERBOTTOM': ('Ladder Bottom', 'Bullish'),
+            'CDLLONGLEGGEDDOJI': ('Long Legged Doji', 'Neutral'),
+            'CDLMATCHINGLOW': ('Matching Low', 'Bullish'),
+            'CDLMATHOLD': ('Mat Hold', 'Bullish'),
+            'CDLRISEFALL3METHODS': ('Rising/Falling Three Methods', 'Mixed'),
+            'CDLSTALLEDPATTERN': ('Stalled Pattern', 'Bearish'),
+            'CDLSTICKSANDWICH': ('Stick Sandwich', 'Bullish'),
+            'CDLTAKURI': ('Takuri', 'Bullish'),
+            'CDLTASUKIGAP': ('Tasuki Gap', 'Mixed'),
+            'CDLUNIQUE3RIVER': ('Unique 3 River', 'Bullish'),
+            'CDLUPSIDEGAP2CROWS': ('Upside Gap Two Crows', 'Bearish'),
+            'CDLXSIDEGAP3METHODS': ('Upside/Downside Gap Three Methods', 'Mixed')
+        }
+        
+        detected_patterns = []
+        
+        # Detect all patterns
+        for pattern_func, (pattern_name, pattern_type) in patterns.items():
+            try:
+                pattern_result = getattr(talib, pattern_func)(open_prices, high_prices, low_prices, close_prices)
+                latest_signal = pattern_result[-1]
+                
+                if latest_signal != 0:
+                    strength = abs(latest_signal)
+                    direction = 'Bullish' if latest_signal > 0 else 'Bearish'
+                    
+                    # Override direction based on pattern type for mixed patterns
+                    if pattern_type == 'Mixed':
+                        direction = 'Bullish' if latest_signal > 0 else 'Bearish'
+                    elif pattern_type != 'Neutral':
+                        direction = pattern_type
+                    
+                    detected_patterns.append({
+                        'name': pattern_name,
+                        'strength': strength,
+                        'direction': direction,
+                        'type': pattern_type
+                    })
+                    
+                    log_message(f"Pattern detected: {pattern_name} ({direction}) - Strength: {strength}")
+                    
+            except Exception as e:
+                log_message(f"Error detecting pattern {pattern_func}: {e}")
+                continue
+        
+        # Select the strongest pattern and update pattern_data
+        if detected_patterns:
+            strongest_pattern = max(detected_patterns, key=lambda x: x['strength'])
+            pattern_data['Pattern'] = strongest_pattern['name']
+            pattern_data['Pattern_Strength'] = strongest_pattern['strength']
+            pattern_data['Pattern_Type'] = strongest_pattern['direction']
+            
+            log_message(f"Strongest pattern: {strongest_pattern['name']} ({strongest_pattern['direction']}) - Strength: {strongest_pattern['strength']}")
+        
+        # Add pattern columns efficiently using pd.concat
+        pattern_df = pd.DataFrame(pattern_data, index=df.index)
+        df = pd.concat([df, pattern_df], axis=1)
+        
+        return df
+        
+    except Exception as e:
+        log_message(f"Error in candlestick pattern detection: {e}")
+        # Add default pattern columns efficiently
+        pattern_df = pd.DataFrame(pattern_data, index=df.index)
+        df = pd.concat([df, pattern_df], axis=1)
+        return df
+
+def calculate_advanced_indicators(df):
+    """Calculate comprehensive technical indicators"""
+    try:
+        high = df['high'].values
+        low = df['low'].values
+        close = df['close'].values
+        volume = df['volume'].values
+        
+        # Momentum Indicators
+        df['RSI_14'] = talib.RSI(close, timeperiod=14)
+        df['RSI_21'] = talib.RSI(close, timeperiod=21)
+        df['STOCH_K'], df['STOCH_D'] = talib.STOCH(high, low, close)
+        df['STOCHF_K'], df['STOCHF_D'] = talib.STOCHF(high, low, close)
+        df['STOCHRSI_K'], df['STOCHRSI_D'] = talib.STOCHRSI(close)
+        df['WILLR'] = talib.WILLR(high, low, close)
+        df['ROC_10'] = talib.ROC(close, timeperiod=10)
+        df['ROC_20'] = talib.ROC(close, timeperiod=20)
+        df['MOM_10'] = talib.MOM(close, timeperiod=10)
+        df['MOM_20'] = talib.MOM(close, timeperiod=20)
+        df['CCI_14'] = talib.CCI(high, low, close, timeperiod=14)
+        df['CCI_20'] = talib.CCI(high, low, close, timeperiod=20)
+        df['CMO'] = talib.CMO(close)
+        df['DX'] = talib.DX(high, low, close)
+        df['MINUS_DI'] = talib.MINUS_DI(high, low, close)
+        df['PLUS_DI'] = talib.PLUS_DI(high, low, close)
+        df['ADX'] = talib.ADX(high, low, close)
+        df['ADXR'] = talib.ADXR(high, low, close)
+        df['APO'] = talib.APO(close)
+        df['AROON_UP'], df['AROON_DOWN'] = talib.AROON(high, low)
+        df['AROONOSC'] = talib.AROONOSC(high, low)
+        df['BOP'] = talib.BOP(df['open'].values, high, low, close)
+        df['MFI'] = talib.MFI(high, low, close, volume)
+        df['PPO'] = talib.PPO(close)
+        df['TRIX'] = talib.TRIX(close)
+        df['ULTOSC'] = talib.ULTOSC(high, low, close)
+        
+        # Overlap Studies (Moving Averages)
+        df['SMA_5'] = talib.SMA(close, timeperiod=5)
+        df['SMA_10'] = talib.SMA(close, timeperiod=10)
+        df['SMA_20'] = talib.SMA(close, timeperiod=20)
+        df['SMA_50'] = talib.SMA(close, timeperiod=50)
+        df['SMA_100'] = talib.SMA(close, timeperiod=100)
+        df['SMA_200'] = talib.SMA(close, timeperiod=200)
+        df['EMA_5'] = talib.EMA(close, timeperiod=5)
+        df['EMA_10'] = talib.EMA(close, timeperiod=10)
+        df['EMA_20'] = talib.EMA(close, timeperiod=20)
+        df['EMA_50'] = talib.EMA(close, timeperiod=50)
+        df['EMA_100'] = talib.EMA(close, timeperiod=100)
+        df['EMA_200'] = talib.EMA(close, timeperiod=200)
+        df['WMA_20'] = talib.WMA(close, timeperiod=20)
+        df['DEMA'] = talib.DEMA(close)
+        df['TEMA'] = talib.TEMA(close)
+        df['TRIMA'] = talib.TRIMA(close)
+        df['KAMA'] = talib.KAMA(close)
+        df['MAMA'], df['FAMA'] = talib.MAMA(close)
+        df['T3'] = talib.T3(close)
+        df['HT_TRENDLINE'] = talib.HT_TRENDLINE(close)
+        
+        # Volatility Indicators
+        df['NATR'] = talib.NATR(high, low, close)
+        df['TRANGE'] = talib.TRANGE(high, low, close)
+        
+        # Volume Indicators
+        df['AD'] = talib.AD(high, low, close, volume)
+        df['ADOSC'] = talib.ADOSC(high, low, close, volume)
+        
+        # Cycle Indicators
+        df['HT_DCPERIOD'] = talib.HT_DCPERIOD(close)
+        df['HT_DCPHASE'] = talib.HT_DCPHASE(close)
+        df['HT_PHASOR_INPHASE'], df['HT_PHASOR_QUAD'] = talib.HT_PHASOR(close)
+        df['HT_SINE_SINE'], df['HT_SINE_LEAD'] = talib.HT_SINE(close)
+        df['HT_TRENDMODE'] = talib.HT_TRENDMODE(close)
+        
+        # Price Transform
+        df['AVGPRICE'] = talib.AVGPRICE(df['open'].values, high, low, close)
+        df['MEDPRICE'] = talib.MEDPRICE(high, low)
+        df['TYPPRICE'] = talib.TYPPRICE(high, low, close)
+        df['WCLPRICE'] = talib.WCLPRICE(high, low, close)
+        
+        # Statistical Functions
+        df['BETA'] = talib.BETA(high, low)
+        df['CORREL'] = talib.CORREL(high, low)
+        df['LINEARREG'] = talib.LINEARREG(close)
+        df['LINEARREG_ANGLE'] = talib.LINEARREG_ANGLE(close)
+        df['LINEARREG_INTERCEPT'] = talib.LINEARREG_INTERCEPT(close)
+        df['LINEARREG_SLOPE'] = talib.LINEARREG_SLOPE(close)
+        df['STDDEV'] = talib.STDDEV(close)
+        df['TSF'] = talib.TSF(close)
+        df['VAR'] = talib.VAR(close)
+        
+        log_message("Advanced technical indicators calculated successfully")
+        return df
+        
+    except Exception as e:
+        log_message(f"Error calculating advanced indicators: {e}")
+        return df
+
+def prepare_ml_features(df):
+    """Prepare comprehensive features for machine learning models"""
+    try:
+        features = pd.DataFrame(index=df.index)
+        
+        # Basic OHLCV features
+        features['open'] = df['open']
+        features['high'] = df['high']
+        features['low'] = df['low']
+        features['close'] = df['close']
+        features['volume'] = df['volume']
+        
+        # Price action features
+        features['returns'] = df['close'].pct_change()
+        features['log_returns'] = np.log(df['close'] / df['close'].shift(1))
+        features['volatility_5'] = df['close'].rolling(5).std()
+        features['volatility_10'] = df['close'].rolling(10).std()
+        features['volatility_20'] = df['close'].rolling(20).std()
+        features['price_change_1'] = df['close'].pct_change(1)
+        features['price_change_3'] = df['close'].pct_change(3)
+        features['price_change_5'] = df['close'].pct_change(5)
+        features['price_change_10'] = df['close'].pct_change(10)
+        features['volume_ratio_5'] = df['volume'] / df['volume'].rolling(5).mean()
+        features['volume_ratio_10'] = df['volume'] / df['volume'].rolling(10).mean()
+        features['volume_ratio_20'] = df['volume'] / df['volume'].rolling(20).mean()
+        
+        # High-Low features
+        features['hl_ratio'] = df['high'] / df['low']
+        features['oc_ratio'] = df['open'] / df['close']
+        features['body_size'] = abs(df['close'] - df['open']) / df['close']
+        features['upper_shadow'] = (df['high'] - np.maximum(df['open'], df['close'])) / df['close']
+        features['lower_shadow'] = (np.minimum(df['open'], df['close']) - df['low']) / df['close']
+        
+        # Technical indicators from advanced calculation
+        if 'RSI_14' in df.columns:
+            # Momentum indicators
+            features['rsi_14'] = df['RSI_14']
+            features['rsi_21'] = df['RSI_21']
+            features['stoch_k'] = df['STOCH_K']
+            features['stoch_d'] = df['STOCH_D']
+            features['stochf_k'] = df['STOCHF_K']
+            features['stochf_d'] = df['STOCHF_D']
+            features['stochrsi_k'] = df['STOCHRSI_K']
+            features['stochrsi_d'] = df['STOCHRSI_D']
+            features['willr'] = df['WILLR']
+            features['roc_10'] = df['ROC_10']
+            features['roc_20'] = df['ROC_20']
+            features['mom_10'] = df['MOM_10']
+            features['mom_20'] = df['MOM_20']
+            features['cci_14'] = df['CCI_14']
+            features['cci_20'] = df['CCI_20']
+            features['cmo'] = df['CMO']
+            features['adx'] = df['ADX']
+            features['adxr'] = df['ADXR']
+            features['plus_di'] = df['PLUS_DI']
+            features['minus_di'] = df['MINUS_DI']
+            features['dx'] = df['DX']
+            features['aroon_up'] = df['AROON_UP']
+            features['aroon_down'] = df['AROON_DOWN']
+            features['aroonosc'] = df['AROONOSC']
+            features['bop'] = df['BOP']
+            features['mfi'] = df['MFI']
+            features['ppo'] = df['PPO']
+            features['trix'] = df['TRIX']
+            features['ultosc'] = df['ULTOSC']
+            
+            # Moving averages
+            features['sma_5'] = df['SMA_5']
+            features['sma_10'] = df['SMA_10']
+            features['sma_20'] = df['SMA_20']
+            features['sma_50'] = df['SMA_50']
+            features['sma_100'] = df['SMA_100']
+            features['sma_200'] = df['SMA_200']
+            features['ema_5'] = df['EMA_5']
+            features['ema_10'] = df['EMA_10']
+            features['ema_20'] = df['EMA_20']
+            features['ema_50'] = df['EMA_50']
+            features['ema_100'] = df['EMA_100']
+            features['ema_200'] = df['EMA_200']
+            features['wma_20'] = df['WMA_20']
+            features['dema'] = df['DEMA']
+            features['tema'] = df['TEMA']
+            features['trima'] = df['TRIMA']
+            features['kama'] = df['KAMA']
+            features['mama'] = df['MAMA']
+            features['fama'] = df['FAMA']
+            features['t3'] = df['T3']
+            features['ht_trendline'] = df['HT_TRENDLINE']
+            
+            # Volatility indicators
+            features['atr'] = df['ATR'] if 'ATR' in df.columns else talib.ATR(df['high'].values, df['low'].values, df['close'].values)
+            features['natr'] = df['NATR']
+            features['trange'] = df['TRANGE']
+            
+            # Volume indicators
+            features['ad'] = df['AD']
+            features['adosc'] = df['ADOSC']
+            features['obv'] = talib.OBV(df['close'].values, df['volume'].values)
+            
+            # Cycle indicators
+            features['ht_dcperiod'] = df['HT_DCPERIOD']
+            features['ht_dcphase'] = df['HT_DCPHASE']
+            features['ht_phasor_inphase'] = df['HT_PHASOR_INPHASE']
+            features['ht_phasor_quad'] = df['HT_PHASOR_QUAD']
+            features['ht_sine_sine'] = df['HT_SINE_SINE']
+            features['ht_sine_lead'] = df['HT_SINE_LEAD']
+            features['ht_trendmode'] = df['HT_TRENDMODE']
+            
+            # Price transform
+            features['avgprice'] = df['AVGPRICE']
+            features['medprice'] = df['MEDPRICE']
+            features['typprice'] = df['TYPPRICE']
+            features['wclprice'] = df['WCLPRICE']
+            
+            # Statistical functions
+            features['beta'] = df['BETA']
+            features['correl'] = df['CORREL']
+            features['linearreg'] = df['LINEARREG']
+            features['linearreg_angle'] = df['LINEARREG_ANGLE']
+            features['linearreg_intercept'] = df['LINEARREG_INTERCEPT']
+            features['linearreg_slope'] = df['LINEARREG_SLOPE']
+            features['stddev'] = df['STDDEV']
+            features['tsf'] = df['TSF']
+            features['var'] = df['VAR']
+        
+        # MACD features
+        if 'MACD Line' in df.columns:
+            features['macd'] = df['MACD Line']
+            features['macd_signal'] = df['Signal Line']
+            features['macd_histogram'] = df['MACD Histogram']
+            features['macd_cross'] = (df['MACD Line'] > df['Signal Line']).astype(int)
+        
+        # Bollinger Bands features
+        if 'Upper Band' in df.columns and 'Lower Band' in df.columns:
+            bb_range = df['Upper Band'] - df['Lower Band']
+            features['bb_position'] = (df['close'] - df['Lower Band']) / bb_range
+            features['bb_width'] = bb_range / df['SMA']
+            features['bb_upper_breach'] = (df['close'] > df['Upper Band']).astype(int)
+            features['bb_lower_breach'] = (df['close'] < df['Lower Band']).astype(int)
+        
+        # VWAP features
+        if 'VWAP' in df.columns:
+            features['vwap'] = df['VWAP']
+            features['price_vs_vwap'] = df['close'] / df['VWAP']
+            features['above_vwap'] = (df['close'] > df['VWAP']).astype(int)
+        
+        # Ichimoku features
+        if 'tenkan_sen' in df.columns:
+            features['tenkan_sen'] = df['tenkan_sen']
+            features['kijun_sen'] = df['kijun_sen']
+            features['senkou_span_a'] = df['senkou_span_a']
+            features['senkou_span_b'] = df['senkou_span_b']
+            features['tk_cross'] = (df['tenkan_sen'] > df['kijun_sen']).astype(int)
+            features['price_vs_cloud'] = np.where(
+                df['close'] > np.maximum(df['senkou_span_a'], df['senkou_span_b']), 1,
+                np.where(df['close'] < np.minimum(df['senkou_span_a'], df['senkou_span_b']), -1, 0)
+            )
+        
+        # Pattern features
+        if 'Pattern_Strength' in df.columns:
+            features['pattern_strength'] = df['Pattern_Strength']
+            features['pattern_bullish'] = (df['Pattern_Type'] == 'Bullish').astype(int)
+            features['pattern_bearish'] = (df['Pattern_Type'] == 'Bearish').astype(int)
+        
+        # Moving average crossovers
+        if 'SMA_20' in df.columns and 'SMA_50' in df.columns:
+            features['sma_20_50_cross'] = (df['SMA_20'] > df['SMA_50']).astype(int)
+            features['sma_50_200_cross'] = (df['SMA_50'] > df['SMA_200']).astype(int) if 'SMA_200' in df.columns else 0
+            features['ema_20_50_cross'] = (df['EMA_20'] > df['EMA_50']).astype(int) if 'EMA_20' in df.columns and 'EMA_50' in df.columns else 0
+        
+        # Price position relative to moving averages
+        if 'SMA_20' in df.columns:
+            features['price_vs_sma20'] = df['close'] / df['SMA_20']
+            features['price_vs_sma50'] = df['close'] / df['SMA_50'] if 'SMA_50' in df.columns else 1
+            features['price_vs_sma200'] = df['close'] / df['SMA_200'] if 'SMA_200' in df.columns else 1
+            features['price_vs_ema20'] = df['close'] / df['EMA_20'] if 'EMA_20' in df.columns else 1
+            features['price_vs_ema50'] = df['close'] / df['EMA_50'] if 'EMA_50' in df.columns else 1
+        
+        # Transformer sentiment (with error handling)
+        try:
+            news_text = generate_market_summary(df)
+            inputs = tokenizer(news_text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+            with torch.no_grad():
+                outputs = transformer_model(**inputs)
+                logits = outputs.logits
+                if logits.shape[0] > 0 and logits.shape[1] >= 2:
+                    sentiment_probs = logits.softmax(dim=1)
+                    features['sentiment_score'] = sentiment_probs[0][1].item()
+                    features['sentiment_confidence'] = sentiment_probs.max(dim=1)[0].item()
+                else:
+                    features['sentiment_score'] = 0.5  # Neutral default
+                    features['sentiment_confidence'] = 0.5
+        except Exception as e:
+            log_message(f"Transformer sentiment error: {e}")
+            features['sentiment_score'] = 0.5  # Neutral default
+            features['sentiment_confidence'] = 0.5
+        
+        # Clean missing values and ensure we have enough data
+        features = features.replace([np.inf, -np.inf], np.nan)
+        features = features.dropna()
+        
+        if len(features) < 50:  # Need minimum data for training
+            log_message(f"Insufficient feature data: {len(features)} rows")
+            return pd.DataFrame()
+        
+        log_message(f"Prepared {len(features.columns)} features for ML model")
+        return features
+        
+    except Exception as e:
+        log_message(f"Feature preparation error: {e}")
+        return pd.DataFrame()
+
+def generate_training_labels(df, future_periods=5):
+    """Generate training labels based on future price movements"""
+    try:
+        labels = []
+        
+        for i in range(len(df) - future_periods):
+            current_price = df['close'].iloc[i]
+            future_price = df['close'].iloc[i + future_periods]
+            
+            # Calculate percentage change
+            price_change = (future_price - current_price) / current_price
+            
+            # Label as 1 (buy) if price increases by more than 1%, 0 (sell) otherwise
+            label = 1 if price_change > 0.01 else 0
+            labels.append(label)
+        
+        # Pad with neutral labels for the last few periods
+        labels.extend([0] * future_periods)
+        
+        return pd.Series(labels, index=df.index)
+        
+    except Exception as e:
+        log_message(f"Error generating training labels: {e}")
+        return pd.Series([0] * len(df), index=df.index)
+
+def train_ensemble_models(X, y):
+    """Train ensemble of ML models for robust predictions"""
+    try:
+        from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.svm import SVC
+        from sklearn.metrics import classification_report, confusion_matrix
+        from sklearn.preprocessing import StandardScaler
+        
+        if len(X) < 100:
+            log_message(f"Insufficient training data: {len(X)} samples")
+            return None
+            
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y)
+        
+        # Scale features for some models
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        models = {}
+        
+        # 1. XGBoost (primary model)
+        log_message("Training XGBoost model...")
+        xgb_params = {
+            'objective': 'binary:logistic',
+            'eval_metric': 'logloss',
+            'max_depth': 6,
+            'learning_rate': 0.1,
+            'subsample': 0.8,
+            'colsample_bytree': 0.8,
+            'random_state': 42,
+            'reg_alpha': 0.1,
+            'reg_lambda': 0.1
+        }
+        
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dtest = xgb.DMatrix(X_test, label=y_test)
+        
+        xgb_model = xgb.train(
+            xgb_params, 
+            dtrain, 
+            num_boost_round=300,
+            evals=[(dtrain, 'train'), (dtest, 'test')],
+            early_stopping_rounds=30,
+            verbose_eval=False
+        )
+        
+        xgb_train_preds = xgb_model.predict(dtrain) > 0.5
+        xgb_test_preds = xgb_model.predict(dtest) > 0.5
+        xgb_train_acc = accuracy_score(y_train, xgb_train_preds)
+        xgb_test_acc = accuracy_score(y_test, xgb_test_preds)
+        
+        models['xgboost'] = {
+            'model': xgb_model,
+            'train_acc': xgb_train_acc,
+            'test_acc': xgb_test_acc,
+            'type': 'xgboost'
+        }
+        
+        log_message(f"XGBoost - Train: {xgb_train_acc:.3f}, Test: {xgb_test_acc:.3f}")
+        
+        # 2. Random Forest
+        log_message("Training Random Forest model...")
+        rf_model = RandomForestClassifier(
+            n_estimators=200,
+            max_depth=10,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            random_state=42,
+            n_jobs=-1
+        )
+        rf_model.fit(X_train, y_train)
+        
+        rf_train_acc = rf_model.score(X_train, y_train)
+        rf_test_acc = rf_model.score(X_test, y_test)
+        
+        models['random_forest'] = {
+            'model': rf_model,
+            'train_acc': rf_train_acc,
+            'test_acc': rf_test_acc,
+            'type': 'sklearn'
+        }
+        
+        log_message(f"Random Forest - Train: {rf_train_acc:.3f}, Test: {rf_test_acc:.3f}")
+        
+        # 3. Gradient Boosting
+        log_message("Training Gradient Boosting model...")
+        gb_model = GradientBoostingClassifier(
+            n_estimators=200,
+            learning_rate=0.1,
+            max_depth=6,
+            random_state=42
+        )
+        gb_model.fit(X_train, y_train)
+        
+        gb_train_acc = gb_model.score(X_train, y_train)
+        gb_test_acc = gb_model.score(X_test, y_test)
+        
+        models['gradient_boosting'] = {
+            'model': gb_model,
+            'train_acc': gb_train_acc,
+            'test_acc': gb_test_acc,
+            'type': 'sklearn'
+        }
+        
+        log_message(f"Gradient Boosting - Train: {gb_train_acc:.3f}, Test: {gb_test_acc:.3f}")
+        
+        # 4. Logistic Regression (for linear patterns)
+        log_message("Training Logistic Regression model...")
+        lr_model = LogisticRegression(
+            random_state=42,
+            max_iter=1000,
+            C=1.0
+        )
+        lr_model.fit(X_train_scaled, y_train)
+        
+        lr_train_acc = lr_model.score(X_train_scaled, y_train)
+        lr_test_acc = lr_model.score(X_test_scaled, y_test)
+        
+        models['logistic_regression'] = {
+            'model': lr_model,
+            'scaler': scaler,
+            'train_acc': lr_train_acc,
+            'test_acc': lr_test_acc,
+            'type': 'sklearn_scaled'
+        }
+        
+        log_message(f"Logistic Regression - Train: {lr_train_acc:.3f}, Test: {lr_test_acc:.3f}")
+        
+        # Save all models
+        dump(models, 'ensemble_models.joblib')
+        
+        # Also save primary XGBoost model separately for compatibility
+        xgb_model.save_model('signal_model.ubj')
+        
+        log_message("Ensemble models saved successfully")
+        log_message(f"Best performing model: {max(models.keys(), key=lambda k: models[k]['test_acc'])}")
+        
+        return models
+        
+    except Exception as e:
+        log_message(f"Ensemble training error: {e}")
+        # Fallback to single XGBoost model
+        return train_ml_model(X, y)
+
+def train_ml_model(X, y):
+    """Train XGBoost classifier (fallback method)"""
+    try:
+        if len(X) < 100:
+            log_message(f"Insufficient training data: {len(X)} samples")
+            return None
+            
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y)
+        
+        # Enhanced XGBoost parameters
+        params = {
+            'objective': 'binary:logistic',
+            'eval_metric': 'logloss',
+            'max_depth': 6,
+            'learning_rate': 0.1,
+            'subsample': 0.8,
+            'colsample_bytree': 0.8,
+            'random_state': 42,
+            'reg_alpha': 0.1,
+            'reg_lambda': 0.1,
+            'min_child_weight': 1,
+            'gamma': 0.1
+        }
+        
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dtest = xgb.DMatrix(X_test, label=y_test)
+        
+        # Train with early stopping
+        evals_result = {}
+        model = xgb.train(
+            params, 
+            dtrain, 
+            num_boost_round=300,
+            evals=[(dtrain, 'train'), (dtest, 'test')],
+            early_stopping_rounds=30,
+            evals_result=evals_result,
+            verbose_eval=False
+        )
+        
+        # Evaluate
+        train_preds = model.predict(dtrain) > 0.5
+        test_preds = model.predict(dtest) > 0.5
+        
+        train_accuracy = accuracy_score(y_train, train_preds)
+        test_accuracy = accuracy_score(y_test, test_preds)
+        
+        log_message(f"XGBoost Model trained - Train accuracy: {train_accuracy:.3f}, Test accuracy: {test_accuracy:.3f}")
+        log_message(f"Training samples: {len(X_train)}, Test samples: {len(X_test)}")
+        
+        # Feature importance analysis
+        try:
+            importance = model.get_score(importance_type='weight')
+            top_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:10]
+            log_message(f"Top 10 important features: {top_features}")
+        except Exception as e:
+            log_message(f"Feature importance analysis failed: {e}")
+        
+        # Save model
+        model.save_model('signal_model.ubj')
+        log_message("Model saved to signal_model.ubj")
+        
+        return model
+        
+    except Exception as e:
+        log_message(f"Model training error: {e}")
+        return None
+
+def should_retrain_model():
+    """Check if model should be retrained"""
+    model_file = 'signal_model.ubj'
+    
+    if not os.path.exists(model_file):
+        return True
+        
+    # Check if model is older than 24 hours
+    model_age = time.time() - os.path.getmtime(model_file)
+    return model_age > 86400  # 24 hours in seconds
+
+def train_model_with_historical_data():
+    """Train ensemble models using historical data from multiple pairs"""
+    try:
+        log_message("Starting comprehensive model training with historical data...")
+        
+        # Expanded set of trading pairs for more diverse training data
+        training_pairs = [
+            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 
+            'XRPUSDT', 'DOTUSDT', 'LINKUSDT', 'LTCUSDT', 'BCHUSDT',
+            'UNIUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT', 'FILUSDT'
+        ]
+        all_features = []
+        all_labels = []
+        
+        for pair in training_pairs:
+            try:
+                log_message(f"Fetching training data for {pair}")
+                df = fetch_data(pair, '1h', retries=3)  # Use hourly data for training
+                
+                if df.empty or len(df) < 200:
+                    log_message(f"Insufficient data for {pair}")
+                    continue
+                
+                # Calculate all technical indicators
+                df = calculate_bollinger_bands(df)
+                df = calculate_vwap(df)
+                df = calculate_macd(df)
+                df = calculate_atr(df)
+                df = calculate_ichimoku(df)
+                df = calculate_advanced_indicators(df)
+                df = detect_candlestick_patterns(df)
+                
+                # Prepare comprehensive features
+                features = prepare_ml_features(df)
+                if features.empty:
+                    log_message(f"No features prepared for {pair}")
+                    continue
+                
+                # Generate labels with multiple strategies
+                labels = generate_training_labels(df, future_periods=5)
+                
+                # Align features and labels
+                min_len = min(len(features), len(labels))
+                if min_len > 100:  # Increased minimum threshold
+                    features_aligned = features.iloc[:min_len]
+                    labels_aligned = labels.iloc[:min_len]
+                    
+                    all_features.append(features_aligned)
+                    all_labels.append(labels_aligned)
+                    
+                    log_message(f"Added {min_len} samples from {pair} with {len(features.columns)} features")
+                else:
+                    log_message(f"Insufficient aligned data for {pair}: {min_len} samples")
+                
+                time.sleep(0.5)  # Rate limiting
+                
+            except Exception as e:
+                log_message(f"Error processing {pair} for training: {e}")
+                continue
+        
+        if not all_features:
+            log_message("No training data collected")
+            return None
+        
+        # Combine all features and labels
+        X = pd.concat(all_features, ignore_index=True)
+        y = pd.concat(all_labels, ignore_index=True)
+        
+        log_message(f"Total training samples: {len(X)}")
+        log_message(f"Total features: {len(X.columns)}")
+        log_message(f"Label distribution: {y.value_counts().to_dict()}")
+        log_message(f"Feature names: {list(X.columns)[:20]}...")  # Log first 20 features
+        
+        # Train ensemble models
+        try:
+            models = train_ensemble_models(X, y)
+            if models:
+                log_message("Ensemble models trained successfully")
+                return models
+            else:
+                log_message("Ensemble training failed, falling back to single model")
+                return train_ml_model(X, y)
+        except Exception as e:
+            log_message(f"Ensemble training failed: {e}, falling back to single model")
+            return train_ml_model(X, y)
+        
+    except Exception as e:
+        log_message(f"Training workflow error: {e}")
+        return None
+
+def predict_with_ml(df, model=None):
+    """Generate ML predictions"""
+    if model is None and os.path.exists('signal_model.ubj'):
+        model = xgb.Booster()
+        model.load_model('signal_model.ubj')
+    
+    if model:
+        features = prepare_ml_features(df)
+        if not features.empty:
+            dmatrix = xgb.DMatrix(features)
+            return (model.predict(dmatrix)[-1] > 0.5)  # Return latest prediction
+    return None
+
+def calculate_base_signal(df):
+    """Calculate base trading signal without ML"""
+    # Get the most recent values only
+    latest = df.iloc[-1]
+    
+    # Enhanced signal confirmation with multiple indicators
+    bullish = (
+        (latest['close'] < latest['Lower Band']) and
+        (latest['MACD Histogram'] < 0) and
+        (latest['close'] < latest['VWAP']) and
+        (latest['close'] > latest['senkou_span_a']) and 
+        (latest['close'] > latest['senkou_span_b'])
+    )
+    
+    bearish = (
+        (latest['close'] > latest['Upper Band']) and
+        (latest['MACD Histogram'] > 0) and
+        (latest['close'] > latest['VWAP']) and
+        (latest['close'] < latest['senkou_span_a']) and
+        (latest['close'] < latest['senkou_span_b'])
+    )
+
+    if bullish:
+        return 'Long'
+    elif bearish:
+        return 'Short'
+    return 'Neutral'
+
+def calculate_kicko_indicator(df, use_ml=True):
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        log_message("Invalid DataFrame input to calculate_kicko_indicator")
+        return df  # Return the DataFrame as is
+    
+    try:
+        df = calculate_bollinger_bands(df)
+        df = calculate_vwap(df)
+        df = calculate_macd(df)
+        df = calculate_atr(df)
+        df = calculate_ichimoku(df)
+        df = detect_candlestick_patterns(df)
+    except Exception as e:
+        log_message(f"Technical indicator calculation failed: {e}")
+        return df
+    
+    # Enhanced signal confirmation with multiple indicators
+    bullish_conditions = (
+        (df['close'] < df['Lower Band']) &
+        (df['MACD Histogram'] < 0) &
+        (df['close'] < df['VWAP']) &
+        (df['close'] > df['senkou_span_a']) & 
+        (df['close'] > df['senkou_span_b'])
+    )
+    
+    bearish_conditions = (
+        (df['close'] > df['Upper Band']) &
+        (df['MACD Histogram'] > 0) &
+        (df['close'] > df['VWAP']) &
+        (df['close'] < df['senkou_span_a']) &
+        (df['close'] < df['senkou_span_b'])
+    )
+
+    # Create signal and position size data efficiently
+    signal_data = {
+        'Position_Size': np.where(
+            df['ATR'] > df['ATR'].rolling(14).mean(),
+            0.5,  # Reduce size in high volatility
+            1.0    # Normal size
+        ),
+        'Signal': np.where(
+            bullish_conditions, 'Long',
+            np.where(
+                bearish_conditions, 'Short', 'Neutral'
+            )
+        )
+    }
+    
+    # Add signal columns efficiently using pd.concat
+    signal_df = pd.DataFrame(signal_data, index=df.index)
+    df = pd.concat([df, signal_df], axis=1)
+    
+    # Apply ML enhancement if enabled
+    if use_ml:
+        try:
+            # Get base signal for latest row
+            base_signal = df['Signal'].iloc[-1]
+            
+            if base_signal != 'Neutral':
+                # Try XGBoost first
+                xgb_signal = predict_with_ml(df)
+                if xgb_signal is not None:
+                    ml_signal = 'Long' if xgb_signal else 'Short'
+                    log_message(f"XGBoost prediction: {ml_signal}")
+                    
+                    # Override base signal if ML disagrees
+                    if ml_signal != base_signal:
+                        log_message(f"ML overruled base signal: {base_signal} -> {ml_signal}")
+                        df.loc[df.index[-1], 'Signal'] = ml_signal
+                        
+                # Try Transformer if XGBoost failed
+                elif base_signal != 'Neutral':
+                    transformer_signal = predict_with_transformer(df)
+                    if transformer_signal is not None:
+                        ml_signal = 'Long' if transformer_signal else 'Short'
+                        log_message(f"Transformer prediction: {ml_signal}")
+                        
+                        if ml_signal != base_signal:
+                            log_message(f"Transformer overruled base signal: {base_signal} -> {ml_signal}")
+                            df.loc[df.index[-1], 'Signal'] = ml_signal
+                            
+        except Exception as e:
+            log_message(f"ML prediction error: {e}")
+    
+    return df
+
+def predict_with_transformer(df):
+    """Generate predictions using transformer model"""
+    try:
+        news_text = generate_market_summary(df)
+        inputs = tokenizer(news_text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        with torch.no_grad():
+            outputs = transformer_model(**inputs)
+            logits = outputs.logits
+            if logits.shape[0] > 0 and logits.shape[1] >= 2:
+                return logits.argmax().item() == 1  # Convert to buy/sell signal
+            else:
+                log_message("Invalid transformer output shape")
+                return None
+    except Exception as e:
+        log_message(f"Transformer prediction error: {e}")
+        return None
+
+def log_detailed_analysis(pair, df):
+    """Log comprehensive analysis details for each trading pair"""
+    try:
+        latest = df.iloc[-1]
+        
+        # Basic price information
+        log_message(f"=== DETAILED ANALYSIS FOR {pair} ===")
+        log_message(f"Price Data - Open: {latest['open']:.6f}, High: {latest['high']:.6f}, Low: {latest['low']:.6f}, Close: {latest['close']:.6f}")
+        log_message(f"Volume: {latest['volume']:.2f}")
+        
+        # Technical indicators analysis
+        if 'RSI_14' in df.columns:
+            log_message(f"RSI Analysis - RSI(14): {latest['RSI_14']:.2f}, RSI(21): {latest['RSI_21']:.2f}")
+            rsi_signal = "Oversold" if latest['RSI_14'] < 30 else "Overbought" if latest['RSI_14'] > 70 else "Neutral"
+            log_message(f"RSI Signal: {rsi_signal}")
+        
+        # MACD analysis
+        if 'MACD Line' in df.columns:
+            log_message(f"MACD Analysis - Line: {latest['MACD Line']:.6f}, Signal: {latest['Signal Line']:.6f}, Histogram: {latest['MACD Histogram']:.6f}")
+            macd_trend = "Bullish" if latest['MACD Histogram'] > 0 else "Bearish"
+            log_message(f"MACD Trend: {macd_trend}")
+        
+        # Bollinger Bands analysis
+        if 'Upper Band' in df.columns:
+            bb_range = latest['Upper Band'] - latest['Lower Band']
+            if bb_range > 0:
+                bb_position = (latest['close'] - latest['Lower Band']) / bb_range
+                log_message(f"Bollinger Bands - Upper: {latest['Upper Band']:.6f}, Middle: {latest['SMA']:.6f}, Lower: {latest['Lower Band']:.6f}")
+                log_message(f"BB Position: {bb_position:.3f} (0=Lower, 0.5=Middle, 1=Upper)")
+            else:
+                log_message(f"Bollinger Bands - Upper: {latest['Upper Band']:.6f}, Middle: {latest['SMA']:.6f}, Lower: {latest['Lower Band']:.6f}")
+                log_message("BB Position: Invalid (zero range)")
+            
+            if latest['close'] > latest['Upper Band']:
+                bb_signal = "Above Upper Band (Potential Sell)"
+            elif latest['close'] < latest['Lower Band']:
+                bb_signal = "Below Lower Band (Potential Buy)"
+            else:
+                bb_signal = "Within Bands (Neutral)"
+            log_message(f"BB Signal: {bb_signal}")
+        
+        # VWAP analysis
+        if 'VWAP' in df.columns:
+            vwap_position = "Above" if latest['close'] > latest['VWAP'] else "Below"
+            log_message(f"VWAP Analysis - VWAP: {latest['VWAP']:.6f}, Price vs VWAP: {vwap_position}")
+        
+        # Ichimoku analysis
+        if 'tenkan_sen' in df.columns:
+            log_message(f"Ichimoku - Tenkan: {latest['tenkan_sen']:.6f}, Kijun: {latest['kijun_sen']:.6f}")
+            if not pd.isna(latest['senkou_span_a']) and not pd.isna(latest['senkou_span_b']):
+                cloud_top = max(latest['senkou_span_a'], latest['senkou_span_b'])
+                cloud_bottom = min(latest['senkou_span_a'], latest['senkou_span_b'])
+                if latest['close'] > cloud_top:
+                    cloud_position = "Above Cloud (Bullish)"
+                elif latest['close'] < cloud_bottom:
+                    cloud_position = "Below Cloud (Bearish)"
+                else:
+                    cloud_position = "Inside Cloud (Neutral)"
+                log_message(f"Ichimoku Cloud Position: {cloud_position}")
+        
+        # Advanced momentum indicators
+        if 'STOCH_K' in df.columns:
+            log_message(f"Stochastic - K: {latest['STOCH_K']:.2f}, D: {latest['STOCH_D']:.2f}")
+            stoch_signal = "Oversold" if latest['STOCH_K'] < 20 else "Overbought" if latest['STOCH_K'] > 80 else "Neutral"
+            log_message(f"Stochastic Signal: {stoch_signal}")
+        
+        if 'ADX' in df.columns:
+            log_message(f"ADX Analysis - ADX: {latest['ADX']:.2f}, +DI: {latest['PLUS_DI']:.2f}, -DI: {latest['MINUS_DI']:.2f}")
+            trend_strength = "Strong" if latest['ADX'] > 25 else "Weak"
+            trend_direction = "Bullish" if latest['PLUS_DI'] > latest['MINUS_DI'] else "Bearish"
+            log_message(f"Trend: {trend_strength} {trend_direction}")
+        
+        if 'MFI' in df.columns:
+            log_message(f"Money Flow Index: {latest['MFI']:.2f}")
+            mfi_signal = "Oversold" if latest['MFI'] < 20 else "Overbought" if latest['MFI'] > 80 else "Neutral"
+            log_message(f"MFI Signal: {mfi_signal}")
+        
+        # Volume analysis
+        if 'AD' in df.columns:
+            log_message(f"Volume Indicators - A/D Line: {latest['AD']:.2f}, OBV: {talib.OBV(df['close'].values, df['volume'].values)[-1]:.2f}")
+        
+        # Volatility analysis
+        if 'ATR' in df.columns:
+            log_message(f"Volatility - ATR: {latest['ATR']:.6f}, NATR: {latest['NATR']:.4f}")
+            volatility_level = "High" if latest['ATR'] > df['ATR'].rolling(20).mean().iloc[-1] * 1.5 else "Normal"
+            log_message(f"Volatility Level: {volatility_level}")
+        
+        # Pattern analysis
+        if 'Pattern' in df.columns and latest['Pattern'] != 'None':
+            log_message(f"Candlestick Pattern: {latest['Pattern']} ({latest['Pattern_Type']}) - Strength: {latest['Pattern_Strength']}")
+        
+        # Moving averages analysis
+        if 'SMA_20' in df.columns:
+            ma_analysis = []
+            if latest['close'] > latest['SMA_20']:
+                ma_analysis.append("Above SMA20")
+            if latest['close'] > latest['SMA_50']:
+                ma_analysis.append("Above SMA50")
+            if 'SMA_200' in df.columns and latest['close'] > latest['SMA_200']:
+                ma_analysis.append("Above SMA200")
+            
+            log_message(f"Moving Average Position: {', '.join(ma_analysis) if ma_analysis else 'Below major MAs'}")
+            
+            # Golden/Death cross analysis
+            if 'SMA_50' in df.columns and 'SMA_200' in df.columns:
+                if latest['SMA_50'] > latest['SMA_200']:
+                    cross_status = "Golden Cross (Bullish)"
+                else:
+                    cross_status = "Death Cross (Bearish)"
+                log_message(f"MA Cross Status: {cross_status}")
+        
+        # Support/Resistance levels
+        recent_high = df['high'].rolling(20).max().iloc[-1]
+        recent_low = df['low'].rolling(20).min().iloc[-1]
+        log_message(f"Support/Resistance - 20-period High: {recent_high:.6f}, Low: {recent_low:.6f}")
+        
+        # Price action analysis
+        price_change_1d = ((latest['close'] - df['close'].iloc[-2]) / df['close'].iloc[-2]) * 100 if len(df) > 1 else 0
+        price_change_5d = ((latest['close'] - df['close'].iloc[-6]) / df['close'].iloc[-6]) * 100 if len(df) > 5 else 0
+        log_message(f"Price Changes - 1D: {price_change_1d:.2f}%, 5D: {price_change_5d:.2f}%")
+        
+        # Volume analysis
+        avg_volume = df['volume'].rolling(20).mean().iloc[-1]
+        if avg_volume > 0:
+            volume_ratio = latest['volume'] / avg_volume
+            volume_status = "High" if volume_ratio > 1.5 else "Low" if volume_ratio < 0.5 else "Normal"
+            log_message(f"Volume Analysis - Current: {latest['volume']:.2f}, 20-day Avg: {avg_volume:.2f}, Status: {volume_status}")
+        else:
+            log_message(f"Volume Analysis - Current: {latest['volume']:.2f}, 20-day Avg: Invalid (zero), Status: Unknown")
+        
+        log_message(f"=== END ANALYSIS FOR {pair} ===")
+        
+    except Exception as e:
+        log_message(f"Error in detailed analysis logging for {pair}: {e}")
+
+def generate_market_summary(df):
+    """Generate enhanced text summary of market conditions for transformer"""
+    try:
+        last_row = df.iloc[-1]
+        
+        # Basic price and trend information
+        rsi_value = talib.RSI(df['close'].values)[-1] if len(df) > 14 else 50
+        macd_trend = 'bullish' if last_row['MACD Histogram'] > 0 else 'bearish'
+        price_vs_vwap = 'above' if last_row['close'] > last_row['VWAP'] else 'below'
+        
+        # Bollinger Bands position
+        if last_row['close'] > last_row['Upper Band']:
+            bb_position = 'above upper band'
+        elif last_row['close'] < last_row['Lower Band']:
+            bb_position = 'below lower band'
+        else:
+            bb_position = 'in middle range'
+        
+        # Advanced indicators if available
+        additional_context = ""
+        if 'ADX' in df.columns and not pd.isna(last_row['ADX']):
+            trend_strength = "strong" if last_row['ADX'] > 25 else "weak"
+            additional_context += f" The trend strength is {trend_strength} with ADX at {last_row['ADX']:.1f}."
+        
+        if 'MFI' in df.columns and not pd.isna(last_row['MFI']):
+            mfi_condition = "overbought" if last_row['MFI'] > 80 else "oversold" if last_row['MFI'] < 20 else "neutral"
+            additional_context += f" Money flow is {mfi_condition} at {last_row['MFI']:.1f}."
+        
+        # Pattern information
+        pattern_info = ""
+        if 'Pattern' in df.columns and last_row['Pattern'] != 'None':
+            pattern_info = f" A {last_row['Pattern']} pattern is detected with {last_row['Pattern_Type'].lower()} implications."
+        
+        # Volume context
+        volume_context = ""
+        if len(df) > 20:
+            avg_volume = df['volume'].rolling(20).mean().iloc[-1]
+            volume_ratio = last_row['volume'] / avg_volume
+            if volume_ratio > 1.5:
+                volume_context = " Trading volume is significantly above average."
+            elif volume_ratio < 0.5:
+                volume_context = " Trading volume is below average."
+        
+        summary = (
+            f"The current price is {last_row['close']:.6f}. "
+            f"RSI is at {rsi_value:.1f}. "
+            f"MACD is {macd_trend}. "
+            f"Price is {price_vs_vwap} VWAP. "
+            f"Bollinger Bands show price is {bb_position}."
+            f"{additional_context}"
+            f"{pattern_info}"
+            f"{volume_context}"
+        )
+        
+        return summary
+        
+    except Exception as e:
+        log_message(f"Error generating market summary: {e}")
+        return "Market analysis unavailable due to data processing error."
+
+def validate_api_response(response):
+    """Validate Binance API response structure with detailed checks"""
+    if response is None:
+        log_message("API returned None response")
+        return False
+    if isinstance(response, str):
+        log_message(f"API returned error string: {response}")
+        return False
+    if hasattr(response, 'message'):
+        log_message(f"API returned error object: {response.message}")
+        return False
+    if not isinstance(response, (list, dict)):
+        log_message(f"Unexpected API response type: {type(response)}")
+        return False
+        
+    # Additional validation for dict responses
+    if isinstance(response, dict):
+        if 'error' in response:
+            log_message(f"API returned error dict: {response['error']}")
+            return False
+        if 'data' not in response:
+            log_message("API dict response missing 'data' key")
+            return False
+            
+    return True
+
+def fetch_data(pair, interval='1d', retries=5, timeout=20):
+    """Fetch market data with comprehensive validation"""
+    attempt = 0
+    while attempt < retries:
+        try:
+            rate_limit()
+            response = client.futures_klines(symbol=pair, interval=interval, limit=500)
+            
+            # Log response type for debugging
+            log_message(f"API response type for {pair}: {type(response)}")
+            
+            # Ensure response is a list before processing
+            if not isinstance(response, list):
+                log_message(f"Invalid API response format for {pair}: {response}")
+                return pd.DataFrame()
+            
+            # Validate response structure
+            if not validate_api_response(response):
+                return pd.DataFrame()
+            
+            # Handle all possible error cases
+            if response is None:
+                log_message(f"Empty API response for {pair}")
+                return pd.DataFrame()
+            elif isinstance(response, str):
+                log_message(f"API error string for {pair}: {response}")
+                return pd.DataFrame()
+            elif hasattr(response, 'message'):
+                log_message(f"API error object for {pair}: {response.message}")
+                return pd.DataFrame()
+                
+            # Convert to list if not already
+            klines = []
+            try:
+                if isinstance(response, dict):
+                    if 'data' in response:  # Some Binance responses wrap data
+                        klines = list(response['data'])
+                    else:
+                        raise ValueError("Unexpected dict response format")
+                else:
+                    klines = list(response)
+            except Exception as e:
+                log_message(f"Response conversion error for {pair}: {e}")
+                return pd.DataFrame()
+                
+            # Validate klines structure
+            if not isinstance(klines, list):
+                log_message(f"Klines is not a list for {pair}")
+                return pd.DataFrame()
+            if len(klines) == 0:
+                log_message(f"Empty klines data for {pair}")
+                return pd.DataFrame()
+            if not all(isinstance(k, (list, tuple)) and len(k) >= 6 for k in klines):
+                log_message(f"Invalid klines item format for {pair}")
+                return pd.DataFrame()
+            
+            # Detailed klines validation
+            if not isinstance(klines, list):
+                log_message(f"Klines is not a list for {pair} - type: {type(klines)}")
+                return pd.DataFrame()
+            if len(klines) == 0:
+                log_message(f"Empty klines list for {pair}")
+                return pd.DataFrame()
+            if not all(isinstance(k, (list, tuple)) for k in klines):
+                log_message(f"Klines items not lists/tuples for {pair}")
+                return pd.DataFrame()
+            if not all(len(k) >= 6 for k in klines):
+                log_message(f"Klines items missing required fields for {pair}")
+                return pd.DataFrame()
+                
+            try:
+                df = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time',
+                                                   'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume',
+                                                   'taker_buy_quote_asset_volume', 'ignore'])
+            except Exception as e:
+                log_message(f"DataFrame creation failed for {pair}: {e}")
+                return pd.DataFrame()
+            
+            # Validate DataFrame structure
+            if df.empty:
+                log_message(f"Empty DataFrame for {pair}")
+                return pd.DataFrame()
+                
+            # Convert and validate data types
+            try:
+                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                df.set_index('timestamp', inplace=True)
+                numeric_cols = ['close', 'open', 'high', 'low', 'volume']
+                df[numeric_cols] = df[numeric_cols].astype(float)
+                return df
+            except Exception as e:
+                log_message(f"Data conversion error for {pair}: {e}")
+                return pd.DataFrame()
+                
+        except (ConnectTimeout, MaxRetryError) as e:
+            log_message(f"Attempt {attempt + 1}/{retries} failed to fetch data for {pair} at interval {interval}: {e}")
+            attempt += 1
+            backoff = min(2 ** attempt, 64)
+            log_message(f"Retrying in {backoff} seconds...")
+            time.sleep(backoff)
+        except BinanceAPIException as e:
+            log_message(f"API Error fetching data for {pair} at interval {interval}: {e}")
+            return pd.DataFrame()
+        except Exception as e:
+            log_message(f"Unexpected error fetching data for {pair}: {e}")
+            return pd.DataFrame()
+            
+    log_message(f"Max retries reached for {pair}")
+    return pd.DataFrame()
+
+def fetch_trading_pairs(retries=5, timeout=20):
+    attempt = 0
+    while attempt < retries:
+        try:
+            rate_limit()
+            exchange_info = client.futures_exchange_info()
+            pairs = [symbol['symbol'] for symbol in exchange_info['symbols'] if symbol['quoteAsset'] == 'USDT']
+            return pairs
+        except (ConnectTimeout, MaxRetryError) as e:
+            log_message(f"Attempt {attempt + 1}/{retries} failed to fetch trading pairs: {e}")
+            attempt += 1
+            backoff = min(2 ** attempt, 64)
+            log_message(f"Retrying in {backoff} seconds...")
+            time.sleep(backoff)
+        except BinanceAPIException as e:
+            log_message(f"Error fetching trading pairs: {e}")
+            return []
+        except Exception as e:
+            log_message(f"An unexpected error occurred while fetching trading pairs: {e}")
+            return []
+    return []
+
+def get_precision(pair):
+    try:
+        rate_limit()
+        exchange_info = client.futures_exchange_info()
+        for symbol in exchange_info['symbols']:
+            if symbol['symbol'] == pair:
+                precision = symbol['quotePrecision']
+                return precision
+    except Exception as e:
+        log_message(f"Error fetching precision for {pair}: {e}")
+    return 6
+
+def get_max_leverage(pair):
+    try:
+        rate_limit()
+        max_leverage_info = client.futures_leverage_bracket()
+        for item in max_leverage_info:
+            if item['symbol'] == pair:
+                # Handle different API response structures
+                if isinstance(item['brackets'], list) and len(item['brackets']) > 0:
+                    return min(item['brackets'][0]['initialLeverage'], 50)
+                elif isinstance(item['bracket'], list) and len(item['bracket']) > 0:
+                    return min(item['bracket'][0]['initialLeverage'], 50)
+        return 20
+    except BinanceAPIException as e:
+        log_message(f"API Error fetching max leverage for {pair}: {e}")
+        return 20
+    except Exception as e:
+        log_message(f"Error fetching max leverage for {pair}: {e}")
+        return 20
+
+def set_cross_leverage(pair):
+    try:
+        max_leverage = get_max_leverage(pair)
+        rate_limit()
+        
+        # Directly check permissions for this specific pair
+        try:
+            # First check if we can trade this pair at all
+            exchange_info = client.futures_exchange_info()
+            symbol_info = next((s for s in exchange_info['symbols'] if s['symbol'] == pair), None)
+            if not symbol_info or not symbol_info.get('status') == 'TRADING':
+                log_message(f"Pair {pair} not available for trading")
+                return max_leverage
+                
+            # Initialize all permission variables first
+            can_trade = False
+            can_change_margin = False
+            can_change_leverage = False
+            
+            # Then check account permissions
+            account_info = client.futures_account()
+            can_trade = account_info.get('canTrade', False)
+            can_change_margin = account_info.get('canChangeMarginType', False)
+            can_change_leverage = account_info.get('canTrade', False)  # Using canTrade as proxy
+            
+            # Log all permission states
+            log_message(f"Permissions for {pair}: Trade={can_trade}, Margin={can_change_margin}, Leverage={can_change_leverage}")
+            
+            if not can_trade:
+                log_message(f"Cannot trade {pair} - skipping")
+                log_message(f"API key lacks specific permissions for {pair}: "
+                          f"can_change_margin={can_change_margin}, "
+                          f"can_change_leverage={can_change_leverage}")
+                return max_leverage
+        except BinanceAPIException as e:
+            log_message(f"Detailed API key verification failed for {pair}: {e}")
+            return max_leverage
+            
+        # Try to set margin type with better error handling
+        try:
+            client.futures_change_margin_type(symbol=pair, marginType='CROSSED')
+        except BinanceAPIException as e:
+            if 'No need to change margin type' not in str(e):
+                if 'permissions' in str(e).lower():
+                    log_message(f"Skipping margin type change for {pair} (permission denied)")
+                else:
+                    log_message(f"Margin type change failed for {pair}: {e}")
+            return max_leverage  # Still return max leverage even if change failed
+            
+        # Try to set leverage (skip if permission denied)
+        try:
+            client.futures_change_leverage(symbol=pair, leverage=max_leverage)
+            log_message(f"Set cross leverage x{max_leverage} for {pair}")
+        except BinanceAPIException as e:
+            if 'permissions' in str(e).lower():
+                log_message(f"Skipping leverage change for {pair} (permission denied)")
+            else:
+                log_message(f"Leverage change failed for {pair}: {e}")
+                
+        return max_leverage
+            
+    except Exception as e:
+        log_message(f"Unexpected error setting leverage for {pair}: {e}")
+        return 20  # Fallback to default leverage
+
+# Global variable to track API permissions
+API_PERMISSIONS = {
+    'can_change_margin': None,
+    'can_change_leverage': None,
+    'last_checked': 0
+}
+
+async def process_pair(pair, recommendations_cache, timeframe='15m'):
+    global API_PERMISSIONS
+    
+    log_message(f"Starting processing for pair: {pair}")
+    
+    # Check API permissions once per hour
+    current_time = time.time()
+    if current_time - API_PERMISSIONS['last_checked'] > 3600:
+        try:
+            account_info = client.futures_account()
+            API_PERMISSIONS['can_change_margin'] = account_info.get('canTrade', False)
+            API_PERMISSIONS['can_change_leverage'] = account_info.get('canTrade', False)
+            API_PERMISSIONS['last_checked'] = current_time
+            log_message(f"Updated API permissions - Margin: {API_PERMISSIONS['can_change_margin']}, Leverage: {API_PERMISSIONS['can_change_leverage']}")
+        except Exception as e:
+            log_message(f"Error checking API permissions: {e}")
+            # Assume no permissions if check fails
+            API_PERMISSIONS['can_change_margin'] = False
+            API_PERMISSIONS['can_change_leverage'] = False
+
+    # Fetch data for multiple timeframes with validation
+    df_15m = fetch_data(pair, '15m')
+    time.sleep(0.1)  # Small delay between fetches
+    df_1h = fetch_data(pair, '1h')
+    time.sleep(0.1)
+    df_4h = fetch_data(pair, '4h')
+    
+    # Validate we got proper DataFrames
+    for df, tf in zip([df_15m, df_1h, df_4h], ['15m', '1h', '4h']):
+        if not isinstance(df, pd.DataFrame):
+            log_message(f"Invalid data type for {pair} at {tf}: {type(df)}")
+            return
+        if df.empty:
+            log_message(f"Empty DataFrame for {pair} at {tf}")
+            return
+        if not all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']):
+            log_message(f"Missing required columns for {pair} at {tf}")
+            return
+            
+    try:
+        # Convert all numeric columns to float
+        for df in [df_15m, df_1h, df_4h]:
+            numeric_cols = ['open', 'high', 'low', 'close', 'volume']
+            df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+            if df[numeric_cols].isnull().values.any():
+                log_message(f"Invalid numeric data for {pair}")
+                return
+    except Exception as e:
+        log_message(f"Data conversion failed for {pair}: {e}")
+        return
+        
+    try:
+        adjusted_leverage = set_cross_leverage(pair)
+        df = fetch_data(pair, '1d')
+        
+        # Validate DataFrame structure before processing
+        if not isinstance(df, pd.DataFrame):
+            log_message(f"Invalid data type returned for {pair}: {type(df)}")
+            return
+        if df.empty:
+            log_message(f"Empty DataFrame returned for {pair}")
+            return
+        if not all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']):
+            log_message(f"Missing required columns in DataFrame for {pair}")
+            return
+            
+        log_message(f"Starting comprehensive analysis for {pair}")
+        try:
+            # Calculate basic indicators
+            df = calculate_bollinger_bands(df)
+            log_message(f"Bollinger Bands calculated for {pair}")
+            df = calculate_vwap(df)
+            log_message(f"VWAP calculated for {pair}")
+            df = calculate_macd(df) 
+            log_message(f"MACD calculated for {pair}")
+            df = calculate_atr(df)
+            log_message(f"ATR calculated for {pair}")
+            df = calculate_ichimoku(df)
+            log_message(f"Ichimoku calculated for {pair}")
+            
+            # Calculate advanced indicators
+            df = calculate_advanced_indicators(df)
+            log_message(f"Advanced technical indicators calculated for {pair}")
+            
+            # Detect candlestick patterns
+            df = detect_candlestick_patterns(df)
+            log_message(f"Candlestick patterns detected for {pair}")
+            
+            # Log detailed analysis for this pair
+            log_detailed_analysis(pair, df)
+            
+            # Generate final signal
+            df = calculate_kicko_indicator(df)
+            log_message(f"Final signal generated for {pair}")
+        except Exception as e:
+            log_message(f"Analysis failed for {pair}: {str(e)}")
+            return
+            
+        # Verify DataFrame structure and Signal column
+        if 'Signal' not in df.columns:
+            log_message("Signal column missing from DataFrame")
+            return
+            
+        # Safely get signal and validate type
+        try:
+            signal_value = df.iloc[-1]['Signal']
+            if not isinstance(signal_value, str):
+                log_message(f"Signal value is not string: {type(signal_value)}")
+                return
+                
+            latest_signal = signal_value.strip().capitalize()
+            if latest_signal not in ['Long', 'Short', 'Neutral']:
+                log_message(f"Invalid signal value: {latest_signal}")
+                return
+        except Exception as e:
+            log_message(f"Error processing signal: {e}")
+            return
+
+        # Validate and convert numeric values safely
+        try:
+            if not isinstance(df['close'].iloc[-1], (int, float)):
+                log_message(f"Invalid close price type: {type(df['close'].iloc[-1])}")
+                return
+            current_price = float(df['close'].iloc[-1])
+            
+            if 'ATR' not in df.columns or not isinstance(df['ATR'].iloc[-1], (int, float)):
+                log_message("Missing or invalid ATR data")
+                return
+            atr = float(df['ATR'].iloc[-1])
+            
+            precision = int(get_precision(pair))
+            if precision <= 0:
+                log_message(f"Invalid precision: {precision}")
+                precision = 6
+        except Exception as e:
+            log_message(f"Error processing numeric data: {e}")
+            return
+
+        log_message(f"Processing {pair}: Latest Signal - {latest_signal}, Current Price - {current_price:.{precision}f}, ATR - {atr:.{precision}f}")
+
+        if latest_signal == 'Neutral':
+            log_message(f"No actionable signal for {pair} as the latest signal is Neutral.")
+            return
+
+        if atr <= 0:
+            log_message(f"ATR value is non-positive for {pair}. Skipping processing.")
+            return
+
+        if latest_signal == 'Long':
+            multiplier = 0.5
+            take_profit_1 = round(current_price + multiplier * atr, precision)
+            take_profit_2 = round(current_price + 2 * multiplier * atr, precision)
+            take_profit_3 = round(current_price + 3 * multiplier * atr, precision)
+            take_profit_4 = round(current_price + 4 * multiplier * atr, precision)
+            take_profit_5 = round(current_price + 5 * multiplier * atr, precision)
+            stop_loss = round(current_price * 0.97, precision)
+            trail_start_price = take_profit_1
+            trailing_delta = round(atr, precision)
+
+        elif latest_signal == 'Short':
+            multiplier = -0.5
+            take_profit_1 = round(current_price + multiplier * atr, precision)
+            take_profit_2 = round(current_price + 2 * multiplier * atr, precision)
+            take_profit_3 = round(current_price + 3 * multiplier * atr, precision)
+            take_profit_4 = round(current_price + 4 * multiplier * atr, precision)
+            take_profit_5 = round(current_price + 5 * multiplier * atr, precision)
+            stop_loss = round(current_price * 1.03, precision)
+            trail_start_price = take_profit_1
+            trailing_delta = round(atr, precision)
+
+        log_message(f"Pair: {pair} calculated targets and stop loss: T1 {take_profit_1}, T2 {take_profit_2}, T3 {take_profit_3}, T4 {take_profit_4}, T5 {take_profit_5}, SL {stop_loss}")
+
+        if abs(stop_loss - current_price) > 10 * atr:
+            log_message(f"Stop loss for {pair} is too far from the current price, skipping: SL {stop_loss}.")
+            return
+
+        if pair not in recommendations_cache or recommendations_cache[pair] != latest_signal:
+            log_message(f"New signal detected for {pair}: {latest_signal}")
+            log_message(f"Price: {current_price:.{precision}f} | ATR: {atr:.{precision}f}")
+            log_message(f"Targets: {take_profit_1}, {take_profit_2}, {take_profit_3}, {take_profit_4}, {take_profit_5}")
+            log_message(f"Stop Loss: {stop_loss} | Leverage: x{adjusted_leverage}")
+            
+            recommendations_cache[pair] = latest_signal
+            trailing_configuration = f"TSL: start after {trail_start_price} with {trailing_delta}"
+            pattern_info = f"\n🔹 **Pattern**: {df['Pattern'].iloc[-1]}" if df['Pattern'].iloc[-1] != 'None' else ""
+            binance_futures_signal = (
+                f"⭐️ NEW Binance Futures {latest_signal} SIGNAL ⭐️\n"
+                f"🔹 **Pair**: {pair}\n"
+                f"{pattern_info}\n"
+                f"🔸 **Entry**: {current_price:.{precision}f}\n"
+                f"📊 **Targets**:\n"
+                f"1️⃣ {take_profit_1}\n"
+                f"2️⃣ {take_profit_2}\n"
+                f"3️⃣ {take_profit_3}\n"
+                f"4️⃣ {take_profit_4}\n"
+                f"5️⃣ {take_profit_5}\n"
+                f"⚠️ **Stop Loss**: {stop_loss}\n"
+                f"📈 **Leverage**: x{adjusted_leverage}\n"
+                f"🛡️ **Margin Mode**: Cross\n"
+                + trailing_configuration
+            )
+
+            await send_telegram_message(message=binance_futures_signal)
+            log_message(f"Signal sent for {pair}: {binance_futures_signal}")
+
+    except Exception as e:
+        log_message(f"Error processing pair {pair}: {e}")
+        error_msg = f"Error processing pair {pair}: {e}"
+        log_message(error_msg)
+        # Don't try to send error notifications to avoid recursive errors
+
+def clear_console():
+    if 'TERM' in os.environ:
+        os.system('cls' if os.name == 'nt' else 'clear')
+    else:
+        log_message("Console clear skipped because TERM environment variable is not set.")
+
+async def main_async():
+    recommendations_cache = {}
+    startup_message = "Binance Hunter Bot has started and running!"
+    await send_telegram_message(message=startup_message)
+    log_message(startup_message)
+    
+    # Check if model needs training on startup
+    if should_retrain_model():
+        log_message("Model training required - starting training process...")
+        await send_telegram_message("🤖 Starting ML model training...")
+        
+        try:
+            model = train_model_with_historical_data()
+            if model:
+                await send_telegram_message("✅ ML model training completed successfully!")
+                log_message("Model training completed successfully")
+            else:
+                await send_telegram_message("⚠️ ML model training failed - continuing with technical analysis only")
+                log_message("Model training failed")
+        except Exception as e:
+            error_msg = f"Model training error: {e}"
+            log_message(error_msg)
+            await send_telegram_message(f"⚠️ ML training error: {str(e)[:100]}...")
+    else:
+        log_message("Existing model found - skipping training")
+        await send_telegram_message("🤖 Using existing ML model")
+    
+    # Status tracking
+    last_status_time = time.time()
+    last_training_time = time.time()
+    processed_count = 0
+    error_count = 0
+
+    while True:
+        cycle_start = time.time()
+        try:
+            clear_console()
+            
+            # Periodic model retraining every 24 hours
+            current_time = time.time()
+            if current_time - last_training_time >= 86400:  # 24 hours
+                log_message("Scheduled model retraining...")
+                await send_telegram_message("🔄 Retraining ML model with latest data...")
+                
+                try:
+                    model = train_model_with_historical_data()
+                    if model:
+                        await send_telegram_message("✅ Model retrained successfully!")
+                        log_message("Model retrained successfully")
+                    else:
+                        log_message("Model retraining failed")
+                    last_training_time = current_time
+                except Exception as e:
+                    log_message(f"Model retraining error: {e}")
+            
+            # Periodic status report every 6 hours
+            if current_time - last_status_time >= 21600:  # 6 hours
+                status_msg = (f"Bot Status Report:\n"
+                            f"Running for: {timedelta(seconds=current_time - last_status_time)}\n"
+                            f"Pairs processed: {processed_count}\n"
+                            f"Errors encountered: {error_count}\n"
+                            f"ML Model: {'Active' if os.path.exists('signal_model.ubj') else 'Not Available'}")
+                await send_telegram_message(status_msg)
+                last_status_time = current_time
+                processed_count = 0
+                error_count = 0
+
+            trading_pairs = fetch_trading_pairs()
+            log_message(f"Fetched {len(trading_pairs)} trading pairs")
+            
+            if not trading_pairs:
+                log_message("No trading pairs available.")
+                time.sleep(60)  # Short sleep before retry
+                continue
+
+            # Process pairs with rate limiting
+            for i, pair in enumerate(trading_pairs):
+                try:
+                    await process_pair(pair, recommendations_cache)
+                    processed_count += 1
+                    
+                    # Add small delay between pairs to avoid rate limits
+                    if i < len(trading_pairs) - 1:
+                        time.sleep(1)
+                        
+                except Exception as e:
+                    error_msg = f"Error processing pair {pair}: {str(e)[:200]}"
+                    log_message(error_msg)
+                    error_count += 1
+                    
+                    # For API errors, wait longer before continuing
+                    if isinstance(e, BinanceAPIException):
+                        time.sleep(10)
+
+        except Exception as e:
+            error_msg = f"Main loop error: {str(e)[:200]}"
+            log_message(error_msg)
+            error_count += 1
+            
+            # Critical error - wait before restarting loop
+            time.sleep(30)
+
+        # Calculate precise sleep time to maintain 10-minute intervals
+        cycle_time = time.time() - cycle_start
+        sleep_time = max(0, 600 - cycle_time)  # 10 minutes minus processing time
+        time.sleep(sleep_time)
+
+if __name__ == "__main__":
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(main_async())
+    finally:
+        loop.close()

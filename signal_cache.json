@@ -1,0 +1,380 @@
+{
+  "LEVERUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773607387.1713393,
+    "price": 0.0001125,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "LEVERUSDT_1773607387.1713393",
+    "atr": 2.7209270179444495e-11,
+    "leverage": 24,
+    "targets": [
+      0.00010744,
+      0.00011014,
+      0.00010896,
+      0.00010777,
+      0.00010699
+    ],
+    "stop_loss": 0.0001125,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "TROYUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773607403.272001,
+    "price": 0.000187,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "TROYUSDT_1773607403.272001",
+    "atr": 2.3691133686277115e-15,
+    "leverage": 24,
+    "targets": [
+      0.00017858,
+      0.00018307,
+      0.00018111,
+      0.00017915,
+      0.00017784
+    ],
+    "stop_loss": 0.000187,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "COSUSDT": {
+    "signal": "Short",
+    "timestamp": 1773607600.3194423,
+    "price": 0.001805,
+    "confidence": 0.27999999999999997,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "COSUSDT_1773607600.3194423",
+    "atr": 0.00024595095213682076,
+    "leverage": 12,
+    "targets": [
+      0.00172377,
+      0.00176709,
+      0.00174814,
+      0.00172919,
+      0.00171656
+    ],
+    "stop_loss": 0.0022969,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "1000SATSUSDT": {
+    "signal": "Short",
+    "timestamp": 1773608383.7701886,
+    "price": 1.2e-05,
+    "confidence": 0.27999999999999997,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "1000SATSUSDT_1773608383.7701886",
+    "atr": 1.0867298095491617e-06,
+    "leverage": 20,
+    "targets": [
+      1.146e-05,
+      1.175e-05,
+      1.162e-05,
+      1.15e-05,
+      1.141e-05
+    ],
+    "stop_loss": 1.417e-05,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "LINAUSDT": {
+    "signal": "Short",
+    "timestamp": 1773608407.8610482,
+    "price": 0.000742,
+    "confidence": 0.27999999999999997,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "LINAUSDT_1773608407.8610482",
+    "atr": 1.2425601740358499e-15,
+    "leverage": 24,
+    "targets": [
+      0.00070861,
+      0.00072642,
+      0.00071863,
+      0.00071084,
+      0.00070564
+    ],
+    "stop_loss": 0.000742,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "XANUSDT": {
+    "signal": "Short",
+    "timestamp": 1773607721.8785849,
+    "price": 0.010956,
+    "confidence": 0.27999999999999997,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "XANUSDT_1773607721.8785849",
+    "atr": 0.0010491040810635844,
+    "leverage": 12,
+    "targets": [
+      0.01046298,
+      0.01072592,
+      0.01061089,
+      0.01049585,
+      0.01041916
+    ],
+    "stop_loss": 0.01305421,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "AMBUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773607754.4827147,
+    "price": 0.001188,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "AMBUSDT_1773607754.4827147",
+    "atr": 2.6264357459886414e-16,
+    "leverage": 24,
+    "targets": [
+      0.00113454,
+      0.00116305,
+      0.00115058,
+      0.0011381,
+      0.00112979
+    ],
+    "stop_loss": 0.001188,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "RVVUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773607832.3191147,
+    "price": 0.000507,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "RVVUSDT_1773607832.3191147",
+    "atr": 6.276078117970935e-05,
+    "leverage": 24,
+    "targets": [
+      0.00048418,
+      0.00049635,
+      0.00049103,
+      0.00048571,
+      0.00048216
+    ],
+    "stop_loss": 0.00063252,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "EPTUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773607848.4943101,
+    "price": 0.00167,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "EPTUSDT_1773607848.4943101",
+    "atr": 1.350738493573756e-05,
+    "leverage": 24,
+    "targets": [
+      0.00159485,
+      0.00163493,
+      0.00161739,
+      0.00159986,
+      0.00158817
+    ],
+    "stop_loss": 0.00169701,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "PUMPUSDT": {
+    "signal": "Short",
+    "timestamp": 1773607866.3189185,
+    "price": 0.001951,
+    "confidence": 0.27999999999999997,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "PUMPUSDT_1773607866.3189185",
+    "atr": 0.00017525431485859507,
+    "leverage": 20,
+    "targets": [
+      0.00186321,
+      0.00191003,
+      0.00188954,
+      0.00186906,
+      0.0018554
+    ],
+    "stop_loss": 0.00230151,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "PIXELUSDT": {
+    "signal": "Short",
+    "timestamp": 1773607932.087311,
+    "price": 0.011814,
+    "confidence": 0.33599999999999997,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "PIXELUSDT_1773607932.087311",
+    "atr": 0.0020452096298951747,
+    "leverage": 12,
+    "targets": [
+      0.01128237,
+      0.01156591,
+      0.01144186,
+      0.01131781,
+      0.01123511
+    ],
+    "stop_loss": 0.01590442,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "REEFUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773607997.2146106,
+    "price": 0.00088,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "REEFUSDT_1773607997.2146106",
+    "atr": 5.2349499184047154e-18,
+    "leverage": 24,
+    "targets": [
+      0.0008404,
+      0.00086152,
+      0.00085228,
+      0.00084304,
+      0.00083688
+    ],
+    "stop_loss": 0.00088,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "COMMONUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773608060.4427652,
+    "price": 0.00111,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "COMMONUSDT_1773608060.4427652",
+    "atr": 1.530328713147459e-05,
+    "leverage": 24,
+    "targets": [
+      0.00106005,
+      0.00108669,
+      0.00107504,
+      0.00106338,
+      0.00105561
+    ],
+    "stop_loss": 0.00114061,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "KEYUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773608076.693149,
+    "price": 0.0025177,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "KEYUSDT_1773608076.693149",
+    "atr": 4.426990917823708e-19,
+    "leverage": 24,
+    "targets": [
+      0.0024044,
+      0.00246483,
+      0.00243839,
+      0.00241196,
+      0.00239433
+    ],
+    "stop_loss": 0.0025177,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "NEIROETHUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773608110.6196544,
+    "price": 0.00863,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "NEIROETHUSDT_1773608110.6196544",
+    "atr": 3.3628679942334844e-08,
+    "leverage": 24,
+    "targets": [
+      0.00824165,
+      0.00844877,
+      0.00835815,
+      0.00826754,
+      0.00820713
+    ],
+    "stop_loss": 0.00863007,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "YALAUSDT": {
+    "signal": "SELL",
+    "timestamp": 1773608141.247693,
+    "price": 0.01443,
+    "confidence": 0.5599999999999999,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "YALAUSDT_1773608141.247693",
+    "atr": 0.0003003461364330949,
+    "leverage": 24,
+    "targets": [
+      0.01378065,
+      0.01412697,
+      0.01397545,
+      0.01382394,
+      0.01372293
+    ],
+    "stop_loss": 0.01503069,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "BANANAS31USDT": {
+    "signal": "Short",
+    "timestamp": 1773608158.6553752,
+    "price": 0.009769,
+    "confidence": 0.27999999999999997,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "BANANAS31USDT_1773608158.6553752",
+    "atr": 0.0011484691425318603,
+    "leverage": 12,
+    "targets": [
+      0.0093294,
+      0.00956385,
+      0.00946128,
+      0.0093587,
+      0.00929032
+    ],
+    "stop_loss": 0.01206594,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  },
+  "HMSTRUSDT": {
+    "signal": "Short",
+    "timestamp": 1773608191.8802364,
+    "price": 0.0001648,
+    "confidence": 0.27999999999999997,
+    "normalized_signal": "SHORT",
+    "performance_tracked": false,
+    "entry_id": "HMSTRUSDT_1773608191.8802364",
+    "atr": 1.040955841496808e-05,
+    "leverage": 20,
+    "targets": [
+      0.00015739,
+      0.00016134,
+      0.00015961,
+      0.00015788,
+      0.00015672
+    ],
+    "stop_loss": 0.00018562,
+    "precision": 8,
+    "cache_reason": "Enhanced cache miss"
+  }
+}

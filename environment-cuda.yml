@@ -1,0 +1,65 @@
+name: binance-hunter-cuda
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  # Python version
+  - python=3.11
+
+  # Core Trading and Data Processing
+  - pandas>=1.5.0
+  - numpy>=1.21.0
+  - scipy>=1.9.0
+
+  # Machine Learning - Core
+  - scikit-learn>=1.3.0
+  - xgboost>=1.7.0
+  - joblib>=1.3.0
+
+  # CUDA-Accelerated PyTorch
+  - pytorch>=2.1.0
+  - torchvision>=0.16.0
+  - torchaudio>=2.1.0
+  - pytorch-cuda=11.8
+
+  # CUDA Tools
+  - cudatoolkit=11.8
+  - numba>=0.58.0
+
+  # Development Tools
+  - tqdm>=4.64.0
+
+  # Environment Management
+  - python-dotenv>=1.0.0
+
+  # Async Operations
+  - aiohttp>=3.8.0
+
+  # pip dependencies
+  - pip
+  - pip:
+    # Trading APIs
+    - python-binance>=1.0.19
+    
+    # Technical Analysis
+    - TA-Lib>=0.4.28
+    
+    # Telegram Bot
+    - python-telegram-bot>=20.7
+    
+    # CUDA-accelerated ML
+    - lightgbm>=4.1.0
+    - catboost>=1.2.2
+    
+    # Transformers with CUDA support
+    - transformers>=4.36.2
+    
+    # RAPIDS (GPU-accelerated data science)
+    - cudf-cu11>=23.12.0
+    - cuml-cu11>=23.12.0
+    - cugraph-cu11>=23.12.0
+    
+    # Additional CUDA tools
+    - cupy-cuda11x>=12.3.0
