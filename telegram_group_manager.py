@@ -47,16 +47,16 @@ class TelegramGroupManager:
                     'username': admin.user.username,
                     'first_name': admin.user.first_name,
                     'last_name': admin.user.last_name,
-                    'is_anonymous': admin.is_anonymous,
+                    'is_anonymous': getattr(admin, 'is_anonymous', False),
                     'status': admin.status,
-                    'can_be_edited': admin.can_be_edited,
-                    'can_manage_chat': admin.can_manage_chat,
-                    'can_change_info': admin.can_change_info,
-                    'can_delete_messages': admin.can_delete_messages,
-                    'can_invite_users': admin.can_invite_users,
-                    'can_restrict_members': admin.can_restrict_members,
-                    'can_pin_messages': admin.can_pin_messages,
-                    'can_promote_members': admin.can_promote_members,
+                    'can_be_edited': getattr(admin, 'can_be_edited', False),
+                    'can_manage_chat': getattr(admin, 'can_manage_chat', False),
+                    'can_change_info': getattr(admin, 'can_change_info', False),
+                    'can_delete_messages': getattr(admin, 'can_delete_messages', False),
+                    'can_invite_users': getattr(admin, 'can_invite_users', False),
+                    'can_restrict_members': getattr(admin, 'can_restrict_members', False),
+                    'can_pin_messages': getattr(admin, 'can_pin_messages', False),
+                    'can_promote_members': getattr(admin, 'can_promote_members', False),
                 }
                 
                 # Add custom title if exists
@@ -66,11 +66,11 @@ class TelegramGroupManager:
                 admin_list.append(admin_info)
             
             log_message(f"Retrieved {len(admin_list)} administrators for chat {chat_id}")
-            return admin_list
+            return {"success": True, "administrators": admin_list, "count": len(admin_list)}
             
         except Exception as e:
             log_message(f"Error getting administrators: {e}")
-            return {"error": str(e)}
+            return {"success": False, "error": str(e), "administrators": []}
     
     async def get_chat_member(self, chat_id: str, user_id: int, use_ops_bot: bool = False) -> Dict[str, Any]:
         """
@@ -109,7 +109,7 @@ class TelegramGroupManager:
             if hasattr(member, 'can_delete_messages'):
                 member_info['can_delete_messages'] = member.can_delete_messages
             if hasattr(member, 'can_invite_users'):
-                member_info['can_invite_users'] = member.can_invite_messages
+                member_info['can_invite_users'] = member.can_invite_users
             if hasattr(member, 'can_restrict_members'):
                 member_info['can_restrict_members'] = member.can_restrict_members
             if hasattr(member, 'can_pin_messages'):

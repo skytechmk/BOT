@@ -20,7 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 
-# Environment
+# Environment & secrets
 .env
 .venv
 env/
@@ -28,6 +28,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+config.json
+secrets.json
+emergency_token_config.json
 
 # IDE
 .vscode/
@@ -45,15 +48,27 @@ Thumbs.db
 debug_log*.txt
 bot_output.log
 
-# Models and Data
+# Models and data files (large binaries)
 *.joblib
 *.pkl
 *.h5
 *.model
+*.ubj
+signal_cache.db
+signal_registry.json
+open_signals.json
+ensemble_models.joblib
+signal_model.ubj
 
 # Cache
 cache/
 *.cache
+institutional_cache/
+historical_data/
+institutional_models/
+institutional_performance/
+ml_models/
+performance_logs/
 
 # Temporary files
 tmp/
@@ -61,19 +76,19 @@ temp/
 *.tmp
 *.temp
 
-# Config files with sensitive data
-config.json
-secrets.json
-emergency_token_config.json
+# Large installers (should never be in git)
+Miniforge3-Linux-x86_64.sh
+cuda_12.2.0_535.54.03_linux.run
+*.run
+*.deb
 
 # Rust build artifacts
 target/
 Cargo.lock
 
-# CUDA files
-*.run
-*.deb
+# Backup files
+*.bak
 
-# Audit files
+# Audit artifacts
 AUDIT_*.txt
 audit_report_*.md

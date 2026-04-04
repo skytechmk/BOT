@@ -1106,97 +1106,65 @@ class MCPBridge:
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)}, indent=2)
 
+    @staticmethod
+    def _run_async(coro):
+        """Safely run an async coroutine from sync context.
+        
+        Handles the 'Event loop is closed' error by always creating
+        a fresh loop when needed, without polluting the global state.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("closed")
+            if loop.is_running():
+                # We're inside an already-running loop (e.g. Jupyter, nested call).
+                # Spin up a background thread to run the coroutine.
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    future = pool.submit(asyncio.run, coro)
+                    return future.result(timeout=60)
+            else:
+                return loop.run_until_complete(coro)
+        except RuntimeError:
+            # No loop or loop closed – create a brand-new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(coro)
+            finally:
+                loop.close()
+
+    # Sync tools (no event loop needed)
+    _SYNC_TOOLS = {
+        "read_file", "edit_file", "get_open_signals", "get_market_context",
+        "cancel_trade_signal", "quick_security_scan", "full_code_audit",
+        "analyze_specific_file", "get_audit_recommendations", "save_audit_report",
+    }
+
     @classmethod
     def execute_tool(cls, name, args):
         """Dynamic tool execution router"""
         log_message(f"AI Tool Call: {name}({args})")
         
-        if name == "read_file":
-            return cls.read_file(**args)
-        elif name == "edit_file":
-            return cls.edit_file(**args)
-        elif name == "get_open_signals":
-            return cls.get_open_signals()
-        elif name == "get_market_context":
-            return cls.get_market_context(**args)
-        elif name == "cancel_trade_signal":
-            return cls.cancel_trade_signal(**args)
-        elif name == "quick_security_scan":
-            return cls.quick_security_scan()
-        elif name == "full_code_audit":
-            return cls.full_code_audit()
-        elif name == "analyze_specific_file":
-            return cls.analyze_specific_file(**args)
-        elif name == "get_audit_recommendations":
-            return cls.get_audit_recommendations()
-        elif name == "save_audit_report":
-            return cls.save_audit_report(**args)
-        elif name == "get_chat_administrators":
-            return asyncio.run(cls.get_chat_administrators(**args))
-        elif name == "get_chat_member":
-            return asyncio.run(cls.get_chat_member(**args))
-        elif name == "get_chat_member_count":
-            return asyncio.run(cls.get_chat_member_count(**args))
-        elif name == "get_chat_info":
-            return asyncio.run(cls.get_chat_info(**args))
-        elif name == "ban_chat_member":
-            return asyncio.run(cls.ban_chat_member(**args))
-        elif name == "unban_chat_member":
-            return asyncio.run(cls.unban_chat_member(**args))
-        elif name == "restrict_chat_member":
-            return asyncio.run(cls.restrict_chat_member(**args))
-        elif name == "promote_chat_member":
-            return asyncio.run(cls.promote_chat_member(**args))
-        elif name == "demote_chat_member":
-            return asyncio.run(cls.demote_chat_member(**args))
-        elif name == "send_message":
-            return asyncio.run(cls.send_message(**args))
-        elif name == "send_reply":
-            return asyncio.run(cls.send_reply(**args))
-        elif name == "send_inline_keyboard":
-            return asyncio.run(cls.send_inline_keyboard(**args))
-        elif name == "forward_message":
-            return asyncio.run(cls.forward_message(**args))
-        elif name == "edit_message":
-            return asyncio.run(cls.edit_message(**args))
-        elif name == "delete_message":
-            return asyncio.run(cls.delete_message(**args))
-        elif name == "get_chat_history":
-            return asyncio.run(cls.get_chat_history(**args))
-        elif name == "analyze_user_message":
-            return asyncio.run(cls.analyze_user_message(**args))
-        elif name == "start_conversation":
-            return asyncio.run(cls.start_conversation(**args))
-        elif name == "end_conversation":
-            return asyncio.run(cls.end_conversation(**args))
-        elif name == "autonomous_engagement":
-            return asyncio.run(cls.autonomous_engagement(**args))
-        elif name == "initiate_member_conversation":
-            return asyncio.run(cls.initiate_member_conversation(**args))
-        elif name == "respond_to_member":
-            return asyncio.run(cls.respond_to_member(**args))
-        elif name == "tag_random_member":
-            return asyncio.run(cls.tag_random_member(**args))
-        elif name == "tag_multiple_members":
-            return asyncio.run(cls.tag_multiple_members(**args))
-        elif name == "get_ops_member_list":
-            return asyncio.run(cls.get_ops_member_list(**args))
-        elif name == "tag_real_ops_member":
-            return asyncio.run(cls.tag_real_ops_member(**args))
-        elif name == "scan_and_tag_real_members":
-            return asyncio.run(cls.scan_and_tag_real_members(**args))
-        elif name == "fetch_all_ops_members":
-            return asyncio.run(cls.fetch_all_ops_members(**args))
-        elif name == "get_real_members_combined":
-            return asyncio.run(cls.get_real_members_combined(**args))
-        elif name == "search_internet":
-            return asyncio.run(cls.search_internet(**args))
-        elif name == "search_trading_news":
-            return asyncio.run(cls.search_trading_news(**args))
-        elif name == "search_market_data":
-            return asyncio.run(cls.search_market_data(**args))
-        else:
+        # Sync tools — call directly
+        if name in cls._SYNC_TOOLS:
+            method = getattr(cls, name, None)
+            if method:
+                return method(**args) if args else method()
             return f"Error: Tool {name} not implemented."
+
+        # Async tools — look up method and run via _run_async
+        method = getattr(cls, name, None)
+        if method is None:
+            return f"Error: Tool {name} not implemented."
+
+        try:
+            coro = method(**args) if args else method()
+            return cls._run_async(coro)
+        except Exception as e:
+            log_message(f"Error executing tool {name}: {e}")
+            return json.dumps({"success": False, "error": str(e)})
 
 def get_mcp_tools_schema():
     return TOOLS
