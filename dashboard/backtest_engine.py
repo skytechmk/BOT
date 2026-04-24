@@ -546,6 +546,54 @@ def get_backtest(run_id: int) -> Optional[Dict[str, Any]]:
     return d
 
 
+MONTHLY_QUOTAS: Dict[str, int] = {
+    "free":  3,
+    "plus":  3,    # same as free — backtest is a pro+ feature; plus users get free allowance
+    "pro":   10,
+    "ultra": 50,
+}
+
+
+def count_runs_this_month(user_id: int) -> int:
+    """Return the number of completed (non-error) backtest runs the user
+    has started in the current calendar month (UTC)."""
+    import calendar
+    now = time.gmtime()
+    # First second of this month (UTC)
+    month_start = calendar.timegm((now.tm_year, now.tm_mon, 1, 0, 0, 0, 0, 0, 0))
+    c = _bt_conn()
+    try:
+        row = c.execute(
+            "SELECT COUNT(*) FROM backtest_runs "
+            "WHERE user_id=? AND created_at>=? AND status!='error'",
+            (user_id, float(month_start))
+        ).fetchone()
+        return int(row[0]) if row else 0
+    finally:
+        c.close()
+
+
+def check_quota(user_id: int, tier: str) -> Dict[str, Any]:
+    """Return quota status for the given user+tier.
+
+    Shape::
+        {"allowed": True,  "used": 3, "limit": 10, "tier": "pro"}
+        {"allowed": False, "used": 3, "limit": 3,  "tier": "free",
+         "error": "Monthly backtest limit reached (3/3). Resets 1st of next month."}
+    """
+    limit = MONTHLY_QUOTAS.get(tier, MONTHLY_QUOTAS["free"])
+    used  = count_runs_this_month(user_id)
+    if used >= limit:
+        return {
+            "allowed": False, "used": used, "limit": limit, "tier": tier,
+            "error": (
+                f"Monthly backtest limit reached ({used}/{limit}). "
+                f"Resets on the 1st of next month."
+            ),
+        }
+    return {"allowed": True, "used": used, "limit": limit, "tier": tier}
+
+
 def list_backtests(user_id: int, limit: int = 25) -> List[Dict[str, Any]]:
     c = _bt_conn()
     try:

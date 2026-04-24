@@ -89,12 +89,10 @@
       📊 Uses the actual recorded outcome of each signal — the same PnL Aladdin computed at close. Results match what you would have seen following every signal on Binance with the sizing below.
     </p>
 
-    <button type="submit" class="btn btn-primary" style="width:100%;margin-top:10px" id="bt-submit">
+    <div id="bt-quota" style="font-size:11px;color:var(--text-dim);margin-bottom:8px;text-align:center"></div>
+    <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px" id="bt-submit">
       Run backtest
     </button>
-    <p id="bt-hint" style="font-size:11px;color:var(--text-dim);margin:10px 0 0;line-height:1.5">
-      Typical runs (30 d) complete in 2&ndash;5 s. Large windows may take longer.
-    </p>
   </form>
 
   <!-- ── Results ── -->
@@ -138,6 +136,29 @@
             document.getElementById('bt-risk-row').style.display  = fixed ? 'none' : '';
         });
         loadHistory();
+        loadQuota();
+    }
+
+    // ── Quota badge ─────────────────────────────────────────────────
+    function updateQuotaBadge(q) {
+        const el = document.getElementById('bt-quota');
+        if (!el || !q) return;
+        const remaining = q.limit - q.used;
+        const color = remaining === 0 ? 'var(--red)' : remaining <= 2 ? 'var(--yellow, #f59e0b)' : 'var(--text-dim)';
+        el.innerHTML = `<span style="color:${color}">
+            ${remaining} of ${q.limit} backtests remaining this month
+        </span>`;
+        const submit = document.getElementById('bt-submit');
+        if (submit) submit.disabled = remaining === 0;
+    }
+
+    async function loadQuota() {
+        try {
+            const res = await fetch('/api/backtest/list', { headers: authHeaders() });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.quota) updateQuotaBadge(data.quota);
+        } catch (e) { /* ignore */ }
     }
 
     // ── Equity-curve SVG (plain math, no library) ───────────────────
@@ -278,8 +299,19 @@
                 body: JSON.stringify(params),
             });
             const data = await res.json();
+            if (res.status === 429) {
+                const q = data.quota || {};
+                results.innerHTML = `<div style="text-align:center;padding:30px 0">
+                    <p style="color:var(--red);font-size:15px;font-weight:600;margin-bottom:8px">Monthly limit reached</p>
+                    <p style="color:var(--text-dim);font-size:13px">${data.error || ''}</p>
+                    ${ q.limit < 50 ? '<p style="color:var(--text-dim);font-size:12px;margin-top:12px">Upgrade your plan for more backtests per month.</p>' : '' }
+                </div>`;
+                updateQuotaBadge(q);
+                return;
+            }
             if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
             _lastRun = data;
+            if (data.quota) updateQuotaBadge(data.quota);
             renderRun(data);
             loadHistory();
         } catch (e) {

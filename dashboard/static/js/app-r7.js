@@ -99,10 +99,9 @@ function updateUI() {
     // Copy-trading tab (pro+ only)
     const ctNav = document.getElementById('nav-copytrading');
     if (ctNav) ctNav.style.display = isElite ? '' : 'none';
-    // Backtest tab — Pro+ (same gate as copy-trading; both are
-    // serious-trader features)
+    // Backtest tab — visible to ALL tiers (quota enforced server-side)
     const btNav = document.getElementById('nav-backtest');
-    if (btNav) btNav.style.display = isElite ? '' : 'none';
+    if (btNav) btNav.style.display = '';
     const tgBanner = document.getElementById('pro-telegram-banner');
     if (isElite && _user && _user.telegram_invite) {
         tgBanner.classList.add('visible');

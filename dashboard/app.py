@@ -2649,19 +2649,30 @@ async def liq_alerts_stream(request: Request):
 # writes only to backtests.db. No risk to the live pipeline.
 
 @app.post("/api/backtest/run")
-async def api_backtest_run(request: Request, user: dict = Depends(require_tier("pro"))):
-    """Kick off a backtest. Runs synchronously in a worker thread so the
-    caller gets the final stats in a single response — typical run
-    completes in 2-5 s. For very large windows the frontend should show
-    a spinner."""
-    from backtest_engine import run_backtest, get_backtest
+async def api_backtest_run(request: Request, user: dict = Depends(get_current_user)):
+    """Kick off a backtest.
+
+    Monthly quota (all tiers can access):
+        free / plus : 3 runs / month
+        pro         : 10 runs / month
+        ultra       : 50 runs / month
+
+    Runs synchronously in a worker thread — typical completion < 2 s.
+    """
+    if not user:
+        return JSONResponse({"error": "authentication required"}, status_code=401)
+    from backtest_engine import run_backtest, get_backtest, check_quota
+    # Quota check before we touch the DB.
+    tier   = str(user.get("tier", "free"))
+    quota  = await asyncio.to_thread(check_quota, int(user["id"]), tier)
+    if not quota["allowed"]:
+        return JSONResponse({"error": quota["error"], "quota": quota}, status_code=429)
     try:
         params = await request.json()
     except Exception:
         return JSONResponse({"error": "invalid JSON"}, status_code=400)
     if not isinstance(params, dict):
         return JSONResponse({"error": "params must be object"}, status_code=400)
-    # Sanity: require start/end.
     try:
         start = float(params.get("start"))
         end   = float(params.get("end"))
@@ -2674,29 +2685,36 @@ async def api_backtest_run(request: Request, user: dict = Depends(require_tier("
     params["sim_mode"] = "actual"   # always use recorded outcomes; simulate mode removed from UI
     run_id = await asyncio.to_thread(run_backtest, int(user["id"]), params)
     data = await asyncio.to_thread(get_backtest, run_id)
+    if data:
+        data["quota"] = quota   # surface remaining runs to the frontend
     return JSONResponse(data or {"run_id": run_id, "status": "error",
                                   "error": "run disappeared"})
 
 
 @app.get("/api/backtest/{run_id:int}")
-async def api_backtest_get(run_id: int, user: dict = Depends(require_tier("pro"))):
+async def api_backtest_get(run_id: int, user: dict = Depends(get_current_user)):
     """Fetch a full backtest payload (run + stats + every trade)."""
+    if not user:
+        return JSONResponse({"error": "authentication required"}, status_code=401)
     from backtest_engine import get_backtest
     data = await asyncio.to_thread(get_backtest, run_id)
     if not data:
         return JSONResponse({"error": "not found"}, status_code=404)
-    # Authorisation: users can only see their own runs (admins see all).
     if data["user_id"] != user["id"] and not check_is_admin(user):
         return JSONResponse({"error": "not found"}, status_code=404)
     return JSONResponse(data)
 
 
 @app.get("/api/backtest/list")
-async def api_backtest_list(user: dict = Depends(require_tier("pro"))):
-    """The caller's last 25 backtest runs (summary only, no trades)."""
-    from backtest_engine import list_backtests
-    rows = await asyncio.to_thread(list_backtests, int(user["id"]), 25)
-    return JSONResponse({"runs": rows})
+async def api_backtest_list(user: dict = Depends(get_current_user)):
+    """The caller's last 25 runs + current quota status."""
+    if not user:
+        return JSONResponse({"error": "authentication required"}, status_code=401)
+    from backtest_engine import list_backtests, check_quota
+    tier  = str(user.get("tier", "free"))
+    rows  = await asyncio.to_thread(list_backtests, int(user["id"]), 25)
+    quota = await asyncio.to_thread(check_quota, int(user["id"]), tier)
+    return JSONResponse({"runs": rows, "quota": quota})
 
 
 # ── Web Push (VAPID) ─────────────────────────────────────────────────
