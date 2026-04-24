@@ -85,31 +85,9 @@
       <input type="number" id="bt-fee" value="0.05" min="0" max="0.5" step="0.01">
     </label>
 
-    <label class="bt-lbl">Mode
-      <select id="bt-simmode">
-        <option value="actual" selected>📊 Actual results (uses recorded live PnL — matches Binance)</option>
-        <option value="simulate">🔬 Simulate (re-replay OHLCV bars — what-if analysis)</option>
-      </select>
-    </label>
-
-    <div id="bt-sim-extra">
-    <label class="bt-lbl">Stop-loss mode
-      <select id="bt-sl">
-        <option value="strict" selected>Strict (use signal SL)</option>
-        <option value="none">None (no hard SL)</option>
-      </select>
-    </label>
-    <label class="bt-lbl">Take-profit target
-      <select id="bt-tp">
-        <option value="weighted" selected>Weighted midpoint (approx trailing)</option>
-        <option value="first">TP1 (nearest)</option>
-        <option value="last">Last TP (farthest)</option>
-      </select>
-    </label>
-    <label class="bt-lbl">Max hold (hours)
-      <input type="number" id="bt-hold" value="48" min="1" max="168" step="1">
-    </label>
-    </div>
+    <p style="font-size:11px;color:var(--text-dim);margin:0 0 12px;padding:8px 10px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:6px;line-height:1.5">
+      📊 Uses the actual recorded outcome of each signal — the same PnL Aladdin computed at close. Results match what you would have seen following every signal on Binance with the sizing below.
+    </p>
 
     <button type="submit" class="btn btn-primary" style="width:100%;margin-top:10px" id="bt-submit">
       Run backtest
@@ -159,13 +137,6 @@
             document.getElementById('bt-fixed-row').style.display = fixed ? '' : 'none';
             document.getElementById('bt-risk-row').style.display  = fixed ? 'none' : '';
         });
-        // Sim mode toggle — hide sim-specific fields in actual mode
-        document.getElementById('bt-simmode').addEventListener('change', function() {
-            document.getElementById('bt-sim-extra').style.display =
-                this.value === 'simulate' ? '' : 'none';
-        });
-        // Default: actual mode hides sim-specific fields
-        document.getElementById('bt-sim-extra').style.display = 'none';
         loadHistory();
     }
 
@@ -286,10 +257,9 @@
         submit.disabled = true;
         submit.textContent = '⏳ Running…';
         results.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:40px 0">
-            Replaying signals and walking OHLCV bars… typically 2&ndash;5 seconds.</p>`;
+            Loading signal outcomes from Binance records…</p>`;
 
         const posMode = document.getElementById('bt-posmode').value;
-        const simMode = document.getElementById('bt-simmode').value;
         const params = {
             start:           epochFromDate(document.getElementById('bt-start').value, false),
             end:             epochFromDate(document.getElementById('bt-end').value,   true),
@@ -299,10 +269,6 @@
             risk_pct:        Number((document.getElementById('bt-risk') || {value: 2}).value),
             leverage:        Number(document.getElementById('bt-lev').value),
             fee_pct:         Number(document.getElementById('bt-fee').value),
-            sim_mode:        simMode,
-            sl_mode:         document.getElementById('bt-sl').value,
-            tp_mode:         document.getElementById('bt-tp').value,
-            max_hold_hours:  Number(document.getElementById('bt-hold').value),
         };
 
         try {

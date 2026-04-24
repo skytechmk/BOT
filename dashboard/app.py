@@ -2669,8 +2669,9 @@ async def api_backtest_run(request: Request, user: dict = Depends(require_tier("
         return JSONResponse({"error": "start and end (unix seconds) required"}, status_code=400)
     if end <= start or end - start < 3600:
         return JSONResponse({"error": "end must be > start by at least 1h"}, status_code=400)
-    params["start"] = start
-    params["end"]   = end
+    params["start"]    = start
+    params["end"]      = end
+    params["sim_mode"] = "actual"   # always use recorded outcomes; simulate mode removed from UI
     run_id = await asyncio.to_thread(run_backtest, int(user["id"]), params)
     data = await asyncio.to_thread(get_backtest, run_id)
     return JSONResponse(data or {"run_id": run_id, "status": "error",
