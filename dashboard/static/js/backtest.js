@@ -18,6 +18,15 @@
     let _lastRun = null;
 
     // ── Helpers ─────────────────────────────────────────────────────
+    // Format a unix-seconds timestamp to the user's local timezone.
+    function fmtLocalDt(ts) {
+        if (!ts) return '—';
+        return new Date(ts * 1000).toLocaleString(undefined, {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+        });
+    }
+
     function fmtUsd(v) {
         const n = Number(v) || 0;
         const sign = n < 0 ? '-' : '';
@@ -78,9 +87,6 @@
     </label>
     </div>
 
-    <label class="bt-lbl">Leverage (0 = use each signal's own leverage)
-      <input type="number" id="bt-lev" value="0" min="0" max="125" step="1">
-    </label>
     <label class="bt-lbl">Fee per side (%)
       <input type="number" id="bt-fee" value="0.05" min="0" max="0.5" step="0.01">
     </label>
@@ -238,7 +244,7 @@
         const capped = trades.slice(-200).reverse();
         const rows = capped.map(t => {
             const col = t.pnl_usd >= 0 ? 'bt-pos' : 'bt-neg';
-            const dt  = new Date(t.entry_ts * 1000).toISOString().replace('T', ' ').slice(0, 16);
+            const dt  = fmtLocalDt(t.entry_ts);
             return `<tr>
   <td>${dt}</td>
   <td>${t.pair}</td>
@@ -288,7 +294,7 @@
             position_mode:   posMode,
             fixed_amount:    Number(document.getElementById('bt-fixed').value),
             risk_pct:        Number((document.getElementById('bt-risk') || {value: 2}).value),
-            leverage:        Number(document.getElementById('bt-lev').value),
+            leverage:        0,   // actual mode: signal leverage is already in recorded PnL
             fee_pct:         Number(document.getElementById('bt-fee').value),
         };
 
@@ -355,17 +361,20 @@
             const res = await fetch('/api/backtest/list', { headers: authHeaders() });
             if (!res.ok) return;
             const data = await res.json();
+            if (data.quota) updateQuotaBadge(data.quota);
             const runs = (data.runs || []).filter(r => r.status === 'done');
             if (!runs.length) { host.innerHTML = ''; return; }
             const rows = runs.map(r => {
                 const p = r.params || {};
                 const s = r.stats  || {};
                 const col = (s.net_pnl_usd || 0) >= 0 ? 'bt-pos' : 'bt-neg';
-                const d = new Date(r.created_at * 1000).toISOString().replace('T',' ').slice(0,16);
+                const sizing = p.position_mode === 'fixed'
+                    ? `$${p.fixed_amount} fixed`
+                    : `${p.risk_pct}% risk`;
                 return `<tr>
   <td>#${r.id}</td>
-  <td>${d}</td>
-  <td>${p.leverage}× · ${p.risk_pct}%</td>
+  <td>${fmtLocalDt(r.created_at)}</td>
+  <td>${sizing}</td>
   <td>${s.trades || 0}</td>
   <td>${(s.win_rate || 0).toFixed(1)}%</td>
   <td class="${col}">${fmtUsd(s.net_pnl_usd)}</td>
@@ -380,7 +389,7 @@
 <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
   <table class="bt-tbl">
     <thead><tr>
-      <th>#</th><th>When</th><th>Settings</th><th>Trades</th><th>Win%</th><th>PnL</th><th></th>
+      <th>#</th><th>When (local)</th><th>Sizing</th><th>Trades</th><th>Win%</th><th>PnL</th><th></th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
