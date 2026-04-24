@@ -2625,6 +2625,62 @@ async def liq_alerts_stream(request: Request):
     )
 
 
+# ── Backtesting engine ───────────────────────────────────────────────
+# Phase 3 · proposals/2026-04-24_backtesting-engine.md
+# Historical-replay of signal_registry.db against cached OHLCV.
+# Completely isolated — reads signal_registry.db + ohlcv_cache.db,
+# writes only to backtests.db. No risk to the live pipeline.
+
+@app.post("/api/backtest/run")
+async def api_backtest_run(request: Request, user: dict = Depends(require_tier("pro"))):
+    """Kick off a backtest. Runs synchronously in a worker thread so the
+    caller gets the final stats in a single response — typical run
+    completes in 2-5 s. For very large windows the frontend should show
+    a spinner."""
+    from backtest_engine import run_backtest, get_backtest
+    try:
+        params = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+    if not isinstance(params, dict):
+        return JSONResponse({"error": "params must be object"}, status_code=400)
+    # Sanity: require start/end.
+    try:
+        start = float(params.get("start"))
+        end   = float(params.get("end"))
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "start and end (unix seconds) required"}, status_code=400)
+    if end <= start or end - start < 3600:
+        return JSONResponse({"error": "end must be > start by at least 1h"}, status_code=400)
+    params["start"] = start
+    params["end"]   = end
+    run_id = await asyncio.to_thread(run_backtest, int(user["id"]), params)
+    data = await asyncio.to_thread(get_backtest, run_id)
+    return JSONResponse(data or {"run_id": run_id, "status": "error",
+                                  "error": "run disappeared"})
+
+
+@app.get("/api/backtest/{run_id:int}")
+async def api_backtest_get(run_id: int, user: dict = Depends(require_tier("pro"))):
+    """Fetch a full backtest payload (run + stats + every trade)."""
+    from backtest_engine import get_backtest
+    data = await asyncio.to_thread(get_backtest, run_id)
+    if not data:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    # Authorisation: users can only see their own runs (admins see all).
+    if data["user_id"] != user["id"] and not check_is_admin(user):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return JSONResponse(data)
+
+
+@app.get("/api/backtest/list")
+async def api_backtest_list(user: dict = Depends(require_tier("pro"))):
+    """The caller's last 25 backtest runs (summary only, no trades)."""
+    from backtest_engine import list_backtests
+    rows = await asyncio.to_thread(list_backtests, int(user["id"]), 25)
+    return JSONResponse({"runs": rows})
+
+
 # ── Web Push (VAPID) ─────────────────────────────────────────────────
 # Phase 2 · proposals/2026-04-24_native-push-alerts.md
 # Inert until VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are set in env.

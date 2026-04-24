@@ -99,6 +99,10 @@ function updateUI() {
     // Copy-trading tab (pro+ only)
     const ctNav = document.getElementById('nav-copytrading');
     if (ctNav) ctNav.style.display = isElite ? '' : 'none';
+    // Backtest tab — Pro+ (same gate as copy-trading; both are
+    // serious-trader features)
+    const btNav = document.getElementById('nav-backtest');
+    if (btNav) btNav.style.display = isElite ? '' : 'none';
     const tgBanner = document.getElementById('pro-telegram-banner');
     if (isElite && _user && _user.telegram_invite) {
         tgBanner.classList.add('visible');
@@ -355,6 +359,7 @@ function switchPage(page) {
     if (page === 'account') loadAccountPage();
     if (page === 'copytrading') loadCopyTradingPage();
     else if (typeof stopCTBalancePolling === 'function') stopCTBalancePolling();
+    if (page === 'backtest' && typeof loadBacktestPage === 'function') loadBacktestPage();
     if (page === 'refer') loadReferralPage();
     // manual page — show/hide lock overlay based on tier
     if (page === 'manual') {
