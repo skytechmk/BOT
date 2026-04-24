@@ -912,13 +912,30 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # CSP — Report-Only mode for the first 48 h. Tuned to our actual
         # asset sources (TradingView, Google Fonts, inline styles, WSS).
         # Flip to enforcing by replacing the header name below.
+        #
+        # Allowed external origins (learned from first 48 h of report-only):
+        #   s3.tradingview.com          — TradingView widget loader
+        #   www.google-analytics.com    — GA beacons
+        #   unpkg.com                   — lightweight-charts library (screener/heatmap)
+        #   static.cloudflareinsights.com — Cloudflare web-analytics beacon
+        #   *.tradingview-widget.com    — TV widget iframes (frame-src only)
+        #
+        # We also set script-src-elem and frame-src EXPLICITLY so the
+        # browser never has to fall back to default-src (which logs
+        # spurious violations for widget iframes).
         r.headers["Content-Security-Policy-Report-Only"] = (
             "default-src 'self'; "
-            "script-src  'self' 'unsafe-inline' 'unsafe-eval' https://s3.tradingview.com https://www.google-analytics.com; "
+            "script-src  'self' 'unsafe-inline' 'unsafe-eval' "
+            "            https://s3.tradingview.com https://www.google-analytics.com "
+            "            https://unpkg.com https://static.cloudflareinsights.com; "
+            "script-src-elem 'self' 'unsafe-inline' "
+            "            https://s3.tradingview.com https://www.google-analytics.com "
+            "            https://unpkg.com https://static.cloudflareinsights.com; "
             "style-src   'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src    'self' data: https://fonts.gstatic.com; "
             "img-src     'self' data: blob: https:; "
             "connect-src 'self' wss: https:; "
+            "frame-src   'self' https://*.tradingview.com https://*.tradingview-widget.com; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
             "object-src 'none';"
