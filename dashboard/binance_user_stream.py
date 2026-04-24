@@ -426,6 +426,14 @@ class UserStreamManager:
 
         if event_type == "ACCOUNT_UPDATE":
             self._apply_account_update(st, msg)
+            # Invalidate Redis live-balance cache opportunistically so
+            # the next frontend poll sees the fresh balance within the
+            # same second rather than waiting out the 8 s TTL.
+            try:
+                from redis_cache import bal_cache_del as _bal_del
+                _bal_del(user_id)
+            except Exception:
+                pass
         elif event_type == "ORDER_TRADE_UPDATE":
             self._apply_order_update(st, msg)
         elif event_type == "listenKeyExpired":

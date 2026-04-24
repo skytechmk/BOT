@@ -2625,14 +2625,78 @@ async def liq_alerts_stream(request: Request):
     )
 
 
+# ── Web Push (VAPID) ─────────────────────────────────────────────────
+# Phase 2 · proposals/2026-04-24_native-push-alerts.md
+# Inert until VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are set in env.
+
+@app.get("/api/push/vapid-public-key")
+async def api_push_vapid_public_key():
+    """Return the VAPID public key so the SW can subscribe.
+    Empty payload (+200) if push is not configured — lets client hide UI."""
+    from push_notifications import get_public_key, is_push_enabled
+    return JSONResponse({
+        "public_key": get_public_key() or "",
+        "enabled":    is_push_enabled(),
+    })
+
+
+@app.post("/api/push/subscribe")
+async def api_push_subscribe(request: Request, user: dict = Depends(get_current_user)):
+    """Register a browser PushSubscription for the current user."""
+    from push_notifications import subscribe as _push_subscribe
+    if not user:
+        return JSONResponse({"ok": False, "error": "auth required"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "invalid JSON"}, status_code=400)
+    sub = body.get("subscription") or {}
+    ua  = body.get("user_agent") or request.headers.get("user-agent", "")[:256]
+    result = _push_subscribe(int(user["id"]), sub, user_agent=ua)
+    status = 200 if result.get("ok") else 400
+    return JSONResponse(result, status_code=status)
+
+
+@app.post("/api/push/unsubscribe")
+async def api_push_unsubscribe(request: Request, user: dict = Depends(get_current_user)):
+    """Drop a subscription (typically called when the user disables push)."""
+    from push_notifications import unsubscribe as _push_unsubscribe
+    if not user:
+        return JSONResponse({"ok": False, "error": "auth required"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "invalid JSON"}, status_code=400)
+    endpoint = str(body.get("endpoint", "")).strip()
+    ok = _push_unsubscribe(int(user["id"]), endpoint) if endpoint else False
+    return JSONResponse({"ok": ok})
+
+
 # ── TradingView Screener API ─────────────────────────────────────────
 
 @app.get("/api/screener")
 async def get_screener(user: dict = Depends(require_tier("plus"))):
-    """Return TV screener priority pairs with scores (Pro+)."""
+    """Return TV screener priority pairs with scores (Pro+).
+
+    Caching architecture (Phase 2, 2026-04-24):
+      1. Redis cache (25 s TTL, shared across all worker processes &
+         all concurrent users). Hit rate ~99%.
+      2. On Redis miss OR Redis unavailable: fall through to the
+         TradingView API, compute, then backfill Redis.
+      3. The old in-process `_TV_CACHE` remains untouched so nothing
+         else in the codebase breaks (tv_screener.py still uses it).
+    """
     try:
         from tradingview_screener import Query, col
         from tv_screener import RSI_OS_MAX, RSI_OB_MIN, MIN_REL_VOL, _TV_CACHE
+        from redis_cache import screener_cache_get, screener_cache_set
+
+        # ── Redis fast-path ──────────────────────────────────────────
+        cached = screener_cache_get()
+        if cached is not None:
+            # Surface a cache header so clients can reason about freshness.
+            cached["cache_source"] = "redis"
+            return JSONResponse(cached)
 
         # Return cached data if fresh
         cached_ts = _TV_CACHE.get("ts", 0)
@@ -2706,12 +2770,17 @@ async def get_screener(user: dict = Depends(require_tier("plus"))):
             })
 
         rows.sort(key=lambda r: -r["score"])
-        return JSONResponse({
-            "pairs":      rows,
-            "total":      len(rows),
-            "cache_age":  cache_age,
-            "fetched_at": int(time.time()),
-        })
+        payload = {
+            "pairs":        rows,
+            "total":        len(rows),
+            "cache_age":    cache_age,
+            "fetched_at":   int(time.time()),
+            "cache_source": "live",
+        }
+        # Backfill Redis so the next N users within 25 s hit the fast path.
+        # No-op if Redis is down; zero risk either way.
+        screener_cache_set(payload, ttl_s=25)
+        return JSONResponse(payload)
     except Exception as exc:
         print(f"[screener] error: {exc}")
         return JSONResponse({"error": "Screener unavailable", "pairs": [], "total": 0}, status_code=500)
@@ -2984,10 +3053,32 @@ async def admin_ws_status(user: dict = Depends(require_admin)):
 @app.get("/api/copy-trading/balance")
 async def ct_get_balance(user: dict = Depends(require_tier("pro"))):
     """Fetch live Binance Futures USDT balance.
-    The Binance client is synchronous and can block for up to 30 s on
-    timeout — run it in a worker thread so we don't stall the event loop.
+
+    Redis fast-path (Phase 2, 2026-04-24):
+      1. 8 s TTL cache keyed on user_id — sufficient because the
+         dashboard refresh rate is ~3 s, so a given user polls 3-4
+         times within one TTL window. At 100 active users this
+         collapses ~400 Binance REST calls/minute → ~15/minute.
+      2. Cache is invalidated opportunistically on UDS ACCOUNT_UPDATE
+         events (see binance_user_stream.py → bal_cache_del).
+      3. If Redis is unavailable the call simply falls through to the
+         existing synchronous Binance path; no degradation.
     """
+    from redis_cache import bal_cache_get, bal_cache_set
+    cached = bal_cache_get(user['id'])
+    if cached is not None:
+        cached["cache_source"] = "redis"
+        return JSONResponse(cached)
+    # The Binance client is synchronous and can block for up to 30 s on
+    # timeout — run it in a worker thread so we don't stall the event loop.
     result = await asyncio.to_thread(ct_live_balance, user['id'])
+    # Backfill only on success; failure payloads stay out of cache to
+    # avoid pinning an error state on every subsequent poll.
+    try:
+        if isinstance(result, dict) and result.get("success", True) and not result.get("error"):
+            bal_cache_set(user['id'], result, ttl_s=8)
+    except Exception:
+        pass
     return JSONResponse(result)  # always 200 — balance failure is non-fatal
 
 

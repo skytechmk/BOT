@@ -118,3 +118,10 @@ missingno>=0.5.2  # Missing data visualization
 # Parallel Processing
 concurrent.futures  # Built-in with Python 3.2+
 multiprocessing  # Built-in with Python
+
+# Redis cache layer (Phase 2 · dashboard/redis_cache.py · safe fallback)
+redis>=5.0
+
+# Web Push notifications (Phase 2 · dashboard/push_notifications.py · VAPID)
+# Inert until VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are set in .env.
+pywebpush>=2.0
