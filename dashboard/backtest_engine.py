@@ -573,16 +573,27 @@ def count_runs_this_month(user_id: int) -> int:
         c.close()
 
 
-def check_quota(user_id: int, tier: str) -> Dict[str, Any]:
+_ADMIN_QUOTA_SENTINEL = 999_999   # effectively unlimited
+
+
+def check_quota(user_id: int, tier: str, is_admin: bool = False) -> Dict[str, Any]:
     """Return quota status for the given user+tier.
 
+    Admins are always allowed regardless of run count.
+
     Shape::
-        {"allowed": True,  "used": 3, "limit": 10, "tier": "pro"}
-        {"allowed": False, "used": 3, "limit": 3,  "tier": "free",
+        {"allowed": True,  "used": 3,  "limit": 10,      "tier": "pro"}
+        {"allowed": True,  "used": 38, "limit": 999999,   "tier": "pro",  "admin": True}
+        {"allowed": False, "used": 3,  "limit": 3,        "tier": "free",
          "error": "Monthly backtest limit reached (3/3). Resets 1st of next month."}
     """
+    used = count_runs_this_month(user_id)
+    if is_admin:
+        return {
+            "allowed": True, "used": used,
+            "limit": _ADMIN_QUOTA_SENTINEL, "tier": tier, "admin": True,
+        }
     limit = MONTHLY_QUOTAS.get(tier, MONTHLY_QUOTAS["free"])
-    used  = count_runs_this_month(user_id)
     if used >= limit:
         return {
             "allowed": False, "used": used, "limit": limit, "tier": tier,

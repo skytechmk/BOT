@@ -149,12 +149,18 @@
     function updateQuotaBadge(q) {
         const el = document.getElementById('bt-quota');
         if (!el || !q) return;
-        const remaining = q.limit - q.used;
-        const color = remaining === 0 ? 'var(--red)' : remaining <= 2 ? 'var(--yellow, #f59e0b)' : 'var(--text-dim)';
+        const submit = document.getElementById('bt-submit');
+        // Admin: unlimited
+        if (q.admin) {
+            el.innerHTML = `<span style="color:var(--green)">✓ Admin — unlimited backtests</span>`;
+            if (submit) submit.disabled = false;
+            return;
+        }
+        const remaining = Math.max(0, q.limit - q.used);
+        const color = remaining === 0 ? 'var(--red)' : remaining <= 2 ? '#f59e0b' : 'var(--text-dim)';
         el.innerHTML = `<span style="color:${color}">
             ${remaining} of ${q.limit} backtests remaining this month
         </span>`;
-        const submit = document.getElementById('bt-submit');
         if (submit) submit.disabled = remaining === 0;
     }
 

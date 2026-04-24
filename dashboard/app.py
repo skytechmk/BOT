@@ -2662,9 +2662,10 @@ async def api_backtest_run(request: Request, user: dict = Depends(get_current_us
     if not user:
         return JSONResponse({"error": "authentication required"}, status_code=401)
     from backtest_engine import run_backtest, get_backtest, check_quota
-    # Quota check before we touch the DB.
-    tier   = str(user.get("tier", "free"))
-    quota  = await asyncio.to_thread(check_quota, int(user["id"]), tier)
+    # Quota check before we touch the DB. Admins are always allowed.
+    tier     = str(user.get("tier", "free"))
+    is_admin = bool(check_is_admin(user))
+    quota    = await asyncio.to_thread(check_quota, int(user["id"]), tier, is_admin)
     if not quota["allowed"]:
         return JSONResponse({"error": quota["error"], "quota": quota}, status_code=429)
     try:
@@ -2711,9 +2712,10 @@ async def api_backtest_list(user: dict = Depends(get_current_user)):
     if not user:
         return JSONResponse({"error": "authentication required"}, status_code=401)
     from backtest_engine import list_backtests, check_quota
-    tier  = str(user.get("tier", "free"))
-    rows  = await asyncio.to_thread(list_backtests, int(user["id"]), 25)
-    quota = await asyncio.to_thread(check_quota, int(user["id"]), tier)
+    tier     = str(user.get("tier", "free"))
+    is_admin = bool(check_is_admin(user))
+    rows     = await asyncio.to_thread(list_backtests, int(user["id"]), 25)
+    quota    = await asyncio.to_thread(check_quota, int(user["id"]), tier, is_admin)
     return JSONResponse({"runs": rows, "quota": quota})
 
 
