@@ -1,0 +1,652 @@
+/* ═══════════════════════════════════════════════════════════════
+   ANUNNAKI WORLD — MOBILE CSS
+   Activates on ≤768px. Zero desktop side-effects.
+   Architecture: Bottom Tab Bar + Slide-up Drawer + Slim Header
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── CSS Variables (mirrors main.css tokens) ──────────────────── */
+:root {
+    --mbn-height: 56px;
+    --drawer-radius: 20px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   1. BOTTOM NAVIGATION BAR
+   ════════════════════════════════════════════════════════════════ */
+.mobile-bottom-nav {
+    display: none; /* hidden on desktop */
+}
+
+@media (max-width: 768px) {
+
+    /* Hide the top horizontal nav strip */
+    .nav-tabs { display: none !important; }
+
+    /* Show bottom nav */
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: calc(var(--mbn-height) + var(--safe-bottom));
+        padding-bottom: var(--safe-bottom);
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        z-index: 150;
+        align-items: stretch;
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.25);
+    }
+
+    .mbn-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        cursor: pointer;
+        position: relative;
+        border: none;
+        background: transparent;
+        padding: 6px 0 4px;
+        color: var(--text-dim);
+        text-decoration: none;
+        transition: color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .mbn-item.active {
+        color: var(--gold);
+    }
+
+    .mbn-item.active .mbn-icon {
+        transform: translateY(-1px) scale(1.15);
+    }
+
+    .mbn-icon {
+        width: 22px;
+        height: 22px;
+        line-height: 1;
+        transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .mbn-icon svg {
+        width: 22px;
+        height: 22px;
+        transition: stroke-width 0.15s;
+    }
+    .mbn-item.active .mbn-icon svg {
+        stroke-width: 2.5;
+    }
+
+    .mbn-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        line-height: 1;
+    }
+
+    /* Active indicator pill */
+    .mbn-item::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 50%;
+        transform: translateX(-50%) scaleX(0);
+        width: 32px; height: 3px;
+        background: var(--gold);
+        border-radius: 0 0 4px 4px;
+        transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 0 6px var(--gold);
+    }
+
+    .mbn-item.active::before {
+        transform: translateX(-50%) scaleX(1);
+    }
+
+    /* Tap ripple */
+    .mbn-item::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--gold);
+        opacity: 0;
+        border-radius: 8px;
+        transform: scale(0.5);
+        transition: opacity 0.3s, transform 0.3s;
+        pointer-events: none;
+    }
+    .mbn-item:active::after {
+        opacity: 0.08;
+        transform: scale(1);
+        transition: none;
+    }
+
+    /* Signal badge dot */
+    .mbn-badge {
+        position: absolute;
+        top: 4px; right: calc(50% - 14px);
+        background: var(--red);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        min-width: 16px; height: 16px;
+        border-radius: 8px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 0 3px;
+        border: 2px solid var(--surface);
+        line-height: 1;
+    }
+
+    .mbn-badge.visible {
+        display: flex;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   2. BOTTOM SHEET DRAWER ("More" menu)
+   ════════════════════════════════════════════════════════════════ */
+.mobile-drawer-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.mobile-drawer-overlay.open {
+    display: block;
+    opacity: 1;
+}
+
+.mobile-drawer {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-radius: var(--drawer-radius) var(--drawer-radius) 0 0;
+    z-index: 210;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    padding-bottom: calc(var(--mbn-height) + var(--safe-bottom) + 8px);
+    max-height: 85vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-drawer.open {
+    transform: translateY(0);
+}
+
+.drawer-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 12px auto 16px;
+    flex-shrink: 0;
+}
+
+.drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+
+.drawer-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.03em;
+}
+
+.drawer-close {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Drawer section label */
+.drawer-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 8px 20px 6px;
+}
+
+/* Drawer nav tiles — 2-column grid */
+.drawer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 4px 16px 12px;
+}
+
+.drawer-tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 48px;
+}
+
+.drawer-tile:active {
+    background: rgba(244,162,54,0.1);
+    border-color: rgba(244,162,54,0.3);
+}
+
+.drawer-tile .dt-icon { font-size: 18px; flex-shrink: 0; }
+.drawer-tile .dt-text { flex: 1; min-width: 0; }
+.drawer-tile .dt-name { display: block; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drawer-tile .dt-sub  { display: block; font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+
+/* Tier-gated tile */
+.drawer-tile.locked .dt-icon { opacity: 0.5; }
+.drawer-tile.locked .dt-name { color: var(--text-dim); }
+
+/* Drawer user card */
+.drawer-user-card {
+    margin: 4px 16px 8px;
+    padding: 14px 16px;
+    background: rgba(244,162,54,0.07);
+    border: 1px solid rgba(244,162,54,0.2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.duc-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700;
+    color: #000;
+    flex-shrink: 0;
+}
+
+.duc-info { flex: 1; min-width: 0; }
+.duc-email { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.duc-tier  { font-size: 10px; color: var(--gold); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 2px; }
+
+/* Logout row in drawer */
+.drawer-action-row {
+    display: flex;
+    gap: 8px;
+    padding: 4px 16px 8px;
+}
+
+.drawer-action-btn {
+    flex: 1;
+    padding: 11px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.drawer-action-btn.danger { color: var(--red); border-color: rgba(239,68,68,0.3); }
+.drawer-action-btn.gold   { color: var(--gold); border-color: rgba(244,162,54,0.3); background: rgba(244,162,54,0.07); }
+.drawer-action-btn:active { opacity: 0.7; }
+
+/* ════════════════════════════════════════════════════════════════
+   3. SLIM MOBILE HEADER
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* Slim the header wrapper */
+    header > div:first-child {
+        height: 48px !important;
+        padding: 0 14px !important;
+    }
+
+    /* Hide desktop-style user section — user info lives in drawer */
+    #user-section-loggedin .user-info { display: none !important; }
+    #user-section-loggedin .sub-timer { display: none !important; }
+    #user-section-loggedin #awd-theme-btn { order: -1; }
+    #user-section-loggedin button[onclick="logout()"] { display: none !important; }
+
+    /* Hide login/register from header on mobile — they go in drawer */
+    #user-section-loggedout { display: none !important; }
+
+    /* Show a compact mobile-only login button */
+    #mobile-header-login {
+        display: flex !important;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Header right compact */
+    .header-right { gap: 6px; }
+
+    /* Tier badge — icon only on mobile */
+    .tier-badge { font-size: 9px; padding: 2px 6px; letter-spacing: 0.5px; }
+
+    /* Ticker banner — reduce height on phone */
+    #dev-ticker { height: 26px !important; }
+
+    /* Main content — bottom padding clears bottom nav */
+    .main-content {
+        padding-bottom: calc(var(--mbn-height) + var(--safe-bottom) + 12px) !important;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   4. SIGNAL CARDS — MOBILE POLISH
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* Full-width cards with edge-to-edge feel */
+    .signal-cards {
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+        padding: 0;
+    }
+
+    .signal-card {
+        border-radius: 12px;
+        padding: 14px 16px;
+    }
+
+    /* Larger tap area on price ladder rows */
+    .price-ladder-row {
+        min-height: 36px;
+        padding: 6px 0;
+    }
+
+    /* Live PnL wrap — stack nicely on narrow screens */
+    .live-pnl-wrap {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   5. SCREENER + HEATMAP — MOBILE POLISH
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+    .screener-grid { grid-template-columns: 1fr !important; }
+    .screener-card { padding: 12px 14px; }
+
+    /* Heatmap: full width cells */
+    #liq-heatmap-grid { font-size: 11px !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   6. SECTION HEADERS — COMPACT ON MOBILE
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .section-header { margin-bottom: 12px; }
+    .section-header h2 { font-size: 16px; }
+    .section-header p  { font-size: 12px; }
+
+    /* Modals — full screen on small phones */
+    .modal {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin: 0 !important;
+        max-height: 92vh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    /* Reposition modal overlay to not cover bottom nav */
+    .modal-overlay {
+        align-items: flex-end !important;
+    }
+
+    /* Summary row — 2 column on mobile */
+    .summary-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   7. PULL-TO-REFRESH INDICATOR
+   ════════════════════════════════════════════════════════════════ */
+.ptr-indicator {
+    display: none;
+    position: fixed;
+    top: calc(48px + 26px + var(--safe-top));  /* below slim header */
+    left: 50%; transform: translateX(-50%);
+    background: var(--gold);
+    color: #000;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 20px;
+    z-index: 100;
+    letter-spacing: 0.04em;
+    box-shadow: 0 2px 12px rgba(244,162,54,0.4);
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    .ptr-indicator { display: none; } /* shown via JS when pulling */
+    .ptr-indicator.visible { display: block; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   8. MOBILE-ONLY LOGIN/REGISTER BUTTONS (for logged-out state)
+   ════════════════════════════════════════════════════════════════ */
+#mobile-header-login {
+    display: none; /* only shown via CSS override above */
+}
+
+/* ════════════════════════════════════════════════════════════════
+   9. TRADING LOUNGE — lift above bottom nav on mobile
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .aw-lounge {
+        bottom: calc(var(--mbn-height) + var(--safe-bottom) + 12px) !important;
+        right: 12px !important;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   10. TOAST NOTIFICATIONS
+   ════════════════════════════════════════════════════════════════ */
+.mobile-toast {
+    position: fixed;
+    bottom: calc(var(--mbn-height) + var(--safe-bottom) + 14px);
+    left: 50%;
+    transform: translateX(-50%) translateY(24px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left-width: 3px;
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    z-index: 300;
+    white-space: nowrap;
+    max-width: calc(100vw - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    pointer-events: none;
+}
+
+.mobile-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.mobile-toast.success { border-left-color: #22c55e; }
+.mobile-toast.error   { border-left-color: #ef4444; }
+.mobile-toast.info    { border-left-color: var(--gold); }
+
+/* ════════════════════════════════════════════════════════════════
+   11. PAGE FADE TRANSITION
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .page {
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        pointer-events: none;
+    }
+    .page.active {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   12. COPY-TRADING — RESPONSIVE LAYOUT FIXES
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* Stats grid: 4-col → 2-col */
+    #copytrading-content > div[style*="grid-template-columns:repeat(4"],
+    #copytrading-content > div[style*="grid-template-columns: repeat(4"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Hide the full trade history TABLE on mobile */
+    #ct-history-table-wrap { display: none !important; }
+
+    /* Show the mobile card list instead */
+    #ct-history-cards { display: block !important; }
+
+    /* Exchange selector: 2-col grid */
+    #copytrading-content > div > div[style*="repeat(auto-fill"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* Mobile-only trade history cards container — hidden on desktop */
+#ct-history-cards {
+    display: none;
+}
+
+.ct-trade-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+}
+
+.ct-trade-card .ctc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.ct-trade-card .ctc-pair {
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.ct-trade-card .ctc-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.ct-trade-card .ctc-pnl-block {
+    text-align: right;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   13. DRAWER QUICK-STATS STRIP
+   ════════════════════════════════════════════════════════════════ */
+#drawer-quickstats {
+    display: flex !important;
+    gap: 8px;
+    padding: 4px 16px 8px;
+}
+
+.dqs-card {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 10px 8px;
+    text-align: center;
+    min-width: 0;
+}
+
+.dqs-val {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dqs-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-top: 3px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   14. OVERVIEW STAT CARDS — FORCE 2-COL ON NARROW PHONES
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+    .summary-row,
+    .stat-row {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}

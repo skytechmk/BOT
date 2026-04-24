@@ -1,0 +1,56 @@
+nohup: ignoring input
+🍹 Building a mixed python/rust project
+🔗 Found pyo3 bindings
+🐍 Found CPython 3.12 at /root/miniconda3/bin/python
+Ignoring pytest: markers 'extra == "tests"' don't match your environment
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+   Compiling aladdin_core v0.2.0 (/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA/aladdin_core)
+warning: unused import: `rand::prelude::*`
+ --> src/lib.rs:2:5
+  |
+2 | use rand::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Normal`
+ --> src/lib.rs:3:18
+  |
+3 | use rand_distr::{Normal, Distribution};
+  |                  ^^^^^^
+
+warning: unused import: `Distribution`
+ --> src/lib.rs:3:26
+  |
+3 | use rand_distr::{Normal, Distribution};
+  |                          ^^^^^^^^^^^^
+
+warning: unused variable: `i`
+  --> src/lib.rs:43:9
+   |
+43 |     for i in 0..period-1 {
+   |         ^ help: if this is intentional, prefix it with an underscore: `_i`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `calculate_rsi_wilder` is never used
+  --> src/lib.rs:70:4
+   |
+70 | fn calculate_rsi_wilder(close: &[f64], period...
+   |    ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `calculate_vwap_series` is never used
+  --> src/lib.rs:97:4
+   |
+97 | fn calculate_vwap_series(close: &[f64], volum...
+   |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `aladdin_core` (lib) generated 6 warnings (run `cargo fix --lib -p aladdin_core` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 2.91s
+📦 Built wheel for CPython 3.12 to /tmp/.tmpXYSqTD/aladdin_core-0.2.0-cp312-cp312-linux_x86_64.whl
+⚠️ Warning: pip raised a warning running ["-m", "pip", "--disable-pip-version-check", "install", "--no-deps", "--force-reinstall", "/tmp/.tmpXYSqTD/aladdin_core-0.2.0-cp312-cp312-linux_x86_64.whl"]:
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+✏️ Setting installed package as editable
+🛠 Installed aladdin_core-0.2.0

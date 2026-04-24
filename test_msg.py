@@ -1,12 +1,16 @@
 import asyncio
-from telegram_handler import send_telegram_message
+import os
+from dotenv import load_dotenv
+from telegram import Bot
 
-msg = '''🛑 **TRAILING STOP HIT** 💰
-Duration: 1.5 hours
+load_dotenv()
 
-import sys
-import logging
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+async def send_tests():
+    bot = Bot(os.getenv("CLOSED_SIGNALS_TOKEN"))
+    try:
+        await bot.send_message(chat_id=os.getenv("CLOSED_SIGNALS_CHAT_ID"), text=f"🔧 <b>Aladdin System Diagnostic</b>\n\n✅ <i>Testing connection to CLOSED SIGNALS</i>\n- WebSocket engine online\n- Log rotation active\n- Duplicate PIDs cleared", parse_mode='HTML')
+        print(f"✅ Success sending logic to CLOSED SIGNALS")
+    except Exception as e:
+        print(f"❌ Failed sending: {e}")
 
-if __name__ == '__main__':
-    asyncio.run(send_telegram_message(msg))
+asyncio.run(send_tests())

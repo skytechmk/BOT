@@ -30,7 +30,6 @@ class RealTimeSignalMonitor:
         self.last_rest_check = 0
         
         # Setup logging
-        logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         
         # Binance client for fallback
@@ -347,6 +346,10 @@ class RealTimeSignalMonitor:
             
             # Track which targets have been hit
             targets_hit = registry_data.get('targets_hit', [])
+            if isinstance(targets_hit, int):
+                targets_hit = list(range(1, targets_hit + 1)) if targets_hit > 0 else []
+            elif not isinstance(targets_hit, list):
+                targets_hit = []
             
             # Check for closure conditions
             if signal_type.upper() in ['LONG', 'BUY']:
@@ -463,7 +466,11 @@ class RealTimeSignalMonitor:
             registry_data = self.signal_registry.get(signal_id, {})
             targets = registry_data.get('targets', [])
             targets_hit = registry_data.get('targets_hit', [])
-            
+            if isinstance(targets_hit, int):
+                targets_hit = list(range(1, targets_hit + 1)) if targets_hit > 0 else []
+            elif not isinstance(targets_hit, list):
+                targets_hit = []
+
             notification = (
                 f"{emoji} **{title}** {status_emoji}\n"
                 f"🆔 Signal ID: {signal_id}\n"

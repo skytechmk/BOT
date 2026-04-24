@@ -1,0 +1,435 @@
+═══════════════════════════════════════════════════════════════════════════════
+  ALADDIN SIGNAL PIPELINE — END-TO-END LOGIC
+  Generated: 2026-04-18
+  Source files: main.py, reverse_hunt.py, predator.py, signal_quality.py,
+                technical_indicators.py, trading_utilities.py
+═══════════════════════════════════════════════════════════════════════════════
+
+This is the actual active pipeline in the bot, traced from main.py::process_pair()
+through all downstream modules.
+
+NOTE: signal_generator.py is LEGACY / DEAD CODE. It is not called anywhere in
+      process_pair(). The real signal engine is reverse_hunt.py + PREDATOR + SQI.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  0. ARCHITECTURE OVERVIEW
+═══════════════════════════════════════════════════════════════════════════════
+
+The bot scans all USDT perpetual futures every 10 minutes. Each pair flows
+through a STRICT 10-STAGE GAUNTLET. A signal only fires if EVERY stage passes.
+The core is a state-machine mean-reversion strategy (Reverse Hunt), wrapped
+with a regime/positioning/stop-hunt enhancement layer (PREDATOR), then scored
+by a 14-factor composite (SQI v4).
+
+    Binance 1h Kline  →  Reverse Hunt (TSI + CE state machine)
+                                 │
+                                 ▼
+                       Macro Risk Engine + Blacklist + Cooldown
+                                 │
+                                 ▼
+                  PREDATOR  [Regime ▸ Positioning ▸ Stop Hunt ▸ Liq Magnets]
+                                 │
+                                 ▼
+                  Counter-Flow Trap + BTC Correlation + F&G Gate
+                                 │
+                                 ▼
+                  Institutional Risk Adjust  (SL cap, R:R floor, size dampen)
+                                 │
+                                 ▼
+                  Extension / Volume / Degenerate-Target Gates
+                                 │
+                                 ▼
+                  SQI v4  (14 factors, 0-167 pts, soft floor 50)
+                                 │
+                                 ▼
+                  Leverage + Size + Regime Mult + DeFi TVL
+                                 │
+                                 ▼
+                  Entry Refinement (5m EMA21/VWAP)  +  Cornix Format
+                                 │
+                                 ▼
+                  Atomic Cycle Cap  →  Telegram  →  Register  →  Copy-Trade
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  1. STAGE 1 — DATA FETCH & LIVE PRICE
+  File: main.py:96-135
+═══════════════════════════════════════════════════════════════════════════════
+
+- Fetch 200+ candles of 1h OHLCV (BATCH_PROCESSOR.get_df(pair, '1h'))
+- Reject if < 200 bars (new listings)
+- Fetch LIVE Binance Mark Price (not last candle close)
+  → avoids up-to-59-minute lag in entry geometry
+- Log drift if > 2% between candle close and mark
+
+Why Mark Price? A 1h close can put SL/TP on the wrong side of current price,
+creating structurally inverted signals.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  2. STAGE 2 — REVERSE HUNT SIGNAL ENGINE
+  File: reverse_hunt.py
+═══════════════════════════════════════════════════════════════════════════════
+
+This is the ONLY thing that creates a signal direction.
+Everything after is filtering / scoring.
+
+─── DUAL-ENGINE STATE MACHINE ──────────────────────────────────────────────────
+
+Engine 1: TSI (True Strength Index) — momentum exhaustion detector
+  • TSI_LONG=25, TSI_SHORT=13, scale=50, INVERTED
+    (so bullish pump → negative TSI)
+  • 4 zones:  L2_OS=-2.0   L1_OS=-1.5   L1_OB=+1.5   L2_OB=+2.0
+  • ADAPTIVE: uses 80th/92nd percentile of recent 500 bars of |TSI| per pair
+    (so volatile pairs get higher thresholds)
+
+Engine 2: Chandelier Exit (dual layer) — volatility breakout confirmation
+  • CE Line  (fast trigger)    ATR=22, Mult=3.0, src_long=close, src_short=high
+  • CE Cloud (slow trend filter) ATR=50, Mult=5.0, src=close both sides
+  • Both use RMA smoothing + wait-for-close (no repaint)
+
+─── STATE TRANSITIONS ──────────────────────────────────────────────────────────
+
+  STATE        CONDITION                                       ACTION
+  ─────────────────────────────────────────────────────────────────────────────
+  IDLE         TSI between -1.5 and +1.5                       Ignore pair
+  EXTREME      TSI breaches L2 (< -2.0 or > +2.0)              Lock as overextended
+  WATCH        TSI reverses back inside from EXTREME           Wait up to 36 bars
+  TRIGGER      CE Line flips to match reversal direction       EMIT LONG or SHORT
+  FLUSH        TSI returns to ±0.30 of zero without CE flip    Reset to IDLE
+
+
+─── CONVICTION SCORE (0-6) ─────────────────────────────────────────────────────
+
+Six boolean components:
+  1. ce_line_flip      — CE Line direction matches signal
+  2. ce_cloud_agree    — CE Cloud direction matches signal
+  3. linreg_zero_cross — LinReg 20/100 slope crossed zero
+  4. extreme_mode      — V-bottom / blow-off catcher
+                         (CE flip during EXTREME with volume > 1.5× avg)
+  5. tsi_l2_trigger    — did TSI breach L2 before reversing
+  6. (reserved)
+
+Conviction → RH conviction pct (0.5-1.0) feeds leverage calculation.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  3. STAGE 3 — MACRO RISK & ACCOUNT-LEVEL FILTERS
+  File: main.py:211-229
+═══════════════════════════════════════════════════════════════════════════════
+
+Hard rejects (instant return):
+  • MACRO_RISK_ENGINE  — blocks when Fear & Greed, BTC dominance,
+                         or vol spikes exceed thresholds
+  • AUTO_BLACKLIST     — pair-level temporary block after N consecutive SL hits
+  • PAIR_COOLDOWN      — prevent spamming same pair within cooldown window
+
+Circuit Breaker is DISABLED because it's global across copy-trading
+subscribers; risk is now managed per-signal.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  4. STAGE 4 — PREDATOR (Regime + Positioning + Stop Hunt + Liq Magnets)
+  File: predator.py
+═══════════════════════════════════════════════════════════════════════════════
+
+─── L1: REGIME DETECTION ───────────────────────────────────────────────────────
+
+3×3 matrix from (vol_state, trend_state):
+
+                      │ RANGE (clarity<1) │ WEAK_TREND (1-3) │ STRONG_TREND (>3)
+  ───────────────────┼───────────────────┼──────────────────┼──────────────────
+  COILING  (ATR7/21<0.7)│ COMPRESSION ×1.0  │ TREND_PAUSE ×0.75│ TREND_PAUSE ×0.75
+  NORMAL   (0.7-1.3)  │ CHOP ×0.35        │ CLEAN_TREND ×1.0 │ CLEAN_TREND ×1.0
+  EXPANDING(>1.3)     │ VOLATILE_CHOP SKIP│ PARABOLIC ×0.5   │ PARABOLIC ×0.5
+
+  • VOLATILE_CHOP → HARD REJECT, no edge
+  • Others get a size_mult applied later
+
+
+─── L2: POSITIONING (Crypto-Native) ────────────────────────────────────────────
+
+Three signals, weighted, scored 0-20:
+
+  • Funding momentum (0-5 pts):
+      extreme funding = crowd is one-sided
+  • OI divergence (0-10 pts):
+      Price vs Open Interest 5-bar divergence
+      ACCUMULATION / DISTRIBUTION (real flow)        → +5
+      SHORT_SQUEEZE / LONG_SQUEEZE (crowd exit)      → +10
+  • Taker delta (0-5 pts):
+      (taker_buy − taker_sell) / total_vol over last 12 bars
+
+The crowd's direction is derived; positioning_bias = OPPOSITE (contrarian).
+pos_aligned = (signal == positioning_bias)
+
+
+─── L2b: LIQUIDATION MAGNETS ───────────────────────────────────────────────────
+
+Adds 0-10 pts to positioning score when nearby liquidation clusters align:
+  LONG  likes magnets ABOVE
+  SHORT likes magnets BELOW
+
+
+─── L3: STOP HUNT DETECTOR ─────────────────────────────────────────────────────
+
+Bonus confirmation — detects when big players swept a level to stop out retail:
+  • Wick ≥ 3× body
+  • Swept recent swing high/low
+  • Volume > 2× avg
+  • Close reclaims the swept level
+
+If all true → hunt_detected=True, grants +5 SQI points if aligned.
+
+
+─── COUNTER-FLOW TRAP GATE (main.py:303-328) ──────────────────────────────────
+
+HARD VETO when taker flow strongly opposes signal AND liq magnets misaligned:
+  • LONG with taker_delta ≤ -0.20 + liq biased SHORT → reject
+  • Especially lethal if close liq cluster within 0.5% — sweep risk
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  5. STAGE 5 — STRUCTURAL SAFETY GATES
+  File: main.py:330-353
+═══════════════════════════════════════════════════════════════════════════════
+
+  • BTC CORRELATION: blocks if pair is highly correlated with BTC and adding
+    it exceeds portfolio correlation risk
+
+  • EXTREME FEAR SHORT GATE: if F&G < 25 and BTC HTF (higher timeframe) is
+    NOT bearish → reject SHORTs
+    (prevents shorting into Extreme Fear bounces — added after 4 SL hits
+    on 2026-04-13)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  6. STAGE 6 — RISK ENGINE & LEVEL GEOMETRY
+  Files: main.py:354-410, trading_utilities.py::institutional_risk_adjust
+═══════════════════════════════════════════════════════════════════════════════
+
+  1. Calculate ATR on 1h, Volume Profile, Fair Value Gaps
+  2. Seed stop from CE Line long_stop / short_stop
+  3. Generate targets via calculate_technical_targets()
+     (VP levels + FVG + ATR projections)
+  4. Institutional risk adjust (5-layer hybrid):
+       • Caps SL at min(CE stop, 2.5× ATR, 6% of entry)
+       • Scales TPs to guarantee R:R ≥ 2.5:1 at the last target
+       • Returns size_multiplier + leverage_dampener penalties
+         if SL is wide or ADX is weak
+       • REJECT if R:R < 1.0 even after adjustment
+
+Additional soft gates:
+  • SL_capped + low_vol (< 0.60× avg)   → reject as low-liquidity noise
+  • Parabolic extension > 20% from EMA21 → reject
+  • Extension > 15%                      → pass but flag for SQI penalty
+  • Volume < 40% of 20-bar avg           → reject
+  • All targets within 0.1% of entry     → reject (degenerate)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  7. STAGE 7 — SQI v4 (SIGNAL QUALITY INDEX)
+  File: signal_quality.py::calculate_sqi
+═══════════════════════════════════════════════════════════════════════════════
+
+14 FACTORS totalling 0-167 POINTS (some can be negative):
+
+  #   FACTOR                 RANGE      BEST SCORE              LOGIC
+  ─────────────────────────────────────────────────────────────────────────────
+   1  R:R Quality            0-30       R:R ≥ 3.0 → 30         R:R<1 = 0
+   2  Volume                 0-20       ≥ 2× avg → 20          <0.7× → 0
+   3  CE Alignment           0-15       Line+Cloud aligned→15  none → 0
+   4  Mean Extension         0-15       ≤1% from EMA21 → 15    >10% → 0
+   5  ATR Regime             0-10       Coiling(≤0.8)  → 10    >1.8× → 0
+   6  Momentum Acceleration  0-10       TSI delta ≥3.0 → 10    against → 0
+   7  Positioning (PRED L2)  0-20       pos_sqi_score if aligned
+   8  Stop Hunt              0-5        Aligned hunt → 5
+   9  Candlestick           -3 to +5    Aligned engulf → +5    Doji → -3
+  10  BEAST change-point     0-8        Bayesian prob ≥0.7 → 8
+  11  RSI Divergence        -3 to +6    Regular div aligned → +6
+  12  ML Ensemble           -5 to +8    Conf ≥0.55 aligned → +8 against → -5
+  13  SMC Structure         -4 to +8    CHoCH aligned <5b → +8  opp → -4
+  14  Wyckoff Phase         -4 to +7    MARKUP+LONG → +7       DIST+LONG → -4
+
+
+─── GRADING (calibrated for 0-167 scale) ──────────────────────────────────────
+
+  GRADE    SQI        % OF MAX
+  ─────────────────────────────
+  S        ≥ 134      80%
+  A        ≥ 107      64%
+  B        ≥ 80       48%
+  C        ≥ 53       32%
+  D        < 53       garbage
+
+
+─── SOFT FLOOR (main.py:473) ──────────────────────────────────────────────────
+
+  sqi_score < 50 → REJECT
+
+Hard 85-pt gate was removed to allow early V-bottom catching on fresh
+reversals that haven't accumulated confirmations yet.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  8. STAGE 8 — LEVERAGE & POSITION SIZE
+  File: main.py:480-512
+═══════════════════════════════════════════════════════════════════════════════
+
+Starting point:
+  base_leverage = assign_leverage(adj_confidence, signal, pair)
+  (from RH conviction 0.5-1.0 with historical-performance adaptive adjustment)
+
+Then multiplicative dampeners:
+  1. sqi_to_leverage(sqi_score, base_leverage)   — SQI scales leverage up/down
+  2. sqi_to_size(sqi_score, base_size × regime_mult) — SQI drives size
+  3. × regime_params['size_mult']                — from PREDATOR regime
+         (CHOP=0.35, PARABOLIC=0.5, CLEAN_TREND=1.0, etc.)
+  4. × risk_adj['size_multiplier']
+     × risk_adj['leverage_dampener']             — from institutional adjust
+  5. × DeFi TVL multiplier                       — for DeFi tokens:
+                                                   negative TVL trend = dampen
+
+Minimums: leverage ≥ 2x, size ≥ 1%.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  9. STAGE 9 — ENTRY REFINEMENT (5m Micro-Structure)
+  File: main.py:537-580
+═══════════════════════════════════════════════════════════════════════════════
+
+Once the direction is confirmed on 1h, a 5m chart is pulled to find a better fill:
+
+  LONG  → entry at max(5m EMA21, 5m VWAP)
+          if within 0.5% BELOW current price (pullback zone)
+
+  SHORT → entry at min(5m EMA21, 5m VWAP)
+          if within 0.5% ABOVE current price (bounce zone)
+
+Entry zone built as refined_entry ± 0.1 × ATR_1h for tight Cornix spread.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  10. STAGE 10 — DISPATCH, REGISTER, MIRROR
+  File: main.py:621-732
+═══════════════════════════════════════════════════════════════════════════════
+
+  1. Format as Cornix-compatible message:
+     direction word, Buy:/Sell:, Target N:, Stop:, 3 targets max
+
+  2. Final sanity checks:
+     LONG:  targets > entry > stop_loss
+            hard reject if entry above all TPs
+     SHORT: stop > entry > targets
+            hard reject if entry below all TPs
+
+  3. ATOMIC CYCLE-CAP RESERVATION (asyncio lock)
+     prevents burst under Semaphore(15) concurrency
+
+  4. Send Telegram (15s timeout, release slot on fail)
+
+  5. register_signal() — write to DB with full feature snapshot:
+       all SQI factor scores, PREDATOR state, indicators at entry bar
+
+  6. _execute_copy_trades() — mirror to all active elite users'
+                              Binance accounts
+
+  7. Store in ChromaDB trade memory for similarity search / AI recall
+
+  8. Add to real-time WebSocket monitor for SL/TP hit tracking
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  STATE MACHINE DIAGRAM
+═══════════════════════════════════════════════════════════════════════════════
+
+    State 0 (IDLE) ──TSI breach L2──▶ State 1 (EXTREME)
+      ▲                                       │
+      │                                  TSI reverses
+      │                                       ▼
+      └──── flush (≤0.30 or 72 bars) ── State 2 (WATCH)
+                                              │
+                                       CE Line flips
+                                              ▼
+                                          ✅ SIGNAL
+                                              │
+                                              ▼
+                              [10-stage filter gauntlet]
+                                              │
+                                              ▼
+                                           Telegram
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  REJECTION LOG VOCABULARY
+═══════════════════════════════════════════════════════════════════════════════
+
+When you see these in logs, here's why:
+
+  MESSAGE                                       CAUSE
+  ─────────────────────────────────────────────────────────────────────────────
+  🚫 VOLATILE_CHOP regime                      PREDATOR L1 skip
+  🚫 counter-flow trap                         Taker delta vs liq mismatch
+  🚫 R:R < 1.0 after risk adjustment           Risk engine can't make it viable
+  🚫 SL capped + low volume                    Wide CE stop + thin tape = noise
+  🚫 Parabolic extension                       > 20% from EMA21
+  🚫 Low volume                                < 40% of 20-bar avg
+  🚫 Degenerate targets                        All TPs within 0.1% of entry
+  🚫 SQI below D-floor                         < 50 composite score
+  🚫 Entry zone above all TPs / below all TPs  Price already blew through
+  🚫 SHORT suppressed — Extreme Fear           F&G < 25 w/o BTC HTF bearish
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  WHERE THE ML SITS
+═══════════════════════════════════════════════════════════════════════════════
+
+ML (BiLSTM + TFT + XGBoost + LightGBM ensemble, F1=0.539) is NOT A GATE.
+It contributes −5 to +8 SQI points only (Factor 11).
+
+The rule-based TSI+CE state machine is the sole signal originator.
+This was a deliberate architectural decision after the old ML confidence
+was found anti-correlated with outcomes — SQI replaced it.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  KEY CONSTANTS REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+─── TSI (reverse_hunt.py) ──────────────────────────────────────────────────────
+  TSI_LONG  = 25         # Long EMA length
+  TSI_SHORT = 13         # Short EMA length
+  TSI_SCALE = 50.0       # Visual Scale Divisor
+  TSI_INVERT = True      # Bullish pump → negative TSI
+
+  LEVEL_OB_L2 = +2.0     # Extreme Overbought → SHORT side
+  LEVEL_OB_L1 = +1.5     # Initial Overbought
+  LEVEL_OS_L1 = -1.5     # Initial Oversold
+  LEVEL_OS_L2 = -2.0     # Extreme Oversold → LONG side
+
+  ADAPTIVE_L1_PERCENTILE = 80
+  ADAPTIVE_L2_PERCENTILE = 92
+  ADAPTIVE_WINDOW = 500 bars
+
+─── CE LINE (fast trigger) ────────────────────────────────────────────────────
+  src_long = close, src_short = high
+  ATR Length = 22, Lookback = 22, Mult = 3.0, Smooth = RMA, Wait = True
+
+─── CE CLOUD (slow filter) ─────────────────────────────────────────────────────
+  src = close (both)
+  ATR Length = 50, Lookback = 50, Mult = 5.0, Smooth = RMA, Wait = True
+
+─── STATE MACHINE TIMING ──────────────────────────────────────────────────────
+  MIN_CANDLES = 200
+  WATCH_FLUSH_LEVEL = 0.30    (TSI return threshold)
+  WATCH_MAX_BARS = 72         (3 days on 1h)
+  CE_TRIGGER_WINDOW = 36      (1.5 days after WATCH entry)
+  SIGNAL_COOLDOWN = 6         (bars between signals)
+  PERSISTENT_CE_WINDOW = 48   (2 days since CE flip still qualifies)
+  EXTREME_MODE_VOL_MULT = 1.5 (V-bottom vol confirmation)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                                  END OF DOCUMENT
+═══════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,683 @@
+// ═════════════════════════════════════════════════════════════════
+//  CHARTS (Pro+) — LightweightCharts v5.1.0
+//  Multi-timeframe: 5m | 15m | 1H | 4H | 1D
+//  Data: server REST (local DB + Binance fallback) + live Binance WS
+// ═════════════════════════════════════════════════════════════════
+
+let _zoneOverlay   = null;
+let _zoneRedrawFns = [];
+let _markerPlugin  = null;
+let _currentInterval = '1h';       // active timeframe
+let _liveWs          = null;       // direct Binance fstream WebSocket
+let _liveWsReconnect = null;       // reconnect timer
+let _liveLastBar     = null;       // {time, open, high, low, close} of live candle
+let _currentPrecFmt  = { precision: 4, minMove: 0.0001 }; // dynamic per-pair price format
+let _syncingRange    = false;      // prevent infinite time-scale sync loop
+
+// ── Timeframe config ────────────────────────────────────────────
+const _TF_BARS = { '5m': 300, '15m': 200, '1h': 500, '4h': 300, '1d': 200 };
+
+// ── Render charts page shell ────────────────────────────────────
+function renderChartsPage() {
+    if (_tier === 'free') {
+        document.getElementById('charts-content').innerHTML = `
+            <div class="paywall-overlay">
+                <div class="paywall-icon">📊</div>
+                <div class="paywall-title">Interactive Charts — Pro Feature</div>
+                <div class="paywall-desc">Access real-time charts with TSI, Chandelier Exit, and LinReg overlays.</div>
+                <button class="btn btn-gold" onclick="switchPage('pricing')">Upgrade to Plus — 53 USDT/mo</button>
+            </div>`;
+        return;
+    }
+    document.getElementById('charts-content').innerHTML = `
+        <!-- ═══ Pair picker — search any USDT perp ═══ -->
+        <div class="liq-card" style="margin-bottom:12px;padding:10px 14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase">Pair</span>
+                <datalist id="chart-pairs-list"></datalist>
+                <input id="chart-pair-input" type="text" placeholder="BTCUSDT" maxlength="24"
+                    list="chart-pairs-list"
+                    style="background:var(--surface3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px;font-weight:700;width:200px;text-transform:uppercase;outline:none"
+                    oninput="this.value=this.value.toUpperCase()"
+                    onkeydown="if(event.key==='Enter')loadChartFromInput()">
+                <button class="btn btn-gold" onclick="loadChartFromInput()"
+                    style="padding:7px 16px;font-size:12px;font-weight:700;border-radius:8px">Load</button>
+            </div>
+            <div style="width:1px;height:22px;background:var(--border);flex-shrink:0"></div>
+            <div id="chart-quick-pairs" style="display:flex;gap:5px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;min-width:0;flex-wrap:nowrap"></div>
+        </div>
+
+        <div id="chart-empty-state" style="padding:30px;text-align:center;color:var(--text-dim);font-size:13px">
+            🔍 Type a pair above (e.g. <strong style="color:var(--gold)">BTCUSDT</strong>) and press <strong>Load</strong>, or pick one from the Top row. Any USDT perpetual is supported.
+        </div>
+        <div class="chart-section" id="chart-section" style="display:none;">
+            <div class="chart-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                <h2 id="chart-title" style="margin:0">Select a pair</h2>
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <!-- Timeframe selector -->
+                    <div id="tf-selector" style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px">
+                        ${['5m','15m','1h','4h','1d'].map(tf =>
+                            `<button id="tf-btn-${tf}" onclick="switchChartInterval('${tf}')"
+                                style="padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:700;
+                                       background:${tf==='1h'?'var(--gold)':'transparent'};
+                                       color:${tf==='1h'?'#000':'var(--text-dim)'};transition:all .15s">
+                                ${tf.toUpperCase()}
+                             </button>`
+                        ).join('')}
+                    </div>
+                    <div class="chart-legend" style="display:flex;gap:12px;flex-wrap:wrap">
+                        <div class="leg"><div class="leg-line" style="background:#00d68f"></div>CE Long</div>
+                        <div class="leg"><div class="leg-line" style="background:#ff4d6a"></div>CE Short</div>
+                        <div class="leg"><div class="leg-area" style="background:rgba(0,214,143,0.3)"></div>Cloud</div>
+                        <div class="leg"><div class="leg-line" style="background:#a78bfa"></div>TSI</div>
+                        <div id="live-stream-badge" style="display:none;align-items:center;gap:4px;font-size:11px;color:#00d68f;font-weight:600">
+                            <span style="width:6px;height:6px;border-radius:50%;background:#00d68f;box-shadow:0 0 6px #00d68f;display:inline-block"></span>LIVE
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="price-chart" style="position:relative;margin-top:12px"></div>
+            <div id="chart-resize-handle"
+                 style="height:8px;cursor:ns-resize;background:transparent;display:flex;align-items:center;
+                        justify-content:center;user-select:none;flex-shrink:0"
+                 title="Drag to resize panels">
+                 <div class="resize-grip"
+                      style="width:52px;height:3px;background:#1e2d40;border-radius:2px;transition:background .2s"
+                      onmouseover="this.style.background='#3a4a5e'"
+                      onmouseout="this.style.background='#1e2d40'"></div>
+            </div>
+            <div id="indicator-chart"></div>
+            <div class="rh-status" id="rh-status"></div>
+        </div>`;
+
+    // Populate picker + quick pairs; auto-load previous pair if set
+    _initChartPairPicker();
+}
+
+// ── Pair picker init: autocomplete + quick shortcuts ───────────
+const _CHART_QUICK_PAIRS = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT'];
+
+async function _initChartPairPicker() {
+    // Quick-pick buttons
+    const quick = document.getElementById('chart-quick-pairs');
+    if (quick) {
+        quick.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;flex-shrink:0;margin-right:2px">Quick</span>' +
+            _CHART_QUICK_PAIRS.map(p =>
+                `<button class="liq-win-btn" onclick="selectPairChart('${p}')"
+                    style="flex-shrink:0;padding:4px 10px;font-size:11px;font-weight:700">${p.replace('USDT','')}</button>`
+            ).join('');
+    }
+
+    // Prefill input with last-used pair
+    const input = document.getElementById('chart-pair-input');
+    if (input && _currentPair) input.value = _currentPair;
+
+    // Populate autocomplete from /api/liq/pairs (same source the heatmap uses)
+    try {
+        const r = await fetch('/api/liq/pairs', { headers: authHeaders() });
+        if (r.ok) {
+            const d = await r.json();
+            const pairs = d.pairs || [];
+            const dl = document.getElementById('chart-pairs-list');
+            if (dl && pairs.length) {
+                dl.innerHTML = pairs.map(p =>
+                    `<option value="${p}">${p.replace('USDT','')}</option>`
+                ).join('');
+            }
+        }
+    } catch(e) {}
+
+    // If we already had a chart loaded (returning to tab), re-render it
+    if (_currentPair) {
+        const empty = document.getElementById('chart-empty-state');
+        if (empty) empty.style.display = 'none';
+        setTimeout(() => _loadChart(_currentPair, _currentInterval), 50);
+    }
+}
+
+// ── Load chart from the input box (Enter or button click) ──────
+function loadChartFromInput() {
+    const input = document.getElementById('chart-pair-input');
+    if (!input) return;
+    let v = (input.value || '').trim().toUpperCase();
+    if (!v) return;
+    // Convenience: auto-append USDT if user typed just the base symbol
+    if (!v.endsWith('USDT') && !v.endsWith('USD') && !v.endsWith('BUSD')) {
+        v = v + 'USDT';
+        input.value = v;
+    }
+    selectPairChart(v);
+}
+
+// ── Main entry: select pair from overview, picker, or quick pick ──
+async function selectPairChart(pair) {
+    if (_tier === 'free') { switchPage('pricing'); return; }
+    _currentPair = pair;
+    const input = document.getElementById('chart-pair-input');
+    if (input) input.value = pair;
+    const empty = document.getElementById('chart-empty-state');
+    if (empty) empty.style.display = 'none';
+    // NOTE: switchPage('charts') triggers renderChartsPage() which calls
+    // _initChartPairPicker() which itself auto-loads `_currentPair`. We
+    // must NOT also schedule a _loadChart here, or two concurrent loads
+    // race and render duplicate charts.
+    if (_currentPage !== 'charts') {
+        switchPage('charts');
+    } else {
+        // Already on charts page — just reload the chart directly.
+        _loadChart(pair, _currentInterval);
+    }
+}
+
+// ── Switch timeframe for current pair ──────────────────────────
+async function switchChartInterval(tf) {
+    if (!_currentPair) return;
+    _currentInterval = tf;
+    // Update selector buttons
+    ['5m','15m','1h','4h','1d'].forEach(t => {
+        const b = document.getElementById(`tf-btn-${t}`);
+        if (!b) return;
+        b.style.background = t === tf ? 'var(--gold)' : 'transparent';
+        b.style.color      = t === tf ? '#000' : 'var(--text-dim)';
+    });
+    await _loadChart(_currentPair, tf);
+}
+
+// ── Core load function: fetch data + render + start WS ─────────
+async function _loadChart(pair, interval) {
+    _disconnectLiveWs();
+    const section = document.getElementById('chart-section');
+    if (!section) return;
+    section.style.display = 'block';
+    document.getElementById('chart-title').textContent =
+        pair.replace('USDT', '/USDT') + ' Perp · ' + interval.toUpperCase();
+
+    // Destroy existing charts + null all series refs
+    _zoneRedrawFns.forEach(fn => fn());
+    _zoneRedrawFns = [];
+    _zoneOverlay = _markerPlugin = _liveLastBar = null;
+    if (priceChart) { try { priceChart.remove(); } catch(e) {} priceChart = null; }
+    if (indChart)   { try { indChart.remove();   } catch(e) {} indChart = null; }
+    // Null series refs so _onLiveTick guard catches destroyed chart state
+    _candleSeries = _volSeries = _ceLineSeries = _ceCloudSeries = null;
+    _tsiSeries = _linregSeries = _entryLine = _slLine = null;
+    _tpLines = []; _ceMarkers = [];
+    document.getElementById('price-chart').innerHTML =
+        '<div class="loading" style="padding:40px"><div class="spinner"></div>Loading ' + interval.toUpperCase() + ' data…</div>';
+    document.getElementById('indicator-chart').innerHTML = '';
+    document.getElementById('rh-status').innerHTML = '';
+    const badge = document.getElementById('live-stream-badge');
+    if (badge) badge.style.display = 'none';
+
+    const bars = _TF_BARS[interval] || 500;
+    try {
+        const res = await fetch(`/api/chart/${pair}?interval=${interval}&bars=${bars}`, { headers: authHeaders() });
+        const d   = await res.json();
+        if (d.error) throw new Error(d.error);
+        renderChart(d);
+        renderChartStatus(d);
+        // Connect live Binance WebSocket AFTER chart is rendered
+        _connectLiveWs(pair, interval, d);
+    } catch(e) {
+        document.getElementById('price-chart').innerHTML =
+            '<div class="no-data">Failed to load ' + interval.toUpperCase() + ' data — ' + (e.message || 'server error') + '</div>';
+    }
+}
+
+// ── Price precision: matches Binance tick sizes by magnitude ───────
+function _pricePrecision(price) {
+    if (!price || price <= 0) return { precision: 4, minMove: 0.0001 };
+    if (price < 0.00001)  return { precision: 8, minMove: 0.00000001 };
+    if (price < 0.0001)   return { precision: 7, minMove: 0.0000001 };
+    if (price < 0.01)     return { precision: 6, minMove: 0.000001 };
+    if (price < 0.1)      return { precision: 5, minMove: 0.00001 };
+    if (price < 1)        return { precision: 4, minMove: 0.0001 };
+    if (price < 10)       return { precision: 3, minMove: 0.001 };
+    if (price < 100)      return { precision: 2, minMove: 0.01 };
+    if (price < 10000)    return { precision: 1, minMove: 0.1 };
+    return { precision: 0, minMove: 1 };
+}
+
+function createChartOptions(height) {
+    return {
+        width:  Math.min(document.querySelector('.main-content')?.clientWidth || 1200, 1560),
+        height,
+        layout: { background: { color: '#080c14' }, textColor: '#8899aa', fontSize: 11, fontFamily: "'Inter', sans-serif" },
+        grid:   { vertLines: { color: '#111827' }, horzLines: { color: '#111827' } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: { color: '#3a4a5e', width: 1, style: LightweightCharts.LineStyle.Solid, labelBackgroundColor: '#1e2d40' },
+            horzLine: { color: '#3a4a5e', width: 1, style: LightweightCharts.LineStyle.Solid, labelBackgroundColor: '#1e2d40' } },
+        rightPriceScale: { borderColor: '#1a2536', scaleMargins: { top: 0.05, bottom: 0.05 } },
+        timeScale: { borderColor: '#1a2536', timeVisible: true, secondsVisible: false, rightOffset: 8 },
+        handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true } },
+        handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+        attributionLogo: false,
+    };
+}
+
+// ── v5 helper: addSeries(SeriesType, options) ──────────────────
+const _add = (chart, Type, opts) => chart.addSeries(Type, opts);
+
+function renderChart(d) {
+    const LC = LightweightCharts;
+    const el = document.getElementById('price-chart');
+    el.style.position = 'relative'; // needed for canvas overlay
+
+    // ── Compute price precision from actual data ──
+    const _lastClose = d.close && d.close.length ? d.close[d.close.length - 1] : 1;
+    _currentPrecFmt = _pricePrecision(_lastClose);
+    const _pf = { type: 'price', ..._currentPrecFmt };
+
+    priceChart = LC.createChart(el, createChartOptions(440));
+
+    // ── Candlesticks ──
+    _candleSeries = _add(priceChart, LC.CandlestickSeries, {
+        upColor: '#00d68f', downColor: '#ff4d6a',
+        borderUpColor: '#00d68f', borderDownColor: '#ff4d6a',
+        wickUpColor: '#4fffb8', wickDownColor: '#ff6b85',
+        priceFormat: _pf,
+    });
+    _candleSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), open: d.open[i], high: d.high[i], low: d.low[i], close: d.close[i] })));
+
+    // ── Volume (subtle histogram in candle pane) ──
+    _volSeries = _add(priceChart, LC.HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
+    priceChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    _volSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), value: d.volume[i],
+        color: d.close[i] >= d.open[i] ? 'rgba(0,214,143,0.12)' : 'rgba(255,77,106,0.12)' })));
+
+    // ── CE Line (per-bar color: green=long, red=short) ──
+    _ceLineSeries = _add(priceChart, LC.LineSeries, {
+        lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: _pf });
+    _ceLineSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t),
+        value: d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i],
+        color: d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a' })));
+
+    // ── CE Cloud (wider, semi-transparent, dotted) ──
+    _ceCloudSeries = _add(priceChart, LC.LineSeries, {
+        lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
+        crosshairMarkerVisible: false, lineStyle: LC.LineStyle.Dotted, priceFormat: _pf });
+    _ceCloudSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t),
+        value: d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i],
+        color: d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)' })));
+
+    // ── CE markers (v5: createSeriesMarkers plugin) ──
+    _ceMarkers = [];
+    for (let i = 1; i < d.timestamps.length; i++) {
+        if (d.ce_line_dir[i] === 1 && d.ce_line_dir[i-1] === -1)
+            _ceMarkers.push({ time: toUnix(d.timestamps[i]), position: 'belowBar', color: '#00d68f', shape: 'arrowUp',   text: 'CE Buy',  size: 1 });
+        else if (d.ce_line_dir[i] === -1 && d.ce_line_dir[i-1] === 1)
+            _ceMarkers.push({ time: toUnix(d.timestamps[i]), position: 'aboveBar', color: '#ff4d6a', shape: 'arrowDown', text: 'CE Sell', size: 1 });
+    }
+    try {
+        _markerPlugin = LC.createSeriesMarkers(_candleSeries, _ceMarkers);
+    } catch(e) {
+        try { _candleSeries.setMarkers(_ceMarkers); } catch(_) {}
+    }
+
+    // ── Indicator pane: TSI + LinReg ──
+    indChart = LC.createChart(document.getElementById('indicator-chart'), createChartOptions(180));
+    _linregSeries = _add(indChart, LC.HistogramSeries, { priceLineVisible: false, lastValueVisible: false, priceScaleId: 'lr' });
+    indChart.priceScale('lr').applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
+    _linregSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), value: d.linreg[i],
+        color: d.linreg[i] >= 0 ? 'rgba(0,214,143,0.28)' : 'rgba(255,77,106,0.28)' })));
+
+    _tsiSeries = _add(indChart, LC.LineSeries, { color: '#a78bfa', lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
+    _tsiSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), value: d.tsi[i] })));
+
+    // Adaptive threshold lines
+    [{ val: d.adapt_l1, col: 'rgba(244,162,54,0.6)' }, { val: d.adapt_l2, col: 'rgba(255,77,106,0.6)' }].forEach(({val, col}) => {
+        [val, -val].forEach(v => {
+            const s = _add(indChart, LC.LineSeries, { color: col, lineWidth: 1, lineStyle: LC.LineStyle.Dotted, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            s.setData(d.timestamps.map(t => ({ time: toUnix(t), value: v })));
+        });
+    });
+    const zeroS = _add(indChart, LC.LineSeries, { color: '#1e2d40', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    zeroS.setData(d.timestamps.map(t => ({ time: toUnix(t), value: 0 })));
+
+    // Sync time scales both directions (flag prevents infinite loop)
+    priceChart.timeScale().subscribeVisibleLogicalRangeChange(r => {
+        if (_syncingRange || !r) return;
+        _syncingRange = true;
+        try { indChart.timeScale().setVisibleLogicalRange(r); } catch(_) {}
+        _syncingRange = false;
+    });
+    indChart.timeScale().subscribeVisibleLogicalRangeChange(r => {
+        if (_syncingRange || !r) return;
+        _syncingRange = true;
+        try { priceChart.timeScale().setVisibleLogicalRange(r); } catch(_) {}
+        _syncingRange = false;
+    });
+
+    // Signal lines + zone overlay + % labels
+    overlaySignalLines(d);
+
+    priceChart.priceScale('right').applyOptions({ autoScale: true, scaleMargins: { top: 0.06, bottom: 0.20 } });
+
+    // ── Vertical zoom: wheel on right price-scale area ────────────────
+    _addVerticalZoom(el,                                  priceChart, 'right',  { top: 0.06, bottom: 0.20 });
+    _addVerticalZoom(document.getElementById('indicator-chart'), indChart,   'right',  { top: 0.08, bottom: 0.08 });
+
+    // ── Resize handle between price chart and indicator pane ─────────
+    _setupResizeHandle();
+}
+
+// ────────────────────────────────────────────────────────
+//  Vertical zoom via scroll on price scale area
+// ────────────────────────────────────────────────────────
+function _addVerticalZoom(containerEl, chart, scaleId, initMargins) {
+    if (!containerEl || !chart) return;
+    let _m = { ...(initMargins || { top: 0.06, bottom: 0.06 }) };
+    containerEl.addEventListener('wheel', e => {
+        const rect = containerEl.getBoundingClientRect();
+        if (!rect.width) return;
+        const priceAxisW = 68;  // approximate right price-scale width
+        if (e.clientX < rect.right - priceAxisW) return; // not over price scale
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const step = 0.018;
+        const dir  = e.deltaY > 0 ? 1 : -1; // +1 zoom out, -1 zoom in
+        _m.top    = Math.max(0.01, Math.min(0.45, _m.top    + dir * step));
+        _m.bottom = Math.max(0.01, Math.min(0.45, _m.bottom + dir * step));
+        chart.priceScale(scaleId).applyOptions({ autoScale: false, scaleMargins: { ..._m } });
+    }, { passive: false, capture: true });
+}
+
+// ────────────────────────────────────────────────────────
+//  Drag-resize handle between price chart and indicator
+// ────────────────────────────────────────────────────────
+function _setupResizeHandle() {
+    const handle  = document.getElementById('chart-resize-handle');
+    const priceEl = document.getElementById('price-chart');
+    const indEl   = document.getElementById('indicator-chart');
+    if (!handle || !priceEl || !indEl) return;
+
+    const MIN_PH = 180, MIN_IH = 60;
+
+    handle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const startY  = e.clientY;
+        const startPH = priceEl.clientHeight;
+        const startIH = indEl.clientHeight;
+        handle.querySelector('.resize-grip').style.background = '#4a6080';
+
+        const onMove = ev => {
+            const dy   = ev.clientY - startY;
+            const newPH = Math.max(MIN_PH, startPH + dy);
+            const newIH = Math.max(MIN_IH, startIH - dy);
+            priceEl.style.height = newPH + 'px';
+            indEl.style.height   = newIH + 'px';
+            if (priceChart) priceChart.applyOptions({ height: newPH });
+            if (indChart)   indChart.applyOptions({ height: newIH });
+            // Redraw zone canvas to match new height
+            const cv = priceEl.querySelector('canvas.sig-overlay');
+            if (cv) { cv.width = priceEl.clientWidth; cv.height = newPH; }
+            _zoneRedrawFns.filter(fn => fn._isRedraw).forEach(fn => fn());
+        };
+        const onUp = () => {
+            handle.querySelector('.resize-grip').style.background = '#1e2d40';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
+
+
+function overlaySignalLines(d) {
+    _tpLines = []; _entryLine = null; _slLine = null;
+    const LC = LightweightCharts;
+    const total = d.timestamps.length;
+    const sig = _signalCache.find(s => s.pair === d.pair && s.price && s.stop_loss);
+
+    if (!sig || !priceChart) {
+        priceChart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 80), to: total });
+        indChart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 80), to: total });
+        return;
+    }
+
+    const tFirst = toUnix(d.timestamps[0]);
+    const tLast  = toUnix(d.timestamps[total - 1]);
+    const mkLine  = v => [{ time: tFirst, value: v }, { time: tLast, value: v }];
+    const isLong  = (sig.direction || '').toUpperCase() !== 'SHORT';
+
+    // Locate signal bar
+    const sigDispUnix = sig.timestamp + _SERVER_TZ_OFFSET;
+    let sigIdx = -1;
+    for (let i = 0; i < total; i++) { if (toUnix(d.timestamps[i]) >= sigDispUnix) { sigIdx = i; break; } }
+
+    // Time zoom: 24 bars before signal to now
+    const from = sigIdx >= 0 ? Math.max(0, sigIdx - 24) : Math.max(0, total - 80);
+    priceChart.timeScale().setVisibleLogicalRange({ from, to: total });
+    indChart.timeScale().setVisibleLogicalRange({ from, to: total });
+
+    // ── Calculate % differences ──
+    const pctFmt  = (price) => { const p = (price - sig.price) / sig.price * 100; return (p >= 0 ? '+' : '') + p.toFixed(2) + '%'; };
+    const slPct   = pctFmt(sig.stop_loss);
+
+    const _spf = { type: 'price', ..._currentPrecFmt }; // share pair price format
+
+    // Entry line (gold)
+    _entryLine = _add(priceChart, LC.LineSeries, {
+        color: '#f4a236', lineWidth: 2, lineStyle: LC.LineStyle.Dashed,
+        priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
+        priceFormat: _spf, title: '─ Entry' });
+    _entryLine.setData(mkLine(sig.price));
+
+    // SL line (red) — title shows % on right axis
+    _slLine = _add(priceChart, LC.LineSeries, {
+        color: '#ff4d6a', lineWidth: 2, lineStyle: LC.LineStyle.Dashed,
+        priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
+        priceFormat: _spf, title: `─ SL ${slPct}` });
+    _slLine.setData(mkLine(sig.stop_loss));
+
+    // TP lines (progressively brighter green)
+    const tpGreen = ['#00c47a', '#00d68f', '#4fffb8'];
+    (sig.targets || []).forEach((tp, i) => {
+        const pct = pctFmt(tp);
+        const s = _add(priceChart, LC.LineSeries, {
+            color: tpGreen[Math.min(i, 2)], lineWidth: 1 + i * 0.5,
+            lineStyle: LC.LineStyle.Dashed,
+            priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
+            priceFormat: _spf, title: `─ TP${i+1} ${pct}` });
+        s.setData(mkLine(tp));
+        _tpLines.push(s);
+    });
+
+    // ── Signal-bar marker (merged with CE markers) ──
+    if (sigIdx >= 0 && _candleSeries) {
+        const sigM = {
+            time: toUnix(d.timestamps[sigIdx]),
+            position: isLong ? 'belowBar' : 'aboveBar',
+            color: '#f4a236', shape: isLong ? 'arrowUp' : 'arrowDown',
+            text: `📍 ${sig.direction} @${formatPrice(sig.price)}`, size: 2,
+        };
+        const all = [...(_ceMarkers || []), sigM].sort((a, b) => a.time - b.time);
+        try {
+            if (_markerPlugin && _markerPlugin.setMarkers) _markerPlugin.setMarkers(all);
+            else LC.createSeriesMarkers(_candleSeries, all);
+        } catch(_) {
+            try { _candleSeries.setMarkers(all); } catch(__) {}
+        }
+    }
+
+    // ── Signal info bar (bottom strip) ──
+    const rr    = calcRR(sig.price, sig.stop_loss, sig.targets);
+    const tgtStr = (sig.targets || []).map((tp, i) => {
+        const p = pctFmt(tp);
+        return `<span class="csi-item"><span class="csi-dot" style="background:${tpGreen[Math.min(i,2)]}"></span>
+            TP${i+1}: <b>${formatPrice(tp)}</b> <span class="csi-pct green">${p}</span></span>`;
+    }).join('');
+    const infoEl = document.getElementById('chart-signal-info') || document.createElement('div');
+    infoEl.id = 'chart-signal-info';
+    infoEl.className = 'chart-signal-info';
+    infoEl.innerHTML = `
+        <span class="csi-item"><span class="csi-dot" style="background:#f4a236"></span>
+            Entry: <b>${formatPrice(sig.price)}</b></span>
+        <span class="csi-item"><span class="csi-dot" style="background:#ff4d6a"></span>
+            SL: <b>${formatPrice(sig.stop_loss)}</b> <span class="csi-pct red">${slPct}</span></span>
+        ${tgtStr}
+        ${rr ? `<span class="rr-badge ${rr >= 2 ? 'good' : rr >= 1 ? 'ok' : 'bad'}">R:R ${rr}:1</span>` : ''}
+        <span class="csi-meta">${sig.direction} · ${sig.leverage ? sig.leverage + 'x' : ''} · ${sig.status}</span>
+    `;
+    const chartSection = document.getElementById('chart-section');
+    if (chartSection && !document.getElementById('chart-signal-info')) chartSection.appendChild(infoEl);
+}
+
+function renderChartStatus(d) {
+    const last = d.tsi.length - 1;
+    const tsi = d.tsi[last], lr = d.linreg[last], ceL = d.ce_line_dir[last], ceC = d.ce_cloud_dir[last];
+    let zone = 'Neutral', zc = 'neutral';
+    if (tsi >= d.adapt_l2) { zone = 'OB L2'; zc = 'down'; }
+    else if (tsi >= d.adapt_l1) { zone = 'OB L1'; zc = 'down'; }
+    else if (tsi <= -d.adapt_l2) { zone = 'OS L2'; zc = 'up'; }
+    else if (tsi <= -d.adapt_l1) { zone = 'OS L1'; zc = 'up'; }
+    document.getElementById('rh-status').innerHTML = `
+        <div class="rh-stat"><span class="stat-label">TSI Zone:</span><span class="stat-val ${zc}">${zone}</span></div>
+        <div class="rh-stat"><span class="stat-label">TSI:</span><span class="stat-val ${tsi > 0 ? 'down' : 'up'}">${tsi.toFixed(3)}</span></div>
+        <div class="rh-stat"><span class="stat-label">L1/L2:</span><span class="stat-val neutral">±${d.adapt_l1} / ±${d.adapt_l2}</span></div>
+        <div class="rh-stat"><span class="stat-label">LinReg:</span><span class="stat-val ${lr > 0 ? 'up' : lr < 0 ? 'down' : 'neutral'}">${lr.toFixed(3)}</span></div>
+        <div class="rh-stat"><span class="stat-label">CE Line:</span><span class="stat-val ${ceL === 1 ? 'up' : 'down'}">${ceL === 1 ? 'LONG' : 'SHORT'}</span></div>
+        <div class="rh-stat"><span class="stat-label">CE Cloud:</span><span class="stat-val ${ceC === 1 ? 'up' : 'down'}">${ceC === 1 ? 'LONG' : 'SHORT'}</span></div>
+    `;
+}
+
+window.addEventListener('resize', () => {
+    const w = Math.min(document.querySelector('.main-content')?.clientWidth || 1200, 1560);
+    if (priceChart) priceChart.applyOptions({ width: w });
+    if (indChart)   indChart.applyOptions({ width: w });
+    if (_zoneOverlay) {
+        const el = document.getElementById('price-chart');
+        if (el) {
+            const cv = el.querySelector('canvas.sig-overlay');
+            if (cv) {
+                cv.width  = el.clientWidth;
+                cv.height = el.clientHeight;
+                priceChart && priceChart.applyOptions({});
+            }
+        }
+    }
+});
+
+// ═════════════════════════════════════════════════════════════════
+//  LIVE BINANCE WEBSOCKET — direct fstream connection from browser
+//  Streams: {pair}@kline_{interval}  (Binance Futures public)
+//  On each tick  → update live candle bar (zero server load)
+//  On candle close → re-fetch server for fresh indicators
+// ═════════════════════════════════════════════════════════════════
+
+function _connectLiveWs(pair, interval, initialData) {
+    _disconnectLiveWs();
+    const stream = `${pair.toLowerCase()}@kline_${interval}`;
+    const wsUrl  = `wss://fstream.binance.com/stream?streams=${stream}`;
+    // Shared state for this connection lifecycle
+    const ctx = { active: true, socket: null };
+
+    function connect() {
+        if (!ctx.active) return;
+        const ws    = new WebSocket(wsUrl);
+        ctx.socket  = ws;
+
+        ws.onopen = () => {
+            const badge = document.getElementById('live-stream-badge');
+            if (badge) badge.style.display = 'flex';
+        };
+        ws.onmessage = (evt) => {
+            try {
+                const msg = JSON.parse(evt.data);
+                const k   = (msg.data || msg).k;
+                if (k) _onLiveTick(pair, interval, k);
+            } catch(_) {}
+        };
+        ws.onerror = () => {};
+        ws.onclose = () => {
+            const badge = document.getElementById('live-stream-badge');
+            if (badge) badge.style.display = 'none';
+            if (ctx.active) _liveWsReconnect = setTimeout(connect, 3000);
+        };
+    }
+    connect();
+
+    // Store handle on module-level _liveWs with teardown
+    _liveWs = { _teardown: () => { ctx.active = false; if (ctx.socket) try { ctx.socket.close(); } catch(_) {} ctx.socket = null; } };
+}
+
+function _disconnectLiveWs() {
+    if (_liveWsReconnect) { clearTimeout(_liveWsReconnect); _liveWsReconnect = null; }
+    if (_liveWs && _liveWs._teardown) { _liveWs._teardown(); }
+    else if (_liveWs && _liveWs.close) { try { _liveWs.close(); } catch(_) {} }
+    _liveWs = null;
+    _liveLastBar = null;
+    const badge = document.getElementById('live-stream-badge');
+    if (badge) badge.style.display = 'none';
+}
+
+let _liveRefreshPending = false;
+
+async function _onLiveTick(pair, interval, k) {
+    if (!_candleSeries || !priceChart) return;
+
+    // Apply same TZ offset as toUnix() so live bar aligns with historical bars
+    const barTime = Math.floor(parseInt(k.t) / 1000) + (_SERVER_TZ_OFFSET || 0);
+    const o = parseFloat(k.o), h = parseFloat(k.h),
+          l = parseFloat(k.l), c = parseFloat(k.c),
+          v = parseFloat(k.v);
+
+    const bar = { time: barTime, open: o, high: h, low: l, close: c };
+
+    // Update candlestick + volume live
+    try {
+        _candleSeries.update(bar);
+        if (_volSeries) _volSeries.update({ time: barTime, value: v,
+            color: c >= o ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)' });
+    } catch(_) {}
+
+    _liveLastBar = bar;
+
+    // Candle closed → re-fetch full data from server for accurate indicators
+    if (k.x && !_liveRefreshPending) {
+        _liveRefreshPending = true;
+        setTimeout(async () => {
+            try {
+                const bars = _TF_BARS[interval] || 500;
+                const res  = await fetch(`/api/chart/${pair}?interval=${interval}&bars=${bars}`, { headers: authHeaders() });
+                const d    = await res.json();
+                if (!d.error && _candleSeries) {
+                    // Silently update indicator series only (keep chart position)
+                    if (_tsiSeries && d.tsi) {
+                        _tsiSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), value: d.tsi[i] })));
+                    }
+                    if (_linregSeries && d.linreg) {
+                        _linregSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), value: d.linreg[i],
+                            color: d.linreg[i] >= 0 ? 'rgba(0,214,143,0.28)' : 'rgba(255,77,106,0.28)' })));
+                    }
+                    if (_ceLineSeries && d.ce_line_dir) {
+                        _ceLineSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t),
+                            value: d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i],
+                            color: d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a' })));
+                    }
+                    if (_ceCloudSeries && d.ce_cloud_dir) {
+                        _ceCloudSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t),
+                            value: d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i],
+                            color: d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)' })));
+                    }
+                    renderChartStatus(d);
+                }
+            } catch(_) {}
+            _liveRefreshPending = false;
+        }, 1500); // brief delay to ensure server cache refreshed
+    }
+}
+
+// Disconnect live WS when leaving charts page
+const _origSwitchPage = window.switchPage;
+if (typeof _origSwitchPage === 'function') {
+    // patch switchPage to tear down WS when navigating away from charts
+    const _chartsSPPatch = (function() {
+        const _orig = window.switchPage;
+        window.switchPage = function(page) {
+            if (page !== 'charts') _disconnectLiveWs();
+            return _orig.apply(this, arguments);
+        };
+    })();
+}

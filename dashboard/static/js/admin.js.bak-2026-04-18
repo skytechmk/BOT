@@ -1,0 +1,137 @@
+// ═══════════════════════════════════════════════════════════════
+//  ADMIN PANEL
+// ═══════════════════════════════════════════════════════════════
+async function loadAdminUsers() {
+    try {
+        const res = await fetch('/api/admin/users', { headers: authHeaders() });
+        if (!res.ok) { document.getElementById('admin-users-table').innerHTML = '<div class="no-data">Access denied</div>'; return; }
+        const data = await res.json();
+        renderAdminPanel(data.users);
+    } catch(e) {
+        document.getElementById('admin-users-table').innerHTML = '<div class="no-data">Failed to load users</div>';
+    }
+}
+
+function renderAdminPanel(users) {
+    const free = users.filter(u => u.tier === 'free' || u.tier.includes('expired')).length;
+    const pro = users.filter(u => u.tier === 'pro').length;
+    const elite = users.filter(u => u.tier === 'elite').length;
+    const expiring = users.filter(u => u.days_left > 0 && u.days_left <= 7).length;
+
+    document.getElementById('admin-stats').innerHTML = `
+        <div class="admin-stat"><div class="val">${users.length}</div><div class="lbl">Total Users</div></div>
+        <div class="admin-stat"><div class="val" style="color:var(--gold)">${pro}</div><div class="lbl">Plus</div></div>
+        <div class="admin-stat"><div class="val" style="color:var(--purple)">${elite}</div><div class="lbl">Pro</div></div>
+        <div class="admin-stat"><div class="val" style="color:${expiring ? 'var(--red)' : 'var(--green)'}">${expiring}</div><div class="lbl">Expiring ≤7d</div></div>
+    `;
+
+    let html = `<table class="admin-table"><thead><tr>
+        <th>ID</th><th>Username</th><th>Email</th><th>Tier</th><th>Days Left</th><th>Registered</th><th>Last Login</th><th>Actions</th>
+    </tr></thead><tbody>`;
+
+    for (const u of users) {
+        const tierCls = u.tier.includes('expired') ? 'expired' : u.tier_raw;
+        const daysCls = u.days_left <= 0 ? '' : u.days_left <= 3 ? 'critical' : u.days_left <= 7 ? 'warning' : 'ok';
+        const daysStr = u.tier === 'free' && !u.tier.includes('expired') ? '—' : u.days_left > 0 ? `${u.days_left}d` : 'Expired';
+        const regDate = new Date(u.created_at * 1000).toLocaleDateString();
+        const loginDate = u.last_login ? new Date(u.last_login * 1000).toLocaleDateString() : 'Never';
+        const adminBadge = u.is_admin ? ' <span style="color:var(--red);font-size:10px">ADMIN</span>' : '';
+
+        html += `<tr>
+            <td>${u.id}</td>
+            <td style="font-weight:600">${u.username || '—'}${adminBadge}</td>
+            <td style="font-size:12px;color:var(--text-dim)">${u.email}</td>
+            <td class="tier-cell ${tierCls}">${{free:'Free',pro:'Plus',elite:'Pro'}[u.tier_raw] || u.tier}</td>
+            <td class="days-cell ${daysCls}">${daysStr}</td>
+            <td style="font-size:12px">${regDate}</td>
+            <td style="font-size:12px">${loginDate}</td>
+            <td class="admin-actions">
+                <button class="admin-btn" onclick="openTierModal(${u.id},'${u.username}','${u.tier_raw}')">Edit Tier</button>
+                ${u.tier !== 'free' ? `<button class="admin-btn danger" onclick="adminDeactivate(${u.id},'${u.username}')">Deactivate</button>` : ''}
+                ${!u.is_admin ? `<button class="admin-btn danger" onclick="adminDeleteUser(${u.id},'${u.username}')">Delete</button>` : ''}
+            </td>
+        </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('admin-users-table').innerHTML = html;
+}
+
+function openTierModal(userId, username, currentTier) {
+    const overlay = document.createElement('div');
+    overlay.className = 'admin-modal-overlay';
+    overlay.id = 'tier-modal';
+    overlay.innerHTML = `
+        <div class="admin-modal">
+            <h3>Edit Tier — ${username || 'User #'+userId}</h3>
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px">Tier</label>
+            <select id="modal-tier">
+                <option value="free" ${currentTier==='free'?'selected':''}>Free</option>
+                <option value="pro" ${currentTier==='pro'?'selected':''}>Plus (53 USDT/mo)</option>
+                <option value="elite" ${currentTier==='elite'?'selected':''}>Pro (109 USDT/mo)</option>
+                <option value="ultra" ${currentTier==='ultra'?'selected':''}>Ultra (200 USDT/mo) — in dev</option>
+            </select>
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px">Duration (days)</label>
+            <input type="number" id="modal-days" value="30" min="1" max="365">
+            <div class="btn-row">
+                <button class="admin-btn" onclick="closeTierModal()">Cancel</button>
+                <button class="admin-btn" style="background:var(--gold);color:#000;border-color:var(--gold)" onclick="submitTierChange(${userId})">Save</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+function closeTierModal() {
+    const m = document.getElementById('tier-modal');
+    if (m) m.remove();
+}
+
+async function submitTierChange(userId) {
+    const tier = document.getElementById('modal-tier').value;
+    const days = parseInt(document.getElementById('modal-days').value) || 30;
+    try {
+        const res = await fetch(`/api/admin/users/${userId}/tier`, {
+            method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tier, days })
+        });
+        const data = await res.json();
+        if (data.error) { alert(data.error); return; }
+        closeTierModal();
+        loadAdminUsers();
+    } catch(e) { alert('Failed to update tier'); }
+}
+
+async function adminDeactivate(userId, username) {
+    if (!confirm(`Deactivate ${username || 'User #'+userId}? This will downgrade them to Free.`)) return;
+    try {
+        const res = await fetch(`/api/admin/users/${userId}/deactivate`, {
+            method: 'POST', headers: authHeaders()
+        });
+        const data = await res.json();
+        if (data.error) { alert(data.error); return; }
+        loadAdminUsers();
+    } catch(e) { alert('Failed to deactivate'); }
+}
+
+async function adminDeleteUser(userId, username) {
+    if (!confirm(`PERMANENTLY DELETE ${username || 'User #'+userId}?\nThis will remove the user and all their payment history. This cannot be undone.`)) return;
+    try {
+        const res = await fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE', headers: authHeaders()
+        });
+        const data = await res.json();
+        if (data.error) { alert(data.error); return; }
+        loadAdminUsers();
+    } catch(e) { alert('Failed to delete user'); }
+}
+
+async function adminCheckExpiry() {
+    try {
+        const res = await fetch('/api/admin/check-expiry', {
+            method: 'POST', headers: authHeaders()
+        });
+        const data = await res.json();
+        const msg = `Reminders sent: ${data.reminders_sent?.length || 0}\nDeactivated: ${data.deactivated?.length || 0}`;
+        alert(msg);
+        loadAdminUsers();
+    } catch(e) { alert('Failed to check expiry'); }
+}

@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05080F">
+
+<title>Anunnaki World — We do the math. You make the move.</title>
+<meta name="description" content="We do the math. You make the move. Institutional-grade AI signals scanning 566+ Binance USDT perps in real time. Live liquidation heatmap, copy-trading, dynamic trailing SL. Free to start.">
+<meta name="keywords" content="crypto signals, binance futures, AI trading, liquidation heatmap, copy trading, perpetual futures, algorithmic trading">
+<link rel="canonical" href="https://anunnakiworld.com/">
+<link rel="icon" type="image/jpeg" href="/static/logo.jpeg">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://anunnakiworld.com/">
+<meta property="og:title" content="Anunnaki World — We do the math. You make the move.">
+<meta property="og:description" content="Institutional-grade AI signals scanning 566+ Binance USDT perps in real time. Live liquidation heatmap, copy-trading, AI signals. Free to start.">
+<meta property="og:image" content="https://anunnakiworld.com/static/og-banner.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preload" as="image" href="/static/logo.jpeg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+
+<!-- Reuse the brand palette from the dashboard so this page stays
+     visually consistent even as design tokens evolve. -->
+<link rel="stylesheet" href="/static/css/premium.css">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     The landing page is a marketing surface designed exclusively for
+     the dark brand palette — the gold/gradient typography, cosmic
+     background, and logo glow all break under light mode. Force dark
+     at parse time (before any deferred script runs) and lock it so
+     client-security.js's timezone-based auto-theme can't override it.
+     We also purge any stale user theme key so the *next* visit (e.g.
+     to /app) isn't affected by what we write here.
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+(function lockLandingToDark() {
+    var root = document.documentElement;
+    function force() {
+        if (root.getAttribute('data-theme') !== 'dark') {
+            root.setAttribute('data-theme', 'dark');
+        }
+    }
+    force();
+    root.style.colorScheme = 'dark';
+    // Re-assert on every attribute mutation from any later script.
+    new MutationObserver(force).observe(root, {
+        attributes: true, attributeFilter: ['data-theme']
+    });
+    // Don't pollute the dashboard's theme preference from here.
+    try { localStorage.removeItem('awd-theme-user-set'); } catch (_) {}
+})();
+</script>
+
+<script src="/static/js/client-security.js" defer></script>
+
+<style>
+:root{
+    --text:        #E5E7EB;
+    --text-dim:    #94A3B8;
+    --text-faint:  #64748B;
+    --hairline:    rgba(255,255,255,0.06);
+    --neon-gold:   #E4C375;
+    --neon-purple: #B794F6;
+    --neon-cyan:   #4FD1C7;
+    --neon-amber:  #F6AD55;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+/* Hide the global session/liquidity bar that client-security.js injects
+   into <body>. It belongs on the dashboard, not the marketing page. */
+#awd-session-bar{display:none!important}
+html,body{margin:0;padding:0;background:#05080F;color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+    overflow-x:hidden;scroll-behavior:smooth}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;border:none;cursor:pointer;background:none;color:inherit}
+img{display:block;max-width:100%}
+
+/* ═══ Layout ═══ */
+.container{max-width:1200px;margin:0 auto;padding:0 24px;position:relative;z-index:2}
+@media(min-width:1400px){.container{max-width:1280px}}
+
+/* ═══ CRT scanlines + vignette (pure CSS, GPU-cheap) ═══ */
+body::before{
+    content:'';position:fixed;inset:0;z-index:3;pointer-events:none;
+    background:repeating-linear-gradient(180deg,
+        rgba(255,255,255,0.018) 0px,rgba(255,255,255,0.018) 1px,
+        transparent 1px,transparent 3px);
+    opacity:.55;mix-blend-mode:overlay
+}
+body::after{
+    content:'';position:fixed;inset:0;z-index:2;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 40%,rgba(5,8,15,0.85) 100%)
+}
+
+/* ═══ Particle canvas ═══ */
+#starfield{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ═══ Aurora background blobs ═══ */
+.aurora{position:fixed;inset:0;z-index:1;overflow:hidden;pointer-events:none}
+.aurora::before,.aurora::after,.aurora-3{
+    content:'';position:absolute;border-radius:50%;filter:blur(110px);
+    animation:drift 26s ease-in-out infinite alternate}
+.aurora::before{width:700px;height:700px;top:-160px;left:-160px;
+    background:radial-gradient(circle,rgba(212,168,74,0.28) 0%,transparent 70%)}
+.aurora::after{width:620px;height:620px;top:25%;right:-200px;
+    background:radial-gradient(circle,rgba(167,139,250,0.22) 0%,transparent 70%);
+    animation-delay:-13s}
+.aurora-3{width:560px;height:560px;bottom:-200px;left:28%;
+    background:radial-gradient(circle,rgba(79,209,199,0.14) 0%,transparent 70%);
+    animation-delay:-7s}
+@keyframes drift{
+    0%  {transform:translate(0,0)        scale(1)}
+    50% {transform:translate(100px,-60px) scale(1.15)}
+    100%{transform:translate(-60px,80px)  scale(0.92)}
+}
+
+/* ═══ Grid overlay ═══ */
+.grid-overlay{
+    position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0.35;
+    background-image:
+        linear-gradient(rgba(212,168,74,0.04) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(212,168,74,0.04) 1px,transparent 1px);
+    background-size:56px 56px;
+    mask-image:radial-gradient(ellipse at 50% 30%,#000 25%,transparent 75%);
+    -webkit-mask-image:radial-gradient(ellipse at 50% 30%,#000 25%,transparent 75%)
+}
+
+/* ═══ Header ═══ */
+.nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(22px) saturate(1.4);
+    -webkit-backdrop-filter:blur(22px) saturate(1.4);
+    background:rgba(5,8,15,0.68);border-bottom:1px solid var(--hairline)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:66px;gap:24px}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:15px;letter-spacing:.01em}
+.brand-mark{width:34px;height:34px;border-radius:50%;overflow:hidden;
+    background:#000;box-shadow:0 0 0 1px rgba(228,195,117,0.4),0 4px 18px rgba(212,168,74,0.5);
+    position:relative}
+.brand-mark img{width:100%;height:100%;object-fit:cover}
+.brand-name{font-family:'Orbitron',sans-serif;font-weight:800;letter-spacing:.08em;
+    background:linear-gradient(135deg,#fff 0%,#D4E0F0 40%,#E4C375 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+.nav-links{display:none;gap:28px;font-size:13px;font-weight:500;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.1em}
+@media(min-width:900px){.nav-links{display:flex}}
+.nav-links a{transition:color .2s;position:relative}
+.nav-links a::after{content:'';position:absolute;left:0;bottom:-6px;width:0;height:1px;
+    background:var(--neon-gold);transition:width .25s}
+.nav-links a:hover{color:#fff}
+.nav-links a:hover::after{width:100%}
+.nav-cta{display:flex;gap:10px;align-items:center}
+
+/* ═══ Buttons ═══ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    padding:12px 22px;border-radius:10px;font-size:14px;font-weight:700;
+    letter-spacing:.02em;transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
+    white-space:nowrap;position:relative;overflow:hidden}
+.btn-sm{padding:8px 14px;font-size:13px;border-radius:8px}
+.btn-lg{padding:16px 30px;font-size:15px;border-radius:12px;letter-spacing:.03em}
+.btn-primary{background:linear-gradient(135deg,#E4C375 0%,#D4A84A 50%,#9B7A2F 100%);
+    color:#1a0f00;box-shadow:
+        0 0 0 1px rgba(228,195,117,0.6) inset,
+        0 4px 16px rgba(212,168,74,0.35),
+        0 0 36px rgba(212,168,74,0.15);
+    border:1px solid rgba(228,195,117,0.6)}
+.btn-primary::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent);
+    transition:left .6s}
+.btn-primary:hover::before{left:100%}
+.btn-primary:hover{transform:translateY(-2px);
+    box-shadow:0 0 0 1px rgba(228,195,117,0.9) inset,0 10px 28px rgba(212,168,74,0.55),0 0 56px rgba(212,168,74,0.3)}
+.btn-ghost{background:rgba(255,255,255,0.04);color:var(--text);border:1px solid var(--hairline);
+    backdrop-filter:blur(8px)}
+.btn-ghost:hover{background:rgba(255,255,255,0.08);border-color:rgba(228,195,117,0.4);color:#fff}
+
+/* ═══ HERO ═══ */
+.hero{padding:60px 0 80px;position:relative;text-align:center}
+@media(min-width:900px){.hero{padding:80px 0 120px}}
+
+/* ── Logo centerpiece with animated halo ── */
+.logo-stage{position:relative;width:200px;height:200px;margin:0 auto 40px;
+    display:flex;align-items:center;justify-content:center}
+@media(min-width:700px){.logo-stage{width:260px;height:260px;margin-bottom:56px}}
+
+.logo-halo{position:absolute;inset:-40px;border-radius:50%;
+    background:conic-gradient(from 0deg,
+        rgba(228,195,117,0)      0%,
+        rgba(228,195,117,0.55)   20%,
+        rgba(183,148,246,0.55)   45%,
+        rgba(79,209,199,0.45)    70%,
+        rgba(228,195,117,0)      100%);
+    filter:blur(24px);opacity:.9;
+    animation:halo-spin 14s linear infinite}
+@keyframes halo-spin{to{transform:rotate(360deg)}}
+
+.logo-ring{position:absolute;inset:-4px;border-radius:50%;
+    background:conic-gradient(from 0deg,
+        #E4C375 0deg,#B794F6 120deg,#4FD1C7 240deg,#E4C375 360deg);
+    animation:halo-spin 9s linear infinite;
+    opacity:.95}
+.logo-ring::after{content:'';position:absolute;inset:3px;border-radius:50%;
+    background:radial-gradient(circle,#0a0e1a 0%,#05080F 100%)}
+
+.logo-pulse{position:absolute;inset:0;border-radius:50%;
+    border:1px solid rgba(228,195,117,0.35);
+    animation:pulse-ring 3.2s ease-out infinite}
+.logo-pulse:nth-child(2){animation-delay:1.1s;border-color:rgba(183,148,246,0.3)}
+.logo-pulse:nth-child(3){animation-delay:2.2s;border-color:rgba(79,209,199,0.25)}
+@keyframes pulse-ring{
+    0%  {transform:scale(.9);opacity:.9}
+    100%{transform:scale(1.9);opacity:0}
+}
+
+.logo-mark{position:relative;width:86%;height:86%;border-radius:50%;overflow:hidden;
+    box-shadow:
+        inset 0 0 0 2px rgba(228,195,117,0.7),
+        inset 0 0 40px rgba(0,0,0,0.8),
+        0 20px 60px rgba(0,0,0,0.6),
+        0 0 80px rgba(212,168,74,0.4);
+    animation:logo-float 6s ease-in-out infinite}
+@keyframes logo-float{
+    0%,100%{transform:translateY(0)}
+    50%    {transform:translateY(-8px)}
+}
+.logo-mark img{width:100%;height:100%;object-fit:cover;filter:contrast(1.05) saturate(1.15)}
+
+/* orbiting dots around logo */
+.logo-orbit{position:absolute;inset:-10px;border-radius:50%;
+    animation:halo-spin 22s linear infinite}
+.logo-orbit span{position:absolute;top:50%;left:-4px;width:8px;height:8px;border-radius:50%;
+    background:#E4C375;box-shadow:0 0 12px #E4C375;transform:translateY(-50%)}
+.logo-orbit:nth-child(4) span{background:#B794F6;box-shadow:0 0 12px #B794F6}
+.logo-orbit:nth-child(4){animation-duration:18s;animation-direction:reverse}
+.logo-orbit:nth-child(5) span{background:#4FD1C7;box-shadow:0 0 12px #4FD1C7}
+.logo-orbit:nth-child(5){animation-duration:28s}
+
+.hero-eyebrow{display:inline-flex;align-items:center;gap:10px;
+    padding:7px 16px;border-radius:999px;font-size:11px;font-weight:700;
+    color:#E4C375;background:rgba(212,168,74,0.08);
+    border:1px solid rgba(212,168,74,0.3);
+    letter-spacing:.16em;text-transform:uppercase;margin-bottom:28px;
+    backdrop-filter:blur(8px)}
+.hero-eyebrow .dot{width:7px;height:7px;border-radius:50%;background:#22c55e;
+    box-shadow:0 0 10px #22c55e;animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.2)}}
+
+.hero h1{font-size:clamp(40px,6.5vw,78px);font-weight:800;line-height:1.02;
+    letter-spacing:-0.035em;margin:0 auto 28px;max-width:1000px;
+    font-family:'Orbitron','Inter',sans-serif;
+    background:linear-gradient(135deg,#fff 0%,#D4E0F0 40%,#E4C375 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 80px rgba(212,168,74,0.3)}
+.hero h1 em{font-style:normal;display:inline-block;
+    background:linear-gradient(135deg,#E4C375 0%,#B794F6 50%,#4FD1C7 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:gradient-shift 6s ease-in-out infinite;background-size:200% 200%}
+@keyframes gradient-shift{
+    0%,100%{background-position:0% 50%}
+    50%    {background-position:100% 50%}
+}
+
+.hero-sub{font-size:clamp(16px,1.7vw,20px);color:var(--text-dim);
+    max-width:720px;margin:0 auto 40px;line-height:1.6}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:60px}
+.hero-trust{display:flex;flex-wrap:wrap;gap:32px 48px;justify-content:center;
+    font-size:12px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.1em}
+.hero-trust strong{display:block;font-family:'Orbitron',monospace;font-size:30px;
+    font-weight:800;letter-spacing:-.02em;margin-bottom:4px;
+    background:linear-gradient(135deg,#E4C375 0%,#D4A84A 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-trust-note{display:block;margin-top:6px;font-size:9.5px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);
+    opacity:.65;font-weight:500;font-family:'Inter',sans-serif}
+
+/* ═══ Section scaffolding ═══ */
+.section{padding:100px 0;position:relative}
+.section-head{text-align:center;max-width:800px;margin:0 auto 72px}
+.section-eyebrow{display:inline-block;font-size:11px;font-weight:700;
+    color:var(--neon-gold);letter-spacing:.2em;text-transform:uppercase;
+    margin-bottom:16px;padding:5px 14px;border:1px solid rgba(228,195,117,0.25);
+    border-radius:999px;background:rgba(212,168,74,0.05)}
+.section h2{font-size:clamp(30px,4vw,48px);font-weight:800;line-height:1.1;
+    letter-spacing:-0.025em;margin:0 0 20px;
+    font-family:'Orbitron','Inter',sans-serif;
+    background:linear-gradient(180deg,#fff 0%,#94A3B8 140%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+.section p.lead{font-size:17px;color:var(--text-dim);line-height:1.65;margin:0}
+
+/* ═══ Stats strip ═══ */
+.stats-strip{border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);
+    padding:40px 0;
+    background:linear-gradient(90deg,rgba(15,21,34,0.2) 0%,rgba(15,21,34,0.5) 50%,rgba(15,21,34,0.2) 100%)}
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:32px 24px}
+@media(min-width:700px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat{text-align:center;position:relative}
+.stat:not(:last-child)::after{content:'';position:absolute;top:20%;right:-12px;height:60%;
+    width:1px;background:linear-gradient(180deg,transparent,var(--hairline),transparent);
+    display:none}
+@media(min-width:700px){.stat:not(:last-child)::after{display:block}}
+.stat .val{font-family:'Orbitron',monospace;font-size:clamp(28px,3.5vw,42px);
+    font-weight:800;line-height:1;letter-spacing:-.03em;
+    background:linear-gradient(135deg,#E4C375 0%,#D4A84A 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 20px rgba(212,168,74,0.3)}
+.stat .lbl{font-size:11px;color:var(--text-faint);text-transform:uppercase;
+    letter-spacing:.12em;margin-top:10px;font-weight:600}
+
+/* ═══ Feature grid ═══ */
+.feature-grid{display:grid;grid-template-columns:1fr;gap:22px}
+@media(min-width:700px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.feature-grid{grid-template-columns:repeat(3,1fr)}}
+
+.feature{padding:32px 28px;border-radius:18px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,rgba(15,21,34,0.8) 0%,rgba(10,14,24,0.6) 100%);
+    transition:transform .3s cubic-bezier(.2,.8,.2,1),border-color .25s}
+/* animated neon border */
+.feature::before{content:'';position:absolute;inset:0;border-radius:18px;padding:1px;
+    background:linear-gradient(135deg,rgba(228,195,117,0.35),rgba(183,148,246,0.2) 40%,transparent 70%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.feature::after{content:'';position:absolute;top:-50%;right:-20%;width:240px;height:240px;
+    background:radial-gradient(circle,rgba(212,168,74,0.15) 0%,transparent 70%);
+    opacity:0;transition:opacity .4s;pointer-events:none}
+.feature:hover{transform:translateY(-6px)}
+.feature:hover::after{opacity:1}
+.feature.purple::before{background:linear-gradient(135deg,rgba(183,148,246,0.4),rgba(79,209,199,0.18) 50%,transparent 80%)}
+.feature.cyan::before{background:linear-gradient(135deg,rgba(79,209,199,0.4),rgba(228,195,117,0.18) 50%,transparent 80%)}
+
+.feature .icon{width:52px;height:52px;border-radius:14px;
+    display:grid;place-items:center;margin-bottom:22px;font-size:22px;
+    background:linear-gradient(135deg,rgba(212,168,74,0.15),rgba(212,168,74,0.05));
+    border:1px solid rgba(212,168,74,0.3);color:#E4C375;
+    box-shadow:0 0 24px rgba(212,168,74,0.15),inset 0 1px 0 rgba(255,255,255,0.1)}
+.feature.purple .icon{background:linear-gradient(135deg,rgba(183,148,246,0.15),rgba(183,148,246,0.05));
+    border-color:rgba(183,148,246,0.35);color:#B794F6;box-shadow:0 0 24px rgba(183,148,246,0.15),inset 0 1px 0 rgba(255,255,255,0.1)}
+.feature.cyan .icon{background:linear-gradient(135deg,rgba(79,209,199,0.15),rgba(79,209,199,0.05));
+    border-color:rgba(79,209,199,0.35);color:#4FD1C7;box-shadow:0 0 24px rgba(79,209,199,0.15),inset 0 1px 0 rgba(255,255,255,0.1)}
+.feature h3{font-size:19px;font-weight:700;margin:0 0 12px;color:#fff;letter-spacing:-.01em}
+.feature p{font-size:14px;color:var(--text-dim);line-height:1.65;margin:0}
+.feature .badge{position:absolute;top:22px;right:22px;padding:4px 10px;border-radius:6px;
+    font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    font-family:'Orbitron',monospace}
+.badge-ultra{background:rgba(79,209,199,0.12);color:#4FD1C7;border:1px solid rgba(79,209,199,0.4);
+    box-shadow:0 0 12px rgba(79,209,199,0.2)}
+.badge-pro{background:rgba(183,148,246,0.12);color:#B794F6;border:1px solid rgba(183,148,246,0.4);
+    box-shadow:0 0 12px rgba(183,148,246,0.2)}
+
+/* ═══ How it works ═══ */
+.steps{display:grid;gap:22px;grid-template-columns:1fr;counter-reset:step;position:relative}
+@media(min-width:900px){.steps{grid-template-columns:repeat(4,1fr)}}
+/* dotted connector line */
+@media(min-width:900px){
+    .steps::before{content:'';position:absolute;top:66px;left:10%;right:10%;height:1px;
+        background:repeating-linear-gradient(90deg,var(--neon-gold) 0 6px,transparent 6px 14px);
+        opacity:.35;z-index:0}
+}
+.step{padding:32px 26px;border-radius:16px;
+    background:linear-gradient(180deg,rgba(15,21,34,0.9) 0%,rgba(10,14,24,0.75) 100%);
+    border:1px solid var(--hairline);position:relative;counter-increment:step;
+    backdrop-filter:blur(10px);z-index:1}
+.step-num{display:inline-flex;align-items:center;justify-content:center;
+    width:44px;height:44px;border-radius:12px;margin-bottom:18px;
+    font-family:'Orbitron',monospace;font-size:16px;font-weight:800;
+    background:linear-gradient(135deg,rgba(228,195,117,0.15),rgba(228,195,117,0.03));
+    border:1px solid rgba(228,195,117,0.35);color:#E4C375;
+    box-shadow:0 0 20px rgba(212,168,74,0.15)}
+.step h4{font-size:17px;font-weight:700;margin:0 0 12px;color:#fff}
+.step p{font-size:13px;color:var(--text-dim);line-height:1.65;margin:0}
+
+/* ═══ Pricing ═══ */
+.pricing{display:grid;gap:22px;grid-template-columns:1fr;max-width:1100px;margin:0 auto}
+@media(min-width:700px){.pricing{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.pricing{grid-template-columns:repeat(4,1fr)}}
+.plan{padding:34px 28px;border-radius:18px;
+    background:linear-gradient(180deg,rgba(15,21,34,0.9) 0%,rgba(10,14,24,0.8) 100%);
+    border:1px solid var(--hairline);
+    display:flex;flex-direction:column;position:relative;
+    transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.plan:hover{transform:translateY(-4px)}
+.plan.featured{border:1px solid rgba(228,195,117,0.5);
+    background:
+        radial-gradient(ellipse at top,rgba(212,168,74,0.12) 0%,transparent 50%),
+        linear-gradient(180deg,rgba(15,21,34,0.95) 0%,rgba(10,14,24,0.85) 100%);
+    box-shadow:0 20px 60px rgba(212,168,74,0.15),0 0 0 1px rgba(228,195,117,0.3)}
+.plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+    padding:5px 14px;border-radius:999px;font-size:10px;font-weight:800;
+    letter-spacing:.12em;text-transform:uppercase;font-family:'Orbitron',monospace;
+    background:linear-gradient(135deg,#E4C375,#D4A84A);color:#1a0f00;
+    box-shadow:0 4px 14px rgba(212,168,74,0.4)}
+.plan-name{font-family:'Orbitron',monospace;font-size:13px;font-weight:800;
+    letter-spacing:.14em;text-transform:uppercase;margin-bottom:18px}
+.plan.free  .plan-name{color:var(--text-faint)}
+.plan.plus  .plan-name{color:#F6AD55;text-shadow:0 0 12px rgba(246,173,85,0.4)}
+.plan.pro   .plan-name{color:#B794F6;text-shadow:0 0 12px rgba(183,148,246,0.4)}
+.plan.ultra .plan-name{color:#4FD1C7;text-shadow:0 0 12px rgba(79,209,199,0.4)}
+.plan-price{font-family:'Orbitron',monospace;font-size:48px;font-weight:800;
+    line-height:1;letter-spacing:-.03em;color:#fff;margin-bottom:6px}
+.plan-price small{font-size:15px;font-weight:500;color:var(--text-dim);letter-spacing:0}
+.plan-pretty{font-size:13px;color:var(--text-faint);margin-bottom:28px}
+.plan-features{list-style:none;margin:0 0 28px;padding:0;flex:1}
+.plan-features li{padding:9px 0;font-size:14px;color:var(--text-dim);
+    position:relative;padding-left:22px;line-height:1.55}
+.plan-features li::before{content:'✓';color:#22c55e;font-weight:900;
+    position:absolute;left:0;top:9px;line-height:1.55}
+.plan-features li.locked{color:var(--text-faint)}
+.plan-features li.locked::before{content:'×';color:var(--text-faint)}
+.plan-features li strong{color:var(--text);font-weight:700}
+.plan-cta{display:block;text-align:center;padding:13px;border-radius:11px;
+    font-size:14px;font-weight:700;letter-spacing:.02em;transition:filter .2s,transform .2s;
+    font-family:'Orbitron',monospace;text-transform:uppercase;font-size:12px}
+.plan.free  .plan-cta{background:rgba(255,255,255,0.05);color:var(--text);
+    border:1px solid var(--hairline)}
+.plan.plus  .plan-cta{background:linear-gradient(135deg,rgba(246,173,85,0.15),rgba(246,173,85,0.08));
+    color:#F6AD55;border:1px solid rgba(246,173,85,0.4);
+    box-shadow:0 0 16px rgba(246,173,85,0.1)}
+.plan.pro   .plan-cta{background:linear-gradient(135deg,#E4C375,#D4A84A);color:#1a0f00;
+    box-shadow:0 6px 18px rgba(212,168,74,0.35)}
+.plan.ultra .plan-cta{background:rgba(79,209,199,0.08);color:#4FD1C7;
+    border:1px solid rgba(79,209,199,0.35);cursor:not-allowed;opacity:.85}
+.plan-cta:hover{filter:brightness(1.12);transform:translateY(-1px)}
+
+/* ═══ Builders / credits ═══ */
+.builders-wrap{position:relative}
+.builders{display:grid;gap:24px;grid-template-columns:1fr;max-width:900px;margin:0 auto}
+@media(min-width:700px){.builders{grid-template-columns:1fr 1fr}}
+.builder{padding:36px 32px;border-radius:20px;text-align:center;position:relative;
+    background:linear-gradient(180deg,rgba(15,21,34,0.85) 0%,rgba(10,14,24,0.75) 100%);
+    border:1px solid var(--hairline);overflow:hidden}
+.builder::before{content:'';position:absolute;inset:0;border-radius:20px;padding:1px;
+    background:linear-gradient(135deg,rgba(228,195,117,0.5),transparent 50%,rgba(183,148,246,0.3));
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.builder-avatar{width:80px;height:80px;border-radius:50%;margin:0 auto 20px;
+    background:linear-gradient(135deg,#1a1f2e,#0a0e1a);
+    border:1px solid rgba(228,195,117,0.4);
+    display:grid;place-items:center;
+    font-family:'Orbitron',monospace;font-size:28px;font-weight:800;
+    color:#E4C375;text-shadow:0 0 14px rgba(212,168,74,0.5);
+    box-shadow:0 8px 28px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1),0 0 20px rgba(212,168,74,0.2)}
+.builder:nth-child(2) .builder-avatar{border-color:rgba(183,148,246,0.4);color:#B794F6;
+    box-shadow:0 8px 28px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1),0 0 20px rgba(183,148,246,0.2);
+    text-shadow:0 0 14px rgba(183,148,246,0.5)}
+.builder-name{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700;
+    color:#fff;letter-spacing:.01em;margin-bottom:6px}
+.builder-role{font-size:12px;color:var(--neon-gold);text-transform:uppercase;
+    letter-spacing:.14em;font-weight:700;margin-bottom:18px}
+.builder:nth-child(2) .builder-role{color:var(--neon-purple)}
+.builder-bio{font-size:14px;color:var(--text-dim);line-height:1.65;max-width:320px;margin:0 auto}
+
+.credit-strip{margin-top:40px;padding:22px 28px;border-radius:14px;text-align:center;
+    background:linear-gradient(90deg,rgba(79,209,199,0.06) 0%,rgba(183,148,246,0.06) 50%,rgba(228,195,117,0.06) 100%);
+    border:1px solid rgba(79,209,199,0.18);
+    font-size:14px;color:var(--text-dim)}
+.credit-strip a{color:var(--neon-cyan);font-weight:700;letter-spacing:.02em;
+    border-bottom:1px dashed rgba(79,209,199,0.5);transition:color .2s}
+.credit-strip a:hover{color:#fff;border-bottom-color:#fff}
+.credit-strip .credit-label{display:block;font-size:10px;font-weight:800;
+    letter-spacing:.2em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px;
+    font-family:'Orbitron',monospace}
+
+/* ═══ Roadmap — cinema credits banner ═══
+   Viewport-height stage, fixed aspect, with the credits reel sliding
+   bottom → top. Title card holds at the top of the stage for ~4 s
+   (CSS delay on the reel animation), then content rolls for ~65 s
+   before looping. Hovering pauses. `prefers-reduced-motion` freezes
+   it and the <details> fallback below shows the full list statically. */
+
+/* Accent tokens — reuse brand palette */
+.rm-shipped {--rm-accent:#4FD1C7}   /* teal  — done       */
+.rm-progress{--rm-accent:#E4C375}   /* gold  — in flight  */
+.rm-planned {--rm-accent:#B794F6}   /* purple — queued    */
+.rm-chain   {--rm-accent:#6EE7F9}   /* cyan-electric — onchain */
+
+.rm-theater{
+    position:relative;margin-top:12px;border-radius:18px;overflow:hidden;
+    background:
+        radial-gradient(ellipse at top,rgba(228,195,117,0.08),transparent 55%),
+        linear-gradient(180deg,rgba(12,17,28,0.96) 0%,rgba(5,8,15,0.98) 100%);
+    border:1px solid var(--hairline);
+    box-shadow:0 30px 80px -30px rgba(0,0,0,.7),inset 0 0 80px rgba(79,209,199,0.04);
+    /* Fixed stage height — ~70vh capped between 520 and 720 px */
+    height:clamp(520px,70vh,720px);
+}
+/* Top & bottom gradient masks — credits fade in/out instead of hard-cutting */
+.rm-theater::before,.rm-theater::after{
+    content:"";position:absolute;left:0;right:0;height:90px;pointer-events:none;z-index:3}
+.rm-theater::before{top:0;background:linear-gradient(180deg,rgba(5,8,15,1),rgba(5,8,15,0))}
+.rm-theater::after {bottom:0;background:linear-gradient(0deg,  rgba(5,8,15,1),rgba(5,8,15,0))}
+
+/* Subtle animated grain to sell the "projector" feel */
+.rm-theater .rm-stage::before{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:2;opacity:.06;
+    background-image:
+        repeating-linear-gradient(0deg,rgba(255,255,255,.4) 0 1px,transparent 1px 3px);
+    mix-blend-mode:overlay}
+
+.rm-stage{position:relative;width:100%;height:100%;overflow:hidden;
+    perspective:1600px;  /* tilt the reel for extra cinema feel */
+}
+
+/* Static title card — pinned at the top of the stage */
+.rm-title{position:absolute;top:0;left:0;right:0;padding:48px 24px 28px;
+    text-align:center;z-index:2;
+    /* Fade out as the reel catches up so it doesn't collide */
+    animation:rmTitleFade 8s ease-in forwards;animation-delay:3.5s}
+.rm-title-eyebrow{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:.4em;
+    color:var(--neon-gold,#E4C375);margin-bottom:8px;opacity:.85}
+.rm-title h3{margin:0 0 14px;font-family:'Orbitron','Inter',sans-serif;
+    font-size:clamp(30px,5vw,52px);font-weight:800;letter-spacing:.02em;
+    background:linear-gradient(90deg,#E4C375 0%,#fff 50%,#B794F6 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 60px rgba(228,195,117,.25)}
+.rm-title-sub{display:inline-flex;align-items:center;gap:10px;font-size:12px;
+    color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+@keyframes rmTitleFade{
+    0%  {opacity:1;transform:translateY(0)}
+    80% {opacity:.3;transform:translateY(-20px)}
+    100%{opacity:0;transform:translateY(-40px);visibility:hidden}
+}
+
+/* The reel — starts fully below the stage, scrolls through, exits above. */
+.rm-roll{position:absolute;left:0;right:0;top:100%;padding:0 20px 120px;
+    transform-origin:center top;
+    animation:rmReel 75s linear infinite;animation-delay:3s;
+    will-change:transform}
+@keyframes rmReel{
+    0%   {transform:translate3d(0,0,0)           rotateX(6deg)}
+    100% {transform:translate3d(0,calc(-100% - 720px),0) rotateX(6deg)}
+}
+
+/* Pause on hover/focus (desktop) OR on explicit .is-paused toggle (mobile tap). */
+.rm-theater:hover .rm-roll,
+.rm-theater:focus-within .rm-roll,
+.rm-theater.is-paused .rm-roll,
+.rm-theater.is-paused .rm-title{animation-play-state:paused}
+
+/* Also pause the title fade when the user taps during the intro —
+   otherwise the title would disappear on its own even while paused. */
+.rm-theater.is-paused{cursor:pointer}
+
+/* Touch devices: disable hover-pause (iOS fires synthetic hover on tap which
+   would desync from the class toggle) and show the tap hint instead. */
+.rm-hint-touch{display:none}
+@media (hover: none) and (pointer: coarse){
+    .rm-theater:hover .rm-roll{animation-play-state:running}
+    .rm-theater:hover .rm-roll{animation-play-state:running}  /* ensure hover no-op */
+    .rm-theater.is-paused .rm-roll{animation-play-state:paused}
+    .rm-hint-desktop{display:none}
+    .rm-hint-touch{display:inline}
+    .rm-theater{cursor:pointer}
+}
+
+/* Paused-state visual affordance — brighter hint chip + swap dot to gold pulse */
+.rm-theater.is-paused .rm-hint{opacity:1;
+    border-color:color-mix(in srgb,var(--neon-gold,#E4C375) 40%,transparent);
+    color:var(--neon-gold,#E4C375)}
+
+/* Chapter blocks within the reel */
+.rm-chapter{margin:56px auto 0;max-width:780px;color:var(--rm-accent,#E4C375);
+    text-align:center;padding:0 12px}
+.rm-chapter:first-child{margin-top:24px}
+.rm-chapter-label{display:inline-flex;align-items:center;gap:10px;
+    font-family:'Orbitron',monospace;font-size:13px;font-weight:800;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--rm-accent);
+    padding:8px 18px;border-radius:999px;
+    background:color-mix(in srgb,var(--rm-accent) 8%,transparent);
+    border:1px solid color-mix(in srgb,var(--rm-accent) 30%,transparent);
+    margin-bottom:22px}
+.rm-dot{width:9px;height:9px;border-radius:50%;background:currentColor;
+    box-shadow:0 0 10px currentColor;flex-shrink:0}
+.rm-shipped  .rm-dot{animation:none}
+.rm-progress .rm-dot{animation:rmPulse 1.6s ease-in-out infinite}
+.rm-planned  .rm-dot{animation:rmPulseSlow 3s ease-in-out infinite;opacity:.75}
+.rm-chain    .rm-dot{animation:rmPulse 1.2s ease-in-out infinite}
+
+/* Credits-list rows — centred, two-line "name / role" structure */
+.rm-credits-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:22px}
+.rm-credits-list li{display:flex;flex-direction:column;gap:4px;align-items:center}
+.rm-credits-list li > strong{font-size:clamp(17px,2.2vw,22px);color:#fff;font-weight:700;
+    letter-spacing:.005em;line-height:1.2;
+    text-shadow:0 0 20px color-mix(in srgb,var(--rm-accent) 25%,transparent)}
+.rm-credits-list li > span{font-size:14px;color:var(--text-dim);line-height:1.55;
+    max-width:680px}
+.rm-credits-list li > em{font-style:italic;color:var(--rm-accent);opacity:.85}
+
+/* Closing card — the final "end of credits" beat */
+.rm-closing{margin:80px auto 40px;max-width:720px;text-align:center;color:#fff;
+    padding:0 16px}
+.rm-closing-line{font-size:clamp(16px,2.1vw,20px);line-height:1.7;
+    color:var(--text-dim);font-weight:500}
+.rm-closing-emph{color:var(--neon-gold,#E4C375);font-weight:700;
+    font-size:clamp(18px,2.3vw,22px);margin-top:6px}
+.rm-closing-sig{margin-top:34px;display:inline-flex;align-items:center;gap:10px;
+    font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--neon-gold,#E4C375);font-family:'Orbitron',monospace}
+
+/* Bottom-left hint chip — confirms interactivity */
+.rm-hint{position:absolute;bottom:14px;left:16px;z-index:4;
+    display:inline-flex;align-items:center;gap:8px;padding:6px 12px;
+    border-radius:999px;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--text-faint);background:rgba(5,8,15,0.75);
+    border:1px solid var(--hairline);backdrop-filter:blur(6px);
+    font-family:'Orbitron',monospace;font-weight:600;opacity:.7;
+    transition:opacity .2s}
+.rm-theater:hover .rm-hint{opacity:1}
+.rm-hint-dot{width:6px;height:6px;border-radius:50%;background:var(--neon-gold,#E4C375);
+    box-shadow:0 0 8px var(--neon-gold,#E4C375);animation:rmPulse 1.4s ease-in-out infinite}
+
+/* Pulse shared by dots/hint */
+@keyframes rmPulse     {0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{box-shadow:0 0 14px 4px currentColor;opacity:.6}}
+@keyframes rmPulseSlow {0%,100%{opacity:.5}50%{opacity:.9}}
+.rm-note-pulse{width:9px;height:9px;border-radius:50%;flex-shrink:0;
+    background:var(--neon-gold,#E4C375);box-shadow:0 0 10px var(--neon-gold,#E4C375);
+    animation:rmPulse 1.6s ease-in-out infinite;color:var(--neon-gold,#E4C375)}
+
+/* Accessible fallback — collapsed by default, full list on demand */
+.rm-fallback{margin-top:18px;border:1px solid var(--hairline);border-radius:10px;
+    background:rgba(15,21,34,0.5);padding:0;overflow:hidden}
+.rm-fallback summary{cursor:pointer;padding:14px 18px;font-size:12px;font-weight:700;
+    color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;
+    list-style:none;display:flex;align-items:center;gap:10px}
+.rm-fallback summary::-webkit-details-marker{display:none}
+.rm-fallback summary::before{content:"▸";color:var(--neon-gold,#E4C375);
+    transition:transform .2s;display:inline-block}
+.rm-fallback[open] summary::before{transform:rotate(90deg)}
+.rm-fallback-body{padding:8px 24px 24px;font-size:13.5px;line-height:1.65;
+    color:var(--text-dim)}
+.rm-fallback-body h4{margin:20px 0 8px;font-size:12px;letter-spacing:.15em;
+    text-transform:uppercase;font-family:'Orbitron',monospace}
+.rm-fallback-body ul{margin:0 0 4px;padding-left:20px}
+.rm-fallback-body li{margin:4px 0}
+
+/* Respect the user's motion preference — freeze the reel, lean on the fallback */
+@media (prefers-reduced-motion: reduce){
+    .rm-roll{animation:none;position:static;top:auto;padding:40px 20px;
+        transform:none}
+    .rm-title{animation:none;position:static;padding:32px 24px 16px}
+    .rm-theater{height:auto}
+    .rm-theater::before,.rm-theater::after{display:none}
+    .rm-hint{display:none}
+}
+
+/* Mobile — shorter stage, bigger type */
+@media (max-width:640px){
+    .rm-theater{height:clamp(480px,82vh,640px)}
+    .rm-roll{animation-duration:90s;padding:0 14px 120px}
+    .rm-chapter{margin-top:44px;padding:0 4px}
+    .rm-credits-list li > strong{font-size:18px}
+    .rm-credits-list li > span{font-size:13.5px}
+}
+
+/* ═══ FAQ ═══ */
+.faq{max-width:860px;margin:0 auto}
+.faq-item{border-bottom:1px solid var(--hairline);padding:0;
+    transition:background .2s}
+.faq-item[open]{background:rgba(212,168,74,0.03)}
+.faq-item summary{list-style:none;padding:22px 4px;cursor:pointer;
+    display:flex;justify-content:space-between;align-items:center;gap:16px;
+    font-size:16px;font-weight:600;color:#fff;transition:color .15s}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:'+';font-size:24px;font-weight:300;
+    color:var(--text-faint);transition:transform .25s,color .2s;
+    font-family:'Orbitron',monospace}
+.faq-item[open] summary::after{transform:rotate(45deg);color:var(--neon-gold)}
+.faq-item summary:hover{color:var(--neon-gold)}
+.faq-answer{padding:0 4px 22px;font-size:15px;color:var(--text-dim);line-height:1.75}
+.faq-answer strong{color:var(--text)}
+
+/* ═══ CTA band ═══ */
+.cta-band{margin:100px 0 0;padding:88px 40px;border-radius:28px;text-align:center;
+    position:relative;overflow:hidden;
+    background:
+        radial-gradient(ellipse at 30% 0%,rgba(212,168,74,0.22) 0%,transparent 60%),
+        radial-gradient(ellipse at 70% 100%,rgba(167,139,250,0.14) 0%,transparent 60%),
+        rgba(15,21,34,0.9);
+    border:1px solid rgba(212,168,74,0.22)}
+.cta-band::before{content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(45deg,
+        rgba(212,168,74,0.03) 0 20px,transparent 20px 40px);opacity:.5;pointer-events:none}
+.cta-band h2{margin:0 0 14px;font-family:'Orbitron','Inter',sans-serif}
+
+/* ═══ Footer ═══ */
+footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
+    font-size:13px;color:var(--text-faint);background:rgba(5,8,15,0.6)}
+.foot-grid{display:grid;gap:36px;grid-template-columns:2fr 1fr 1fr 1fr;margin-bottom:48px}
+@media(max-width:700px){.foot-grid{grid-template-columns:1fr 1fr}}
+.foot-col h5{font-family:'Orbitron',monospace;font-size:11px;font-weight:800;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--neon-gold);margin:0 0 18px}
+.foot-col ul{list-style:none;padding:0;margin:0;display:grid;gap:11px}
+.foot-col a{transition:color .2s}
+.foot-col a:hover{color:var(--neon-gold)}
+.foot-bottom{border-top:1px solid var(--hairline);padding-top:28px;
+    display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
+.foot-legal{max-width:680px;font-size:11px;color:var(--text-faint);line-height:1.7}
+.foot-skytech{font-family:'Orbitron',monospace;font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--text-faint)}
+.foot-skytech a{color:var(--neon-cyan);font-weight:700;
+    text-shadow:0 0 8px rgba(79,209,199,0.4)}
+.foot-skytech a:hover{color:#fff;text-shadow:0 0 14px rgba(79,209,199,0.8)}
+
+/* ═══ Scroll reveal ═══ */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .8s ease,transform .8s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ═══ Auth modal ═══ */
+.auth-overlay{position:fixed;inset:0;z-index:100;display:none;
+    background:rgba(3,6,12,0.78);backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    align-items:center;justify-content:center;padding:20px;
+    opacity:0;transition:opacity .25s}
+.auth-overlay.open{display:flex;opacity:1}
+.auth-modal{position:relative;width:100%;max-width:440px;
+    border-radius:20px;padding:38px 34px 32px;
+    background:linear-gradient(180deg,rgba(15,21,34,0.98) 0%,rgba(10,14,24,0.98) 100%);
+    border:1px solid rgba(228,195,117,0.25);
+    box-shadow:0 30px 80px rgba(0,0,0,0.7),0 0 40px rgba(212,168,74,0.15),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+    transform:translateY(12px) scale(.98);transition:transform .25s ease;
+    overflow:hidden}
+.auth-overlay.open .auth-modal{transform:translateY(0) scale(1)}
+.auth-modal::before{content:'';position:absolute;top:-80px;right:-80px;
+    width:220px;height:220px;border-radius:50%;
+    background:radial-gradient(circle,rgba(212,168,74,0.18) 0%,transparent 70%);
+    pointer-events:none}
+.auth-modal::after{content:'';position:absolute;bottom:-60px;left:-60px;
+    width:180px;height:180px;border-radius:50%;
+    background:radial-gradient(circle,rgba(183,148,246,0.14) 0%,transparent 70%);
+    pointer-events:none}
+.auth-close{position:absolute;top:14px;right:16px;width:32px;height:32px;
+    border-radius:8px;display:grid;place-items:center;
+    font-size:20px;color:var(--text-faint);transition:background .15s,color .15s;z-index:2}
+.auth-close:hover{background:rgba(255,255,255,0.06);color:#fff}
+.auth-logo{width:48px;height:48px;border-radius:50%;overflow:hidden;margin:0 auto 18px;
+    border:1px solid rgba(228,195,117,0.4);
+    box-shadow:0 0 24px rgba(212,168,74,0.3);position:relative;z-index:2}
+.auth-logo img{width:100%;height:100%;object-fit:cover}
+.auth-title{text-align:center;font-family:'Orbitron',sans-serif;
+    font-size:20px;font-weight:800;letter-spacing:.04em;margin:0 0 6px;color:#fff;
+    position:relative;z-index:2}
+.auth-sub{text-align:center;font-size:13px;color:var(--text-dim);margin:0 0 24px;
+    position:relative;z-index:2}
+.auth-tabs{display:flex;gap:4px;padding:4px;margin-bottom:22px;
+    background:rgba(255,255,255,0.03);border:1px solid var(--hairline);
+    border-radius:11px;position:relative;z-index:2}
+.auth-tab{flex:1;padding:10px;font-size:12px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--text-dim);border-radius:8px;
+    font-family:'Orbitron',monospace;transition:all .2s}
+.auth-tab.active{background:rgba(212,168,74,0.12);color:#E4C375;
+    box-shadow:inset 0 0 0 1px rgba(228,195,117,0.3)}
+.auth-field{margin-bottom:14px;position:relative;z-index:2}
+.auth-field label{display:block;font-size:11px;font-weight:700;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);
+    margin-bottom:6px;font-family:'Orbitron',monospace}
+.auth-field input{width:100%;padding:12px 14px;font-size:14px;
+    background:rgba(255,255,255,0.03);border:1px solid var(--hairline);
+    border-radius:10px;color:#fff;font-family:inherit;
+    transition:border-color .15s,background .15s;outline:none}
+.auth-field input:focus{border-color:rgba(228,195,117,0.5);
+    background:rgba(255,255,255,0.06);box-shadow:0 0 0 3px rgba(212,168,74,0.1)}
+.auth-field input::placeholder{color:var(--text-faint)}
+.auth-submit{width:100%;margin-top:6px;padding:13px;border-radius:11px;
+    font-family:'Orbitron',monospace;font-size:12px;font-weight:800;
+    letter-spacing:.14em;text-transform:uppercase;
+    background:linear-gradient(135deg,#E4C375 0%,#D4A84A 50%,#9B7A2F 100%);
+    color:#1a0f00;border:1px solid rgba(228,195,117,0.6);
+    box-shadow:0 4px 16px rgba(212,168,74,0.35);
+    transition:transform .15s,filter .15s;cursor:pointer;position:relative;z-index:2}
+.auth-submit:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.08)}
+.auth-submit:disabled{opacity:.6;cursor:wait}
+.auth-error{display:none;padding:10px 12px;margin-bottom:12px;border-radius:8px;
+    background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);
+    color:#fca5a5;font-size:13px;line-height:1.5;position:relative;z-index:2}
+.auth-error.show{display:block}
+.auth-success{display:none;padding:14px;margin-bottom:12px;border-radius:8px;
+    background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);
+    color:#86efac;font-size:13px;text-align:center;position:relative;z-index:2}
+.auth-success.show{display:block}
+.auth-foot{text-align:center;margin-top:18px;font-size:12px;color:var(--text-faint);
+    position:relative;z-index:2}
+.auth-foot a{color:var(--neon-cyan);font-weight:600;cursor:pointer}
+.auth-foot a:hover{color:#fff}
+
+/* Reduced motion */
+@media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+        transition-duration:.01ms!important}
+    .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Futuristic backdrop layers -->
+<canvas id="starfield" aria-hidden="true"></canvas>
+<div class="aurora" aria-hidden="true"><div class="aurora-3"></div></div>
+<div class="grid-overlay" aria-hidden="true"></div>
+
+<!-- ══════════════════════ HEADER ══════════════════════ -->
+<header class="nav">
+    <div class="container nav-inner">
+        <a class="brand" href="/">
+            <span class="brand-mark"><img src="/static/logo.jpeg" alt="Anunnaki World"></span>
+            <span class="brand-name">ANUNNAKI · WORLD</span>
+        </a>
+        <nav class="nav-links" aria-label="Primary">
+            <a href="#features">Features</a>
+            <a href="#how">How it works</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#roadmap">Roadmap</a>
+            <a href="#builders">Team</a>
+            <a href="/whitepaper">Whitepaper</a>
+        </nav>
+        <div class="nav-cta">
+            <button type="button" class="btn btn-sm btn-ghost" data-auth="login">Log in</button>
+            <button type="button" class="btn btn-sm btn-primary" data-auth="register">Start free</button>
+        </div>
+    </div>
+</header>
+
+<!-- ══════════════════════ HERO (logo centerpiece) ══════════════════════ -->
+<section class="hero">
+    <div class="container">
+        <!-- Animated logo with rotating halo, pulse rings, orbiting dots -->
+        <div class="logo-stage" aria-hidden="false">
+            <div class="logo-halo"></div>
+            <div class="logo-ring"></div>
+            <div class="logo-orbit"><span></span></div>
+            <div class="logo-orbit"><span></span></div>
+            <div class="logo-orbit"><span></span></div>
+            <div class="logo-pulse"></div>
+            <div class="logo-pulse"></div>
+            <div class="logo-pulse"></div>
+            <div class="logo-mark">
+                <img src="/static/logo.jpeg" alt="Anunnaki World emblem — the ancient standing guardian"
+                     width="260" height="260">
+            </div>
+        </div>
+
+        <span class="hero-eyebrow"><span class="dot"></span>566 PAIRS · SCANNING LIVE</span>
+        <h1>We do the math.<br><em>You make the move.</em></h1>
+        <p class="hero-sub">
+            Institutional-grade crypto signals, reasoned by AI. A Python + Rust hybrid
+            engine scans 566 Binance USDT perpetuals every 30 seconds, fuses nine
+            technical regimes with a calibrated XGBoost + Transformer ensemble, and
+            delivers signals you can copy-trade in one click.
+        </p>
+        <div class="hero-ctas">
+            <button type="button" class="btn btn-lg btn-primary" data-auth="register">
+                Start free — no payment required
+                <span aria-hidden="true">→</span>
+            </button>
+            <a class="btn btn-lg btn-ghost" href="#how">See how it works</a>
+        </div>
+        <div class="hero-trust" aria-label="Platform statistics">
+            <div><strong data-count="566">0</strong>USDT perps covered</div>
+            <div><strong>30 s</strong>Scan cadence</div>
+            <div>
+                <strong id="hero-signals-fired" data-live-signals="1"
+                        title="Live count of every signal ever written to our registry — including the testing &amp; development phase. Refreshes every 15 s.">0</strong>
+                Signals fired (all-time)
+                <small class="hero-trust-note">incl. testing phase · live</small>
+            </div>
+            <div><strong>24 / 7</strong>Auto-managed</div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ STATS STRIP ══════════════════════ -->
+<section class="stats-strip">
+    <div class="container stats-grid">
+        <div class="stat"><div class="val" data-count="566">0</div><div class="lbl">USDT perps</div></div>
+        <div class="stat"><div class="val" data-count="9">0</div><div class="lbl">Technical regimes</div></div>
+        <div class="stat"><div class="val" data-count="2">0</div><div class="lbl">ML models ensembled</div></div>
+        <div class="stat"><div class="val">1 s</div><div class="lbl">Mark-price updates</div></div>
+    </div>
+</section>
+
+<!-- ══════════════════════ FEATURES ══════════════════════ -->
+<section class="section" id="features">
+    <div class="container">
+        <div class="section-head reveal">
+            <span class="section-eyebrow">The full toolchain</span>
+            <h2>Every layer an institutional desk would build — in one account.</h2>
+            <p class="lead">
+                Signal generation, execution, risk management, and post-trade
+                learning are designed to work as a single system. No duct tape,
+                no browser extensions, no third-party bots.
+            </p>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature reveal">
+                <div class="icon">⚡</div>
+                <h3>AI Signal Engine</h3>
+                <p>Rust-accelerated batch indicators feed an XGBoost + Transformer
+                   ensemble. Each signal ships with a 90% conformal confidence
+                   interval, prediction set, and SHAP-ranked drivers.</p>
+            </div>
+            <div class="feature purple reveal">
+                <div class="icon">🔥</div>
+                <h3>Real-time Liquidation Heatmap</h3>
+                <p>Stream of forced-liquidation clusters across 566 symbols. See
+                   where leverage is trapped before price actually moves there —
+                   with funding and OI overlays per pair.</p>
+            </div>
+            <div class="feature cyan reveal">
+                <div class="icon">📡</div>
+                <h3>Pre-Signal Alerts</h3>
+                <p>Pairs sitting in extreme TSI zones and approaching the
+                   Chandelier Exit flip threshold. Position with a limit order
+                   <em>before</em> the confirmed signal fires.</p>
+                <span class="badge badge-pro">Pro</span>
+            </div>
+            <div class="feature reveal">
+                <div class="icon">🤖</div>
+                <h3>One-click Copy-Trading</h3>
+                <p>Paste your Binance API keys once. Every signal routes to your
+                   account with your preferred sizing, leverage, pyramid mode,
+                   and pair filters. SL + TP orders placed automatically.</p>
+                <span class="badge badge-pro">Pro</span>
+            </div>
+            <div class="feature cyan reveal">
+                <div class="icon">🔒</div>
+                <h3>Active Trailing Stop-Loss</h3>
+                <p>After TP1 hits, the platform ratchets your Binance stop order
+                   using Chandelier Exit on 1h. Cancel + replace happens on the
+                   exchange — zero chat noise, zero manual work.</p>
+                <span class="badge badge-ultra">Ultra</span>
+            </div>
+            <div class="feature purple reveal">
+                <div class="icon">📊</div>
+                <h3>Performance Analytics</h3>
+                <p>Equity curve, win-rate by regime, hourly heatmap, pair
+                   attribution, and Sharpe / max drawdown. Every metric is
+                   reconciled from realized PnL, not paper fills.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ HOW IT WORKS ══════════════════════ -->
+<section class="section" id="how" style="background:linear-gradient(180deg,transparent 0%,rgba(8,12,22,0.4) 20%,rgba(8,12,22,0.4) 80%,transparent 100%)">
+    <div class="container">
+        <div class="section-head reveal">
+            <span class="section-eyebrow">From scan to execution</span>
+            <h2>Four steps. Thirty seconds. Fully transparent.</h2>
+            <p class="lead">
+                Nothing about the engine is a black box. Each stage produces
+                observable artifacts you can inspect in your dashboard or
+                export as JSON.
+            </p>
+        </div>
+
+        <div class="steps">
+            <div class="step reveal">
+                <div class="step-num">01</div>
+                <h4>Scan the tape</h4>
+                <p>Every 30 seconds the engine re-evaluates 1m/15m/1h/4h klines
+                   for all 566 pairs and computes 120+ features in Rust — ATR,
+                   Ichimoku, CE, VWAP, RSI, FVG, Volume Profile.</p>
+            </div>
+            <div class="step reveal">
+                <div class="step-num">02</div>
+                <h4>Score + filter</h4>
+                <p>The SQI score fuses technical, ML, and macro inputs. Weak
+                   signals are dropped; surviving candidates pass correlation,
+                   circuit-breaker, and news-risk gates.</p>
+            </div>
+            <div class="step reveal">
+                <div class="step-num">03</div>
+                <h4>Dispatch</h4>
+                <p>Signal posted to Telegram with full context — entry, pyramid
+                   TPs, SL, leverage, expected hold. Copy-traders get orders
+                   placed on Binance within seconds.</p>
+            </div>
+            <div class="step reveal">
+                <div class="step-num">04</div>
+                <h4>Manage + learn</h4>
+                <p>A 1-second mark-price monitor trails stops, a 5-minute
+                   reconciler closes and scores outcomes, and every closed trade
+                   feeds the ML retrain loop.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ PRICING ══════════════════════ -->
+<section class="section" id="pricing">
+    <div class="container">
+        <div class="section-head reveal">
+            <span class="section-eyebrow">Simple, honest pricing</span>
+            <h2>Pay for what actually moves the PnL.</h2>
+            <p class="lead">
+                No Discord subscriptions hidden inside. No "lifetime deals" that
+                quietly go dark. Monthly or quarterly, cancel any time, and the
+                free tier stays free forever.
+            </p>
+        </div>
+
+        <div class="pricing">
+            <div class="plan free reveal">
+                <div class="plan-name">Free</div>
+                <div class="plan-price">$0<small> / forever</small></div>
+                <div class="plan-pretty">For exploring the platform.</div>
+                <ul class="plan-features">
+                    <li>Signals with 24-hour delay</li>
+                    <li>Liquidation heatmap (basic)</li>
+                    <li>Overview + market stats</li>
+                    <li class="locked">Real-time signals</li>
+                    <li class="locked">Copy-trading</li>
+                </ul>
+                <button type="button" class="plan-cta" data-auth="register">Get started</button>
+            </div>
+
+            <div class="plan plus reveal">
+                <div class="plan-name">Plus</div>
+                <div class="plan-price">$53<small> / mo</small></div>
+                <div class="plan-pretty">$139 / quarterly — save 13 %</div>
+                <ul class="plan-features">
+                    <li>Real-time signals (no delay)</li>
+                    <li>TradingView charts + overlays</li>
+                    <li>Performance analytics</li>
+                    <li>Full liquidation heatmap</li>
+                    <li class="locked">Copy-trading</li>
+                </ul>
+                <button type="button" class="plan-cta" data-auth="login" data-plan="plus_monthly">Sign in to Upgrade</button>
+            </div>
+
+            <div class="plan pro featured reveal">
+                <div class="plan-badge">Most popular</div>
+                <div class="plan-name">Pro</div>
+                <div class="plan-price">$109<small> / mo</small></div>
+                <div class="plan-pretty">$279 / quarterly — save 14 %</div>
+                <ul class="plan-features">
+                    <li>Everything in Plus</li>
+                    <li><strong>Pre-signal alerts</strong></li>
+                    <li><strong>Copy-trading on Binance</strong></li>
+                    <li>Telegram signal channel access</li>
+                    <li>2 devices included</li>
+                </ul>
+                <button type="button" class="plan-cta" data-auth="login" data-plan="pro_monthly">Sign in to Upgrade</button>
+            </div>
+
+            <div class="plan ultra reveal">
+                <div class="plan-name">Ultra</div>
+                <div class="plan-price">$200<small> / mo</small></div>
+                <div class="plan-pretty">In development — early access soon</div>
+                <ul class="plan-features">
+                    <li>Everything in Pro</li>
+                    <li><strong>Active trailing SL</strong> on Binance</li>
+                    <li>One-click quick entry from alerts</li>
+                    <li>Priority support</li>
+                    <li>3 devices included</li>
+                </ul>
+                <a class="plan-cta" aria-disabled="true">Coming soon</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ BUILDERS / CREDITS ══════════════════════ -->
+<section class="section builders-wrap" id="builders">
+    <div class="container">
+        <div class="section-head reveal">
+            <span class="section-eyebrow">The humans behind the code</span>
+            <h2>Built by engineers who actually trade.</h2>
+            <p class="lead">
+                Anunnaki World is a two-person studio project. One hand on the
+                keyboard, one hand on the chart. No VC pressure, no shortcuts —
+                just the tools we wanted for ourselves.
+            </p>
+        </div>
+
+        <div class="builders">
+            <div class="builder reveal">
+                <div class="builder-avatar" aria-hidden="true">NS</div>
+                <div class="builder-name">Nikola Stojchevski</div>
+                <div class="builder-role">Software Engineering</div>
+                <p class="builder-bio">
+                    Architect of the Python + Rust engine, ML retrain pipeline,
+                    and copy-trading infrastructure. Writes the code that turns
+                    signals into filled orders.
+                </p>
+            </div>
+            <div class="builder reveal">
+                <div class="builder-avatar" aria-hidden="true">HO</div>
+                <div class="builder-name">Hristo Ognenovski</div>
+                <div class="builder-role">Technical Analysis</div>
+                <p class="builder-bio">
+                    Designs the signal logic — Reverse Hunt, CE Pro Hybrid, TSI
+                    regimes, leverage sizing. Tests every indicator on live
+                    markets before it ships.
+                </p>
+            </div>
+        </div>
+
+        <div class="credit-strip reveal">
+            <span class="credit-label">Developed &amp; hosted by</span>
+            Infrastructure, deployment, and security engineering by
+            <a href="https://skytech.mk" target="_blank" rel="noopener">skytech.mk</a> —
+            operating the platform 24/7 on dedicated hardware.
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ ROADMAP ══════════════════════ -->
+<section class="section" id="roadmap">
+    <div class="container">
+        <div class="section-head reveal">
+            <span class="section-eyebrow">Under active development</span>
+            <h2>Roadmap — shipping in public.</h2>
+            <p class="lead">
+                Anunnaki World is under <strong style="color:var(--neon-gold)">aggressive, continuous development</strong>.
+                This list changes almost weekly — features move from
+                <em>Planned</em> to <em>In progress</em> to <em>Live</em> as they land in production.
+                Check back often.
+            </p>
+        </div>
+
+        <!-- ═══ Cinema-credits rolling banner ═══
+             Title holds for ~4s, then the full roadmap scrolls upward
+             like end-credits. Hover / tap pauses. `prefers-reduced-motion`
+             disables the scroll and shows the full list statically. -->
+        <div class="rm-theater reveal" id="rm-theater"
+             aria-label="Scrolling roadmap — hover to pause, or scroll below to read the full list">
+            <div class="rm-stage">
+                <!-- Static intro title, visible before scroll begins -->
+                <div class="rm-title" id="rm-title">
+                    <div class="rm-title-eyebrow">ANUNNAKI · WORLD</div>
+                    <h3>The Road Ahead</h3>
+                    <div class="rm-title-sub">
+                        <span class="rm-note-pulse" aria-hidden="true"></span>
+                        Living document · rewritten almost every week
+                    </div>
+                </div>
+
+                <!-- Credit roll — starts just below the stage -->
+                <div class="rm-roll" id="rm-roll" aria-live="off">
+
+                    <div class="rm-chapter rm-shipped">
+                        <div class="rm-chapter-label">
+                            <span class="rm-dot" aria-hidden="true"></span>
+                            Shipped · Live in production
+                        </div>
+                        <ul class="rm-credits-list">
+                            <li><strong>PREDATOR 3-layer regime engine</strong><span>Regime · positioning · stop-hunt classification on every pair.</span></li>
+                            <li><strong>Rust-accelerated indicator batch</strong><span>ATR, Ichimoku, CE, VWAP, RSI, FVG, Volume Profile via PyO3 + Rayon.</span></li>
+                            <li><strong>XGBoost + Transformer ensemble</strong><span>GPU-accelerated scoring on RTX 3090.</span></li>
+                            <li><strong>USDT.D macro gate</strong><span>Market-regime-aware position sizing and LONG/SHORT blocks.</span></li>
+                            <li><strong>Binance copy-trading</strong><span>Auto-enter, pyramid TPs, signal / fixed-% SL, per-pair close.</span></li>
+                            <li><strong>Dynamic trailing SL</strong><span>Server-side ratcheting, Telegram fan-out, copy-trade SL propagation.</span></li>
+                            <li><strong>Live liquidation heatmap</strong><span>24 h aggregated liq cascades on every chart.</span></li>
+                            <li><strong>Device-fingerprint security</strong><span>Tier-based device limits, new-device geo-IP alerts, email verification.</span></li>
+                            <li><strong>Equity-perp market-hours filter</strong><span>NYSE schedule + holidays for stock / RWA perpetuals.</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="rm-chapter rm-progress">
+                        <div class="rm-chapter-label">
+                            <span class="rm-dot" aria-hidden="true"></span>
+                            In progress · Final testing
+                        </div>
+                        <ul class="rm-credits-list">
+                            <li><strong>Bybit copy-trading</strong><span>USDT-M perpetuals, feature-parity with Binance. <em>This week.</em></span></li>
+                            <li><strong>KuCoin copy-trading</strong><span>Same pipeline, different venue. <em>This week.</em></span></li>
+                            <li><strong>Pre-signal alerts</strong><span>Pro-tier push ~60–120 s before signal publication.</span></li>
+                            <li><strong>"Ask Anunnaki" in-app chat assistant</strong><span>Floating helper on every dashboard page — explains features, debugs your live account context via MCP tools for Pro+. OpenRouter-powered, no lock-in.</span></li>
+                            <li><strong>TradingView-compatible overlays</strong><span>FVG zones, VP POCs, CE flips, trailing SL lines.</span></li>
+                            <li><strong>Mobile push notifications</strong><span>PWA-native, granular per-channel settings.</span></li>
+                            <li><strong>Signal replay mode</strong><span>Click a closed trade, see the chart state at entry + every TP/SL event.</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="rm-chapter rm-planned">
+                        <div class="rm-chapter-label">
+                            <span class="rm-dot" aria-hidden="true"></span>
+                            Planned · Q3 and beyond
+                        </div>
+                        <ul class="rm-credits-list">
+                            <li><strong>OKX &amp; Gate.io</strong><span>Venue integrations after Bybit / KuCoin stabilise.</span></li>
+                            <li><strong>Spot copy-trading</strong><span>Non-leveraged accumulation portfolios with DCA and rebalance.</span></li>
+                            <li><strong>Portfolio analytics v2</strong><span>Sharpe, Sortino, drawdown, regime-attribution per strategy.</span></li>
+                            <li><strong>Strategy marketplace</strong><span>Curated sub-strategies (reverse hunt, trend, mean-reversion) selectable per account.</span></li>
+                            <li><strong>API for external bots</strong><span>Read-only signal feed with webhooks for institutional users.</span></li>
+                            <li><strong>Options flow integration</strong><span>CME / Deribit unusual-options tape as a macro-regime input.</span></li>
+                            <li><strong>Social / copy-human</strong><span>Opt-in public performance pages; follow top-performing traders.</span></li>
+                        </ul>
+                    </div>
+
+                    <!-- NEW: Blockchain track -->
+                    <div class="rm-chapter rm-chain">
+                        <div class="rm-chapter-label">
+                            <span class="rm-dot" aria-hidden="true"></span>
+                            On-chain layer · Verifiable by anyone
+                        </div>
+                        <ul class="rm-credits-list">
+                            <li><strong>On-chain signal provenance</strong><span>Every signal's parameters hashed + batched as a Merkle root, posted to Base L2. Anyone can verify that our published win-rate isn't retro-fitted — no trust in us required. <em>~$10/year gas. 1 week build.</em></span></li>
+                            <li><strong>Hyperliquid copy-trading vault</strong><span>Deposit USDC to a non-custodial smart contract, auto-execute our signals on-chain. Withdraw any time. No API keys held by us. External audit before launch — non-negotiable.</span></li>
+                            <li><strong>Smart-contract referral payouts</strong><span>EIP-712 signed vouchers, claimable instantly from a pre-funded contract. Transparent, trust-minimised, no manual reconciliation.</span></li>
+                            <li><strong>Stake-for-access tiers</strong><span>Hold USDC in a time-lock contract to unlock Pro / Ultra. No token issuance, no volatility, no regulatory tail.</span></li>
+                            <li><em>What we will NOT build: our own token, signal NFTs, "decentralised PREDATOR", on-chain model inference. Tools that solve real problems only.</em></li>
+                        </ul>
+                    </div>
+
+                    <!-- Closing card — the "end of credits" moment -->
+                    <div class="rm-closing">
+                        <div class="rm-closing-line">We ship multiple times per week.</div>
+                        <div class="rm-closing-line">Items get reordered, redesigned, merged, or dropped.</div>
+                        <div class="rm-closing-line">Dates are soft on purpose —</div>
+                        <div class="rm-closing-line rm-closing-emph">quality and trading-safety beat arbitrary deadlines.</div>
+                        <div class="rm-closing-sig">
+                            <span class="rm-note-pulse" aria-hidden="true"></span>
+                            Thanks for watching · Now go read the rest
+                        </div>
+                    </div>
+
+                </div><!-- /rm-roll -->
+            </div><!-- /rm-stage -->
+
+            <!-- Status chip — swaps label based on pointer type, and also
+                 updates dynamically to "▶ Resume" / "⏸ Paused" on tap. -->
+            <div class="rm-hint" aria-hidden="true">
+                <span class="rm-hint-dot"></span>
+                <span class="rm-hint-text rm-hint-desktop">Hover to pause · scroll for full list below</span>
+                <span class="rm-hint-text rm-hint-touch">Tap to pause · tap again to resume</span>
+            </div>
+        </div>
+
+        <!-- Accessible fallback: full list underneath, always readable,
+             hidden visually unless `prefers-reduced-motion` or screen-reader. -->
+        <details class="rm-fallback">
+            <summary>Show the full roadmap as a plain list (accessible)</summary>
+            <div class="rm-fallback-body">
+                <p>Every item that appears in the rolling banner above is listed here
+                in text form, grouped by status. This is the source of truth for
+                assistive technology and for anyone who prefers to read without
+                motion.</p>
+                <!-- Same content, flat -->
+                <h4 style="color:var(--neon-cyan)">Shipped · Live in production</h4>
+                <ul>
+                    <li>PREDATOR 3-layer regime engine</li>
+                    <li>Rust-accelerated indicator batch (ATR, Ichimoku, CE, VWAP, RSI, FVG, VP)</li>
+                    <li>XGBoost + Transformer ensemble (GPU on RTX 3090)</li>
+                    <li>USDT.D macro gate</li>
+                    <li>Binance copy-trading (pyramid TPs, signal/fixed SL, per-pair close)</li>
+                    <li>Dynamic trailing SL (server-side, Telegram + copy-trade propagation)</li>
+                    <li>Live liquidation heatmap (24 h aggregate)</li>
+                    <li>Device-fingerprint security (per-tier limits, geo-IP alerts)</li>
+                    <li>Equity-perp market-hours filter (NYSE calendar + holidays)</li>
+                </ul>
+                <h4 style="color:var(--neon-gold)">In progress · Final testing</h4>
+                <ul>
+                    <li>Bybit copy-trading (this week)</li>
+                    <li>KuCoin copy-trading (this week)</li>
+                    <li>Pre-signal alerts (Pro-tier, 60–120 s lead)</li>
+                    <li>"Ask Anunnaki" in-app chat assistant (OpenRouter + MCP tools)</li>
+                    <li>TradingView-compatible overlays (FVG, VP POC, CE, trailing SL)</li>
+                    <li>Mobile push notifications (PWA-native)</li>
+                    <li>Signal replay mode</li>
+                </ul>
+                <h4 style="color:var(--neon-purple)">Planned · Q3 and beyond</h4>
+                <ul>
+                    <li>OKX &amp; Gate.io copy-trading</li>
+                    <li>Spot copy-trading (DCA + rebalance)</li>
+                    <li>Portfolio analytics v2 (Sharpe, Sortino, drawdown)</li>
+                    <li>Strategy marketplace (reverse hunt, trend, mean-reversion)</li>
+                    <li>API for external bots (read-only feed + webhooks)</li>
+                    <li>Options flow integration (CME / Deribit)</li>
+                    <li>Social / copy-human</li>
+                </ul>
+                <h4 style="color:#4FD1C7">On-chain layer · Verifiable by anyone</h4>
+                <ul>
+                    <li>On-chain signal provenance (Merkle commits on Base L2)</li>
+                    <li>Hyperliquid non-custodial copy-trading vault</li>
+                    <li>Smart-contract referral payouts (EIP-712 vouchers)</li>
+                    <li>Stake-for-access tiers (USDC time-lock, no token issuance)</li>
+                    <li><em>Not building:</em> our own token, signal NFTs, on-chain inference.</li>
+                </ul>
+            </div>
+        </details>
+    </div>
+</section>
+
+<!-- ══════════════════════ FAQ ══════════════════════ -->
+<section class="section" id="faq">
+    <div class="container">
+        <div class="section-head reveal">
+            <span class="section-eyebrow">Frequently asked</span>
+            <h2>Answers before you ask.</h2>
+        </div>
+
+        <div class="faq">
+            <details class="faq-item">
+                <summary>Do I need to give you money to see if it actually works?</summary>
+                <div class="faq-answer">
+                    No. The <strong>Free tier</strong> shows every signal we publish with a 24-hour delay —
+                    the same data used to compute our public win-rate statistics. You can verify
+                    performance for weeks without paying a cent.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>Does copy-trading need me to send you my API keys?</summary>
+                <div class="faq-answer">
+                    Only <strong>futures-trading scope</strong> is needed, and we strongly recommend you
+                    restrict the key to our server IP (we show it in your dashboard).
+                    <strong>Withdraw permission is never required</strong> — if we ask for it, something is wrong.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>What timeframes does the AI trade?</summary>
+                <div class="faq-answer">
+                    Primary signal generation runs on <strong>1h</strong> with 15m and 4h confirmations.
+                    Holding periods are typically 2–48 hours. We don't scalp and we don't
+                    swing multi-week. The goal is positive expectancy per signal with sane leverage.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>How is risk managed?</summary>
+                <div class="faq-answer">
+                    Four independent layers: <strong>macro risk engine</strong> (news + BTC dominance +
+                    funding regime), <strong>portfolio correlation filter</strong>, <strong>circuit breaker</strong>
+                    (auto-pause on daily drawdown), and <strong>per-signal SL</strong> with optional trailing.
+                    The system de-risks itself before your account ever sees a crisis.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>Can I cancel any time?</summary>
+                <div class="faq-answer">
+                    Yes. Crypto payments are settled per billing period — you simply stop renewing
+                    when it expires. No recurring card charges, no cancellation fees, no retention maze.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>What happens when the AI is wrong?</summary>
+                <div class="faq-answer">
+                    It will be, regularly — that's the business. Per-signal expected win rate is
+                    <strong>~55–65 %</strong> depending on regime. The structural edge comes from
+                    <strong>risk-reward geometry</strong> (pyramid TPs, trailing stops, tight SLs) and
+                    the ML retrain loop learning from every closed trade. No signal provider claiming
+                    90 %+ win rate is being honest with you.
+                </div>
+            </details>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ CTA BAND ══════════════════════ -->
+<section class="section" style="padding-top:0">
+    <div class="container">
+        <div class="cta-band reveal">
+            <h2>Ready to stop trading on vibes?</h2>
+            <p style="max-width:540px;margin:0 auto 32px;color:var(--text-dim);font-size:16px;position:relative">
+                Create a free account in 30 seconds and watch the engine work on the live board.
+                Upgrade only when the stats convince you.
+            </p>
+            <div class="hero-ctas" style="justify-content:center;margin-bottom:0;position:relative">
+                <button type="button" class="btn btn-lg btn-primary" data-auth="register">
+                    Create free account <span aria-hidden="true">→</span>
+                </button>
+                <a class="btn btn-lg btn-ghost" href="/whitepaper">Read the whitepaper</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ AUTH MODAL ══════════════════════ -->
+<div class="auth-overlay" id="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
+    <form class="auth-modal" id="auth-form" autocomplete="on" novalidate>
+        <button type="button" class="auth-close" id="auth-close" aria-label="Close">✕</button>
+        <div class="auth-logo"><img src="/static/logo.jpeg" alt=""></div>
+        <h3 class="auth-title" id="auth-title">Welcome to Anunnaki World</h3>
+        <p class="auth-sub" id="auth-sub">Log in or create a free account to continue.</p>
+
+        <div class="auth-tabs" role="tablist">
+            <button type="button" class="auth-tab" id="tab-login"    role="tab" aria-selected="false" data-mode="login">Log in</button>
+            <button type="button" class="auth-tab active" id="tab-register" role="tab" aria-selected="true"  data-mode="register">Register</button>
+        </div>
+
+        <div class="auth-error"   id="auth-error"   role="alert"></div>
+        <div class="auth-success" id="auth-success" role="status"></div>
+
+        <div class="auth-field" id="field-username">
+            <label for="auth-username">Username</label>
+            <input type="text" id="auth-username" name="username"
+                   autocomplete="username" placeholder="Pick a username" maxlength="32">
+        </div>
+        <div class="auth-field">
+            <label for="auth-email">Email <span id="label-email-hint" style="text-transform:none;letter-spacing:0;color:var(--text-faint);font-weight:500">(or username)</span></label>
+            <input type="text" id="auth-email" name="email"
+                   autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="auth-field">
+            <label for="auth-password">Password</label>
+            <input type="password" id="auth-password" name="password"
+                   autocomplete="current-password" placeholder="Min 6 characters" minlength="6" required>
+        </div>
+
+        <button type="submit" class="auth-submit" id="auth-submit">Create free account</button>
+
+        <div class="auth-foot">
+            <span id="foot-switch-text">Already have an account?</span>
+            <a id="foot-switch-link" tabindex="0">Log in instead</a>
+        </div>
+    </form>
+</div>
+
+<!-- ══════════════════════ FOOTER ══════════════════════ -->
+<footer>
+    <div class="container">
+        <div class="foot-grid">
+            <div class="foot-col">
+                <a class="brand" href="/" style="margin-bottom:18px">
+                    <span class="brand-mark"><img src="/static/logo.jpeg" alt=""></span>
+                    <span class="brand-name">ANUNNAKI · WORLD</span>
+                </a>
+                <p style="font-size:13px;color:var(--text-faint);max-width:340px;line-height:1.7;margin:0">
+                    Institutional-grade AI trading signals for Binance USDT perpetuals.
+                    Built by engineers, not influencers.
+                </p>
+            </div>
+            <div class="foot-col">
+                <h5>Product</h5>
+                <ul>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="#how">How it works</a></li>
+                    <li><a href="/app">Dashboard</a></li>
+                </ul>
+            </div>
+            <div class="foot-col">
+                <h5>Resources</h5>
+                <ul>
+                    <li><a href="/whitepaper">Whitepaper (EN)</a></li>
+                    <li><a href="/whitepaper/mk">Whitepaper (MK)</a></li>
+                    <li><a href="#faq">FAQ</a></li>
+                </ul>
+            </div>
+            <div class="foot-col">
+                <h5>Team</h5>
+                <ul>
+                    <li><a href="#builders">Founders</a></li>
+                    <li><a href="https://skytech.mk" target="_blank" rel="noopener">skytech.mk</a></li>
+                    <li><a href="/app">Log in</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="foot-bottom">
+            <div class="foot-legal">
+                © 2026 Anunnaki World. Not investment advice. Crypto futures trading
+                carries substantial risk of loss. Past performance is not indicative
+                of future results. Operate only with capital you can afford to lose.
+            </div>
+            <div class="foot-skytech">
+                Developed &amp; hosted by <a href="https://skytech.mk" target="_blank" rel="noopener">skytech.mk</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+/* ═══ 1. Auth gate: send VALID logged-in users straight to the dashboard.
+       Stale tokens (e.g. after a JWT-secret rotation) are cleared here so
+       the visitor actually sees this landing page instead of being bounced
+       into the SPA just to get logged out on first API call. ═══ */
+(async () => {
+    if (new URLSearchParams(location.search).has('stay')) return;
+    let token = null;
+    try { token = localStorage.getItem('aladdin_token'); } catch (_) {}
+    if (!token) return;
+    try {
+        const r = await fetch('/api/auth/me', {
+            headers: { Authorization: 'Bearer ' + token },
+            cache: 'no-store',
+        });
+        if (r.ok) {
+            location.replace('/app');
+        } else if (r.status === 401 || r.status === 403) {
+            // token was revoked / secret rotated — clear and stay on landing
+            try {
+                localStorage.removeItem('aladdin_token');
+                localStorage.removeItem('awd_token');
+            } catch (_) {}
+        }
+    } catch (_) { /* network error — let them see the landing page */ }
+})();
+
+/* ═══ 2. Smooth anchor scroll accounting for sticky header ═══ */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+        const id = a.getAttribute('href').slice(1);
+        const el = id && document.getElementById(id);
+        if (el) {
+            e.preventDefault();
+            const top = el.getBoundingClientRect().top + window.scrollY - 76;
+            window.scrollTo({top, behavior: 'smooth'});
+        }
+    });
+});
+
+/* ═══ 2b. Roadmap tap-to-pause (mobile) / click-to-pin (desktop) ═══
+   Desktop pauses on hover via CSS, but tapping additionally PINS the
+   pause (and unpins on second tap) so users can take their time. On
+   touch devices there's no hover, so this is the only way to pause. */
+(function rmTapPause(){
+    const theater = document.getElementById('rm-theater');
+    if (!theater) return;
+
+    // Anything inside the fallback <details> should not trigger pause.
+    theater.addEventListener('click', (ev) => {
+        // Ignore clicks on actual links (we have none today, but defensive).
+        if (ev.target.closest('a,button')) return;
+        theater.classList.toggle('is-paused');
+    }, { passive: true });
+
+    // Keyboard a11y — Space / Enter when the theater has focus toggles pause.
+    theater.tabIndex = 0;
+    theater.setAttribute('role', 'region');
+    theater.addEventListener('keydown', (ev) => {
+        if (ev.key === ' ' || ev.key === 'Enter') {
+            ev.preventDefault();
+            theater.classList.toggle('is-paused');
+        }
+    });
+})();
+
+/* ═══ 3. Scroll-reveal (IntersectionObserver) ═══ */
+const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+        if (e.isIntersecting) {
+            e.target.classList.add('visible');
+            io.unobserve(e.target);
+        }
+    });
+}, {threshold: 0.12, rootMargin: '0px 0px -40px 0px'});
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+/* ═══ 4. Number counters (data-count) ═══ */
+function animateCount(el) {
+    const target = parseInt(el.getAttribute('data-count'), 10);
+    if (!Number.isFinite(target)) return;
+    const duration = 1400;
+    const start = performance.now();
+    const tick = (t) => {
+        const p = Math.min(1, (t - start) / duration);
+        // easeOutCubic
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased).toLocaleString();
+        if (p < 1) requestAnimationFrame(tick);
+        else el.textContent = target.toLocaleString();
+    };
+    requestAnimationFrame(tick);
+}
+const countIO = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+        if (e.isIntersecting) {
+            animateCount(e.target);
+            countIO.unobserve(e.target);
+        }
+    });
+}, {threshold: 0.5});
+document.querySelectorAll('[data-count]').forEach(el => countIO.observe(el));
+
+/* ═══ 4b. LIVE "Signals fired" counter ═══
+   Pulls the authoritative all-time count from /api/public/stats every
+   15 s and animates a tween between the old and new value so visitors
+   literally see the number tick up as new signals hit the registry. */
+(function liveSignalsCounter(){
+    const el = document.getElementById('hero-signals-fired');
+    if (!el) return;
+    let current = 0;       // last rendered value
+    let tweenRAF = null;
+
+    const fmt = (n) => Number(n).toLocaleString();
+
+    function tweenTo(target) {
+        if (tweenRAF) cancelAnimationFrame(tweenRAF);
+        if (!Number.isFinite(target)) return;
+        if (current === target) { el.textContent = fmt(target); return; }
+        const from = current;
+        const delta = target - from;
+        // 1.2 s is long enough to notice, short enough not to lag behind
+        // a 15 s poll. For big jumps (first load) we cap at 1.8 s.
+        const duration = Math.min(1800, 800 + Math.abs(delta) * 2);
+        const start = performance.now();
+        const step = (t) => {
+            const p = Math.min(1, (t - start) / duration);
+            const eased = 1 - Math.pow(1 - p, 3);    // easeOutCubic
+            const n = Math.round(from + delta * eased);
+            el.textContent = fmt(n);
+            if (p < 1) tweenRAF = requestAnimationFrame(step);
+            else { current = target; tweenRAF = null; }
+        };
+        tweenRAF = requestAnimationFrame(step);
+    }
+
+    async function poll() {
+        try {
+            const r = await fetch('/api/public/stats', { cache: 'no-store' });
+            if (!r.ok) return;
+            const d = await r.json();
+            const n = parseInt(d.total_signals, 10);
+            if (Number.isFinite(n) && n >= 0) {
+                // Flash gold briefly when the number grows, so a casual
+                // visitor can *see* that a new signal just landed.
+                if (n > current && current > 0) {
+                    el.style.transition = 'color 300ms, text-shadow 300ms';
+                    el.style.color = 'var(--neon-gold, #E4C375)';
+                    el.style.textShadow = '0 0 18px rgba(228,195,117,0.55)';
+                    setTimeout(() => {
+                        el.style.color = '';
+                        el.style.textShadow = '';
+                    }, 1200);
+                }
+                tweenTo(n);
+            }
+        } catch (_) { /* swallow: landing page must never surface API errors */ }
+    }
+
+    // First fetch immediately; then every 15 s. Pause when tab hidden
+    // so we don't hammer the backend from minimised tabs.
+    poll();
+    let timer = setInterval(poll, 15000);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { clearInterval(timer); timer = null; }
+        else if (!timer)     { poll(); timer = setInterval(poll, 15000); }
+    });
+})();
+
+/* ═══ 5. Starfield canvas — lightweight, GPU-friendly ═══ */
+(function starfield(){
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const c = document.getElementById('starfield');
+    const ctx = c.getContext('2d', {alpha: true});
+    let w, h, dpr;
+    const stars = [];
+    const STAR_COUNT = window.innerWidth < 700 ? 90 : 160;
+    const COLOURS = [
+        'rgba(228,195,117,',   // gold
+        'rgba(183,148,246,',   // purple
+        'rgba(79,209,199,',    // cyan
+        'rgba(255,255,255,'    // white
+    ];
+    function resize(){
+        dpr = Math.min(2, window.devicePixelRatio || 1);
+        w = c.width  = innerWidth  * dpr;
+        h = c.height = innerHeight * dpr;
+        c.style.width  = innerWidth  + 'px';
+        c.style.height = innerHeight + 'px';
+    }
+    function seed(){
+        stars.length = 0;
+        for (let i = 0; i < STAR_COUNT; i++) {
+            stars.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                r: (Math.random() * 1.3 + 0.3) * dpr,
+                a: Math.random() * 0.7 + 0.2,
+                vx: (Math.random() - 0.5) * 0.08 * dpr,
+                vy: (Math.random() - 0.5) * 0.08 * dpr,
+                tw: Math.random() * 0.02 + 0.005,
+                col: COLOURS[(Math.random() * COLOURS.length) | 0],
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+    function tick(t){
+        ctx.clearRect(0, 0, w, h);
+        for (const s of stars) {
+            s.x += s.vx;  s.y += s.vy;
+            if (s.x < 0) s.x = w;  else if (s.x > w) s.x = 0;
+            if (s.y < 0) s.y = h;  else if (s.y > h) s.y = 0;
+            const flick = 0.5 + 0.5 * Math.sin(s.phase + t * s.tw);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fillStyle = s.col + (s.a * flick) + ')';
+            ctx.shadowColor = s.col + '0.8)';
+            ctx.shadowBlur  = s.r * 6;
+            ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+        requestAnimationFrame(tick);
+    }
+    resize(); seed();
+    addEventListener('resize', () => { resize(); seed(); });
+    requestAnimationFrame(tick);
+})();
+
+/* ═══ 6. Auth modal — login / register with redirect to /app ═══ */
+(() => {
+    const overlay  = document.getElementById('auth-overlay');
+    const form     = document.getElementById('auth-form');
+    const closeBtn = document.getElementById('auth-close');
+    const tabLogin = document.getElementById('tab-login');
+    const tabReg   = document.getElementById('tab-register');
+    const errEl    = document.getElementById('auth-error');
+    const okEl     = document.getElementById('auth-success');
+    const submitBtn= document.getElementById('auth-submit');
+    const fieldUser= document.getElementById('field-username');
+    const emailEl  = document.getElementById('auth-email');
+    const passEl   = document.getElementById('auth-password');
+    const userEl   = document.getElementById('auth-username');
+    const title    = document.getElementById('auth-title');
+    const sub      = document.getElementById('auth-sub');
+    const hint     = document.getElementById('label-email-hint');
+    const footText = document.getElementById('foot-switch-text');
+    const footLink = document.getElementById('foot-switch-link');
+
+    let mode = 'register';
+
+    function setMode(next){
+        mode = next === 'login' ? 'login' : 'register';
+        tabLogin.classList.toggle('active', mode === 'login');
+        tabReg.classList.toggle('active',   mode === 'register');
+        tabLogin.setAttribute('aria-selected', mode === 'login');
+        tabReg.setAttribute('aria-selected',   mode === 'register');
+        if (mode === 'login') {
+            title.textContent = 'Welcome back';
+            sub.textContent   = 'Log in to access your dashboard.';
+            submitBtn.textContent = 'Log in';
+            fieldUser.style.display = 'none';
+            hint.textContent = '(or username)';
+            emailEl.placeholder = 'email or username';
+            emailEl.setAttribute('autocomplete', 'username');
+            passEl.setAttribute('autocomplete', 'current-password');
+            footText.textContent = "Don't have an account?";
+            footLink.textContent = 'Create one free';
+        } else {
+            title.textContent = 'Create your free account';
+            sub.textContent   = 'Takes 30 seconds. No payment required.';
+            submitBtn.textContent = 'Create free account';
+            fieldUser.style.display = '';
+            hint.textContent = '';
+            emailEl.placeholder = 'you@example.com';
+            emailEl.setAttribute('autocomplete', 'email');
+            passEl.setAttribute('autocomplete', 'new-password');
+            footText.textContent = 'Already have an account?';
+            footLink.textContent = 'Log in instead';
+        }
+        clearMessages();
+    }
+
+    function clearMessages(){
+        errEl.classList.remove('show'); errEl.textContent = '';
+        okEl.classList.remove('show');  okEl.textContent = '';
+    }
+
+    function open(nextMode){
+        setMode(nextMode || 'register');
+        overlay.removeAttribute('hidden');
+        requestAnimationFrame(() => overlay.classList.add('open'));
+        setTimeout(() => (mode === 'register' ? userEl : emailEl).focus(), 80);
+    }
+    function close(){
+        overlay.classList.remove('open');
+        setTimeout(() => overlay.setAttribute('hidden', ''), 220);
+    }
+
+    // Wire every CTA with data-auth="login|register"
+    // data-plan="<slug>" on a CTA stashes the plan so we can route to
+    // /app?plan=<slug> after a successful login.
+    let pendingPlan = null;
+    document.querySelectorAll('[data-auth]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            pendingPlan = btn.getAttribute('data-plan') || null;
+            open(btn.getAttribute('data-auth'));
+        });
+    });
+
+    // Tab switching
+    tabLogin.addEventListener('click', () => setMode('login'));
+    tabReg.addEventListener('click',   () => setMode('register'));
+    footLink.addEventListener('click', () => setMode(mode === 'login' ? 'register' : 'login'));
+
+    // Close handlers
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+    });
+
+    // Submit
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearMessages();
+
+        const emailOrUser = emailEl.value.trim();
+        const password    = passEl.value;
+        const username    = userEl.value.trim();
+
+        if (!emailOrUser) {
+            errEl.textContent = 'Email or username is required.'; errEl.classList.add('show'); return;
+        }
+        if (password.length < 6) {
+            errEl.textContent = 'Password must be at least 6 characters.'; errEl.classList.add('show'); return;
+        }
+
+        let endpoint, body;
+        if (mode === 'login') {
+            endpoint = '/api/auth/login';
+            const isEmail = emailOrUser.includes('@');
+            body = { password,
+                     email:    isEmail ? emailOrUser : '',
+                     username: isEmail ? '' : emailOrUser };
+        } else {
+            endpoint = '/api/auth/register';
+            if (!emailOrUser.includes('@')) {
+                errEl.textContent = 'Please enter a valid email address.'; errEl.classList.add('show'); return;
+            }
+            body = { email: emailOrUser, password, username };
+        }
+
+        submitBtn.disabled = true;
+        const origLabel = submitBtn.textContent;
+        submitBtn.textContent = mode === 'login' ? 'Logging in…' : 'Creating account…';
+
+        try {
+            const r = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || data.error) {
+                if (data.error === 'device_limit') {
+                    errEl.innerHTML = '<strong>Device limit reached.</strong> Revoke an existing device ' +
+                                      'from <em>Account → Devices</em> on a device you still own, or contact support.';
+                } else {
+                    errEl.textContent = data.error || data.detail ||
+                        (r.status === 401 ? 'Wrong email/username or password.' :
+                         r.status === 429 ? 'Too many attempts. Please wait a minute and try again.' :
+                         'Authentication failed. Please try again.');
+                }
+                errEl.classList.add('show');
+                return;
+            }
+            if (!data.access_token) {
+                errEl.textContent = 'Unexpected response. Please try again.';
+                errEl.classList.add('show');
+                return;
+            }
+            // Store token under the SAME key the SPA uses, so /app picks it up.
+            try {
+                localStorage.setItem('aladdin_token', data.access_token);
+                if (data.user) localStorage.setItem('aladdin_user', JSON.stringify(data.user));
+            } catch (_) {}
+
+            okEl.textContent = mode === 'login' ? 'Logged in. Redirecting to your dashboard…'
+                                                : 'Account created. Taking you to your dashboard…';
+            okEl.classList.add('show');
+            setTimeout(() => {
+                location.href = pendingPlan
+                    ? '/app?plan=' + encodeURIComponent(pendingPlan)
+                    : '/app';
+            }, 450);
+        } catch (err) {
+            errEl.textContent = 'Connection error. Please check your network and try again.';
+            errEl.classList.add('show');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = origLabel;
+        }
+    });
+
+    // Expose a small hook in case we want to auto-open via query string (?signup=1 / ?login=1)
+    const params = new URLSearchParams(location.search);
+    if (params.get('signup') === '1') open('register');
+    else if (params.get('login') === '1') open('login');
+
+    // Persist ?ref= across the landing → /app navigation. The SPA's
+    // app-r7.js picks this up from sessionStorage on load and pre-fills
+    // the register form's promo/referral field.
+    const refCode = params.get('ref');
+    if (refCode) {
+        try { sessionStorage.setItem('ref_code', refCode); } catch(_) {}
+        // Clean the URL so a refresh doesn't re-apply it and so shares
+        // of the current tab's URL don't leak the code.
+        try { history.replaceState({}, '', location.pathname); } catch(_) {}
+    }
+})();
+
+/* ═══ 7. Subtle parallax on logo while scrolling ═══ */
+(function logoParallax(){
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const mark = document.querySelector('.logo-mark');
+    if (!mark) return;
+    let ticking = false;
+    addEventListener('scroll', () => {
+        if (!ticking) {
+            requestAnimationFrame(() => {
+                const y = window.scrollY;
+                if (y < 600) {
+                    mark.style.transform = `translateY(${y * 0.15}px) scale(${1 - y * 0.00015})`;
+                }
+                ticking = false;
+            });
+            ticking = true;
+        }
+    }, {passive: true});
+})();
+</script>
+</body>
+</html>

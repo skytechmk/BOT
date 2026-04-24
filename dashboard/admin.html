@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anunnaki — Admin Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/admin.css?v=20260418">
+</head>
+<body>
+  <header class="ap-header">
+    <div class="ap-brand">
+      <span class="ap-crown">👑</span>
+      <div>
+        <div class="ap-brand-title">Admin Panel</div>
+        <div class="ap-brand-sub">Anunnaki World · Control Center</div>
+      </div>
+    </div>
+    <div class="ap-header-right">
+      <div id="ap-maintenance-pill" class="ap-pill" hidden>● Maintenance mode is ON</div>
+      <button class="ap-theme-btn" onclick="toggleTheme()" title="Toggle theme">
+        <span id="ap-theme-icon">🌙</span>
+      </button>
+      <a class="ap-back" href="/">← Dashboard</a>
+    </div>
+  </header>
+
+  <nav class="ap-tabs">
+    <button class="ap-tab active" data-tab="users" onclick="selectTab('users')">👥 Users</button>
+    <button class="ap-tab" data-tab="devices" onclick="selectTab('devices')">🔐 Devices</button>
+    <button class="ap-tab" data-tab="maintenance" onclick="selectTab('maintenance')">🛠️ Maintenance</button>
+    <button class="ap-tab" data-tab="payments" onclick="selectTab('payments')">💳 Payments</button>
+    <button class="ap-tab" data-tab="referrals" onclick="selectTab('referrals')">🔗 Referrals</button>
+    <button class="ap-tab" data-tab="settings" onclick="selectTab('settings')">⚙️ Settings</button>
+  </nav>
+
+  <main class="ap-main">
+    <!-- USERS -->
+    <section id="ap-tab-users" class="ap-section active">
+      <div class="ap-statgrid" id="ap-stats"></div>
+      <div class="ap-card">
+        <div class="ap-card-head">
+          <div>
+            <h2>Registered Users</h2>
+            <div class="ap-card-sub">Tier, devices, verification — with admin self-protection.</div>
+          </div>
+          <div class="ap-card-actions">
+            <input id="ap-users-search" class="ap-input" placeholder="Search email / username">
+            <select id="ap-users-filter" class="ap-input" onchange="renderUsers()">
+              <option value="all">All tiers</option>
+              <option value="free">Free</option>
+              <option value="plus">Plus</option>
+              <option value="pro">Pro</option>
+              <option value="ultra">Ultra</option>
+              <option value="admin">Admin</option>
+              <option value="unverified">Unverified email</option>
+            </select>
+            <button class="ap-btn" onclick="loadUsers()">↻ Refresh</button>
+            <button class="ap-btn ap-btn-ghost" onclick="adminCheckExpiry()">Check expiry</button>
+          </div>
+        </div>
+        <div id="ap-users-table" class="ap-table-wrap"><div class="ap-empty">Loading…</div></div>
+      </div>
+    </section>
+
+    <!-- DEVICES -->
+    <section id="ap-tab-devices" class="ap-section">
+      <div class="ap-card">
+        <div class="ap-card-head">
+          <h2>Device Sessions</h2>
+          <div class="ap-card-actions">
+            <input id="ap-devices-user" class="ap-input" placeholder="User ID" style="width:120px">
+            <button class="ap-btn" onclick="loadDevicesForUser()">Load devices</button>
+          </div>
+        </div>
+        <div id="ap-devices-info" class="ap-card-sub" style="padding:0 22px 14px 22px"></div>
+        <div id="ap-devices-table" class="ap-table-wrap"><div class="ap-empty">Pick a user ID from the Users tab.</div></div>
+      </div>
+    </section>
+
+    <!-- MAINTENANCE -->
+    <section id="ap-tab-maintenance" class="ap-section">
+      <div class="ap-card">
+        <div class="ap-card-head">
+          <div>
+            <h2>Platform Maintenance / Dev Mode</h2>
+            <div class="ap-card-sub">When enabled, all users see a banner and <strong>copy-trading execution is paused</strong>. Signals keep generating.</div>
+          </div>
+        </div>
+        <div class="ap-body">
+          <div class="ap-switch-row">
+            <label class="ap-switch">
+              <input type="checkbox" id="ap-maint-toggle">
+              <span class="ap-switch-slider"></span>
+            </label>
+            <span id="ap-maint-state" class="ap-switch-label">Checking…</span>
+          </div>
+          <label class="ap-field-label">Banner message shown to users</label>
+          <textarea id="ap-maint-message" class="ap-textarea" rows="3" placeholder="The platform is currently under maintenance…"></textarea>
+          <div class="ap-row-actions">
+            <button class="ap-btn ap-btn-primary" onclick="saveMaintenance()">Save</button>
+            <span id="ap-maint-status" class="ap-hint"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAYMENTS -->
+    <section id="ap-tab-payments" class="ap-section">
+      <div class="ap-card">
+        <div class="ap-card-head">
+          <h2>NOWPayments Status</h2>
+          <button class="ap-btn" onclick="loadPaymentConfig()">↻ Refresh</button>
+        </div>
+        <div id="ap-payments-config" class="ap-body"><div class="ap-empty">Loading…</div></div>
+      </div>
+      <div class="ap-card">
+        <div class="ap-card-head">
+          <h2>Payment History</h2>
+          <button class="ap-btn" onclick="loadPaymentHistory()">↻ Refresh</button>
+        </div>
+        <div id="ap-payments-history" class="ap-table-wrap"><div class="ap-empty">Loading…</div></div>
+      </div>
+    </section>
+
+    <!-- REFERRALS -->
+    <section id="ap-tab-referrals" class="ap-section">
+      <div class="ap-card">
+        <div class="ap-card-head">
+          <h2>Referral Performance</h2>
+          <button class="ap-btn" onclick="loadReferrals()">↻ Refresh</button>
+        </div>
+        <div id="ap-referrals-table" class="ap-table-wrap"><div class="ap-empty">Loading…</div></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="ap-tab-settings" class="ap-section">
+      <div class="ap-card">
+        <div class="ap-card-head"><h2>Device Pricing</h2></div>
+        <div class="ap-body" id="ap-settings-pricing"></div>
+      </div>
+      <div class="ap-card">
+        <div class="ap-card-head"><h2>Admin Information</h2></div>
+        <div class="ap-body" id="ap-settings-admin"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODALS -->
+  <div id="ap-modal" class="ap-modal-overlay" hidden>
+    <div class="ap-modal">
+      <header>
+        <h3 id="ap-modal-title">—</h3>
+        <button class="ap-modal-close" onclick="closeModal()">✕</button>
+      </header>
+      <div id="ap-modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/static/js/admin.js?v=20260418"></script>
+</body>
+</html>

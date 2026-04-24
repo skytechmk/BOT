@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "aladdin": {
+      "url": "http://127.0.0.1:8819/sse"
+    }
+  }
+}

@@ -91,4 +91,55 @@ Cargo.lock
 
 # Audit artifacts
 AUDIT_*.txt
+
+# ═══ Sensitive — added 2026-04-24 before GitHub push ═══
+# Databases (contain user PII, encrypted API keys, signal history)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Node dependencies (pine_sidecar / any future JS module)
+node_modules/
+**/node_modules/
+
+# Telegram session / member data (PII)
+telethon_config.env
+telethon_data/
+telethon_members/
+telethon_session*
+*.session
+*.session-journal
+
+# All env files (belt-and-braces — .env is already covered above)
+*.env
+!example.env
+!*.env.example
+
+# Local cache & performance logs
+performance_logs/
+logs/
+debug_log*.txt
+cache/
+__pycache__/
+
+# ML training data & legacy model snapshots (heavy binary artifacts)
+ml_data/
+ml_models/
+ml_models_legacy_*/
+ml_engine_archive/
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+*.onnx
+*.safetensors
+analysis_output/
+
+# IDE / OS noise
+.DS_Store
+Thumbs.db
 audit_report_*.md

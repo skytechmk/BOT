@@ -2,24 +2,230 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime, time, timedelta, timezone
+try:
+    from zoneinfo import ZoneInfo
+    _SKOPJE_TZ = ZoneInfo('Europe/Skopje')
+except Exception:
+    _SKOPJE_TZ = None  # fallback to naive local time if zoneinfo unavailable
 import json
 import os
 
 # Aladdin Rust Core Integration (availability check in rust_integration.py)
 from rust_integration import RUST_CORE_AVAILABLE
+if RUST_CORE_AVAILABLE:
+    import aladdin_core
 import time as time_module
 import uuid
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from utils_logger import log_message, log_message as log_msg
 
+# ══════════════════════════════════════════════════════════════════════
+#  Equity-Perp Market Hours Filter
+#  Binance lists tokenized stock / ETF perpetuals (TSLA, NVDA, SPY, QQQ …)
+#  that track assets whose underlying market is closed on weekends.
+#  Signals generated while the underlying market is shut use stale candles
+#  and should be skipped.
+# ══════════════════════════════════════════════════════════════════════
+
+# Seed set — manually curated. Expanded at runtime by
+# `discover_equity_perps_from_exchange()` which scans Binance exchangeInfo
+# for perp pairs whose base asset matches a known US-listed ticker.
+EQUITY_PERP_PAIRS = {
+    # US stocks
+    'TSLAUSDT', 'NVDAUSDT', 'AAPLUSDT', 'MSTRUSDT', 'COINUSDT', 'HOODUSDT',
+    'PAYPUSDT', 'CRCLUSDT', 'CRWVUSDT', 'PLTRUSDT', 'AMZNUSDT', 'MSFTUSDT',
+    'METAUSDT', 'GOOGLUSDT', 'GOOGUSDT', 'NFLXUSDT', 'AMDUSDT', 'SMCIUSDT',
+    'MARAUSDT', 'RIOTUSDT', 'BABAUSDT', 'NIOUSDT', 'DISUSDT', 'MCDUSDT',
+    'PYPLUSDT', 'UBERUSDT', 'ABNBUSDT', 'SHOPUSDT', 'SNAPUSDT', 'SBUXUSDT',
+    'INTCUSDT', 'ORCLUSDT', 'CSCOUSDT', 'JPMUSDT', 'BACUSDT', 'GSUSDT',
+    # US ETFs
+    'SPYUSDT', 'QQQUSDT', 'IWMUSDT', 'DIAUSDT', 'GLDUSDT', 'TLTUSDT',
+    'VOOUSDT', 'VTIUSDT', 'EEMUSDT',
+}
+
+# Known US-listed tickers (stocks + ETFs). Used by the auto-discovery
+# pass to recognise newly listed Binance equity-perps without a manual
+# update. Conservative list — only tickers with no known crypto conflict.
+# Excludes ambiguous 3-letter tickers that overlap crypto symbols
+# (e.g. "F" for Ford vs crypto token F, "V" for Visa, "T" for AT&T).
+_US_EQUITY_TICKERS = frozenset({
+    # Mega-cap tech
+    'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'AVGO',
+    'ORCL', 'AMD', 'INTC', 'CSCO', 'IBM', 'QCOM', 'TXN', 'ADBE', 'CRM',
+    'NFLX', 'INTU', 'NOW', 'PLTR', 'SHOP', 'PANW', 'CRWD', 'SNOW', 'DDOG',
+    # Crypto-adjacent equities
+    'COIN', 'MSTR', 'HOOD', 'MARA', 'RIOT', 'CLSK', 'HUT', 'BITF', 'CORZ',
+    'CIFR', 'BTBT', 'WULF', 'IREN', 'BTDR',
+    # Fintech / payments
+    'PYPL', 'PAYP', 'SQ', 'AFRM', 'SOFI', 'UPST',
+    # Retail / consumer (excl. "W" — overlaps Wormhole token)
+    'WMT', 'TGT', 'COST', 'HD', 'LOW', 'MCD', 'SBUX', 'CMG', 'NKE', 'LULU',
+    'DIS', 'CMCSA', 'NFLX', 'EBAY', 'ETSY', 'RH',
+    # Travel / rideshare
+    'UBER', 'LYFT', 'ABNB', 'BKNG', 'EXPE', 'DAL', 'UAL', 'AAL', 'LUV',
+    # Financials (excl. single-letter tickers like "C" that collide with crypto)
+    'JPM', 'BAC', 'GS', 'MS', 'WFC', 'BLK', 'SCHW', 'AXP', 'COF',
+    # Energy / materials (excl. "CVX" — overlaps Convex Finance token)
+    'XOM', 'COP', 'OXY', 'HAL', 'SLB', 'FCX', 'NEM',
+    # Healthcare / biotech
+    'JNJ', 'PFE', 'MRK', 'ABBV', 'LLY', 'UNH', 'CVS', 'MRNA', 'BNTX',
+    'NVAX', 'BIIB', 'REGN', 'VRTX', 'GILD', 'AMGN',
+    # EV / auto (excl. "F" — overlaps crypto token F)
+    'NIO', 'LI', 'XPEV', 'RIVN', 'LCID', 'GM', 'STLA',
+    # China ADRs
+    'BABA', 'JD', 'PDD', 'BIDU', 'NTES',
+    # Growth / meme / speculative (excl. "OPEN" — overlaps OpenDAO token)
+    'GME', 'AMC', 'BBBY', 'SOFI', 'WISH', 'CLOV', 'SNDL',
+    # New IPOs / recent listings
+    'CRCL', 'CRWV', 'SMCI', 'ARM', 'KLAR', 'CART', 'HIMS', 'HIMX', 'SOUN',
+    # ETFs
+    'SPY', 'QQQ', 'IWM', 'DIA', 'VOO', 'VTI', 'EEM', 'EFA', 'VEA', 'VWO',
+    'GLD', 'SLV', 'USO', 'UUP', 'TLT', 'IEF', 'HYG', 'LQD', 'XLK', 'XLF',
+    'XLE', 'XLV', 'XLI', 'XLP', 'XLY', 'XLU', 'XLB', 'XLRE', 'ARKK', 'ARKW',
+})
+
+# Base assets that are both a common crypto AND a US ticker — treat as crypto.
+# Keeps the heuristic safe: if a pair's base is in this set, don't auto-flag
+# as an equity-perp even if the ticker exists on NYSE.
+_CRYPTO_TICKER_EXCLUDES = frozenset({
+    'BTC', 'ETH', 'BNB', 'SOL', 'ADA', 'XRP', 'DOT', 'LINK', 'UNI', 'AAVE',
+    'APE', 'AR', 'AXS', 'BAT', 'CAKE', 'CHZ', 'COMP', 'CRO', 'DOGE', 'EOS',
+    'FTM', 'GRT', 'ICP', 'KDA', 'LTC', 'MATIC', 'NEAR', 'OP', 'SAND', 'SHIB',
+    'SNX', 'SUSHI', 'TRX', 'VET', 'XLM', 'XMR', 'XTZ', 'ZEC', 'ZIL',
+    # Ambiguous single-letter / short tickers that collide with crypto tokens
+    'C', 'CVX', 'F', 'W', 'OPEN',
+})
+
+try:
+    _ET_TZ = ZoneInfo('America/New_York')
+except Exception:
+    _ET_TZ = None
+
+
+def is_equity_perp(pair: str) -> bool:
+    """True if the pair tracks a traditional equity / ETF listed on US markets."""
+    return pair.upper() in EQUITY_PERP_PAIRS
+
+
+def discover_equity_perps_from_exchange(client) -> int:
+    """Expand `EQUITY_PERP_PAIRS` by scanning Binance Futures exchangeInfo
+    for any USDT perpetual whose base asset matches a known US ticker.
+
+    Returns the number of newly discovered pairs. Safe to call at startup;
+    silently skips on error (keeps the manual seed set intact).
+    """
+    try:
+        info = client.futures_exchange_info()
+    except Exception as exc:
+        log_message(f"[equity-gate] exchangeInfo fetch failed: {exc}")
+        return 0
+
+    new_count = 0
+    for s in info.get('symbols', []):
+        if s.get('contractType') != 'PERPETUAL':
+            continue
+        if s.get('quoteAsset') != 'USDT':
+            continue
+        base = (s.get('baseAsset') or '').upper()
+        pair = (s.get('symbol') or '').upper()
+        if not base or not pair:
+            continue
+        if pair in EQUITY_PERP_PAIRS:
+            continue
+        if base in _CRYPTO_TICKER_EXCLUDES:
+            continue
+        if base in _US_EQUITY_TICKERS:
+            EQUITY_PERP_PAIRS.add(pair)
+            new_count += 1
+    if new_count:
+        log_message(f"[equity-gate] auto-discovered {new_count} new equity-perp pairs "
+                    f"from Binance exchangeInfo (total={len(EQUITY_PERP_PAIRS)})")
+    return new_count
+
+
+# ── NYSE Holiday Calendar ────────────────────────────────────────────
+# Full-market closures (equity markets closed all day). Dates are in the
+# US/Eastern timezone. Refresh annually — NYSE publishes next year's
+# calendar in advance.  Early-close days (1pm ET) are NOT treated as
+# closed, since equity futures still trade.
+NYSE_FULL_CLOSURES = frozenset({
+    # 2026
+    '2026-01-01',  # New Year's Day
+    '2026-01-19',  # MLK Day
+    '2026-02-16',  # Presidents Day
+    '2026-04-03',  # Good Friday
+    '2026-05-25',  # Memorial Day
+    '2026-06-19',  # Juneteenth
+    '2026-07-03',  # Independence Day (Jul 4 = Sat → observed Fri)
+    '2026-09-07',  # Labor Day
+    '2026-11-26',  # Thanksgiving
+    '2026-12-25',  # Christmas
+    # 2027
+    '2027-01-01',  # New Year's Day
+    '2027-01-18',  # MLK Day
+    '2027-02-15',  # Presidents Day
+    '2027-03-26',  # Good Friday
+    '2027-05-31',  # Memorial Day
+    '2027-06-18',  # Juneteenth (Jun 19 = Sat → observed Fri)
+    '2027-07-05',  # Independence Day (Jul 4 = Sun → observed Mon)
+    '2027-09-06',  # Labor Day
+    '2027-11-25',  # Thanksgiving
+    '2027-12-24',  # Christmas (Dec 25 = Sat → observed Fri)
+    # 2028
+    '2028-01-17',  # MLK Day
+    '2028-02-21',  # Presidents Day
+    '2028-04-14',  # Good Friday
+    '2028-05-29',  # Memorial Day
+    '2028-06-19',  # Juneteenth
+    '2028-07-04',  # Independence Day
+    '2028-09-04',  # Labor Day
+    '2028-11-23',  # Thanksgiving
+    '2028-12-25',  # Christmas
+})
+
+
+def is_us_equity_market_open() -> bool:
+    """True while US stock-index futures are actively trading.
+
+    Closed windows:
+      • Friday   ≥ 17:00 ET    (weekly close)
+      • Saturday — all day
+      • Sunday   < 18:00 ET    (weekly open)
+      • NYSE full-closure holidays (see NYSE_FULL_CLOSURES)
+    """
+    if _ET_TZ is not None:
+        now_et = datetime.now(_ET_TZ)
+    else:
+        # EST/EDT fallback: assume EST (UTC-5). Close enough for weekend logic.
+        now_et = datetime.utcnow() - timedelta(hours=5)
+
+    # NYSE full closure for today's date in ET
+    if now_et.strftime('%Y-%m-%d') in NYSE_FULL_CLOSURES:
+        return False
+
+    wd = now_et.weekday()  # Mon=0 … Sun=6
+    h = now_et.hour
+    if wd == 5:                    # Saturday
+        return False
+    if wd == 4 and h >= 17:        # Friday after 5pm ET
+        return False
+    if wd == 6 and h < 18:         # Sunday before 6pm ET
+        return False
+    return True
+
+
 def is_prime_trading_session():
-    """Check if current time is within high-volatility session overlaps"""
-    now = datetime.now().time()
+    """Check if current time is within high-volatility session overlaps.
+
+    Anchored to Europe/Skopje (CET/CEST) — server local time.
+    London and NY are the highest-volume sessions; Tokyo is secondary.
+    """
+    now = datetime.now(_SKOPJE_TZ).time() if _SKOPJE_TZ is not None else datetime.now().time()
     london_start, london_end = time(8, 0), time(16, 0)
     ny_start, ny_end = time(13, 0), time(21, 0)
     tokyo_start, tokyo_end = time(0, 0), time(8, 0)
-    
+
     in_london = london_start <= now <= london_end
     in_ny = ny_start <= now <= ny_end
     in_tokyo = tokyo_start <= now <= tokyo_end
@@ -37,11 +243,29 @@ def get_order_book_imbalance(client, symbol):
     except Exception:
         return 1.0
 
+# Cache BTC klines so we don't re-fetch for every pair in the cycle
+_BTC_CORR_KLINE_CACHE = {'klines': None, 'timestamp': 0, 'timeframe': None, 'limit': 0}
+_BTC_CORR_KLINE_TTL = 60  # refresh every 60 seconds
+
 def calculate_pearson_correlation(client, symbol1, symbol2='BTCUSDT', timeframe='1h', limit=25):
     """Calculate the 24h Pearson correlation using percentage RETURNS (not raw prices)"""
     try:
         k1 = client.futures_klines(symbol=symbol1, interval=timeframe, limit=limit)
-        k2 = client.futures_klines(symbol=symbol2, interval=timeframe, limit=limit)
+
+        # Use cached BTC klines to avoid ~500 redundant API calls per cycle
+        now = time_module.time()
+        cache = _BTC_CORR_KLINE_CACHE
+        if (cache['klines'] is not None
+                and now - cache['timestamp'] < _BTC_CORR_KLINE_TTL
+                and cache['timeframe'] == timeframe
+                and cache['limit'] == limit):
+            k2 = cache['klines']
+        else:
+            k2 = client.futures_klines(symbol=symbol2, interval=timeframe, limit=limit)
+            cache['klines'] = k2
+            cache['timestamp'] = now
+            cache['timeframe'] = timeframe
+            cache['limit'] = limit
         
         # Use pct_change on close prices to get returns correlation
         c1 = pd.Series([float(k[4]) for k in k1]).pct_change().dropna()
@@ -70,6 +294,239 @@ def check_btc_correlation(client, signal_type, symbol=None):
         return direction_match, correlation_strength
     except Exception:
         return True, 0.7
+
+_BTC_REGIME_CACHE = {'regime': 'neutral', 'timestamp': 0}
+_BTC_REGIME_TTL = 1800  # refresh every 30 minutes
+
+def get_btc_htf_regime(client) -> str:
+    """Return 'bullish', 'bearish', or 'neutral' based on BTC 1h SMA20/SMA50.
+
+    Bullish:  price > SMA20 AND SMA20 > SMA50
+    Bearish:  price < SMA20 AND SMA20 < SMA50
+    Neutral:  anything else (transitioning / conflicting)
+
+    Result is cached for 30 minutes so it costs only one API call per half-hour
+    regardless of how many pairs are scanned.
+    """
+    import time as _t
+    now = _t.time()
+    if now - _BTC_REGIME_CACHE['timestamp'] < _BTC_REGIME_TTL:
+        return _BTC_REGIME_CACHE['regime']
+    try:
+        klines = client.futures_klines(symbol='BTCUSDT', interval='1h', limit=55)
+        closes = [float(k[4]) for k in klines]
+        price = closes[-1]
+        sma20 = sum(closes[-20:]) / 20
+        sma50 = sum(closes[-50:]) / 50
+        if price > sma20 and sma20 > sma50:
+            regime = 'bullish'
+        elif price < sma20 and sma20 < sma50:
+            regime = 'bearish'
+        else:
+            regime = 'neutral'
+        _BTC_REGIME_CACHE['regime'] = regime
+        _BTC_REGIME_CACHE['timestamp'] = now
+        log_message(f"📊 BTC 1h HTF Regime: {regime.upper()} (price={price:.0f} SMA20={sma20:.0f} SMA50={sma50:.0f})")
+        return regime
+    except Exception as e:
+        log_message(f"BTC HTF regime fetch error: {e}")
+        return _BTC_REGIME_CACHE.get('regime', 'neutral')
+
+
+def assign_leverage(confidence: float, signal_type: str, pair: str = None) -> int:
+    """Assign leverage based on confidence — smooth scaling from 2x to 25x.
+    
+    Confidence layers NO LONGER reject signals. Instead, every validated
+    Reverse Hunt signal is sent, and confidence determines leverage:
+    
+      Confidence   Leverage
+      ─────────────────────
+      0.00 – 0.30    2x     (minimum — low conviction)
+      0.30 – 0.45    3x     
+      0.45 – 0.55    5x     
+      0.55 – 0.65    8x     
+      0.65 – 0.75   12x     
+      0.75 – 0.85   18x     
+      0.85 – 1.00   25x     (maximum — full conviction)
+    
+    High-volatility tokens are capped at 5x regardless of confidence.
+    """
+    # Smooth tiered mapping
+    if confidence >= 0.85:
+        base_lev = 25
+    elif confidence >= 0.75:
+        base_lev = 18
+    elif confidence >= 0.65:
+        base_lev = 12
+    elif confidence >= 0.55:
+        base_lev = 8
+    elif confidence >= 0.45:
+        base_lev = 5
+    elif confidence >= 0.30:
+        base_lev = 3
+    else:
+        base_lev = 2  # Minimum — never reject, just use low leverage
+    
+    # Pair-specific caps for ultra-volatile tokens (ATR% > 5%)
+    high_risk_pairs = {
+        'PUMPUSDT', 'XANUSDT', 'COSUSDT', 'LEVERUSDT', 
+        'TROYUSDT', '1000SATSUSDT', 'PEPEUSDT', 'FLOKIUSDT'
+    }
+    if pair in high_risk_pairs:
+        base_lev = min(base_lev, 5)
+
+    return max(2, min(25, int(base_lev)))
+
+
+def institutional_risk_adjust(entry, ce_stop, targets, atr, signal_direction, precision, adx=20.0, df=None):
+    """
+    Institutional-grade risk/reward adjustment.
+
+    Problem: CE Line stop (ATR=22, mult=3.0) can be 10-20% from entry on volatile
+    micro-caps, while ATR-based TPs are only 3-5% away → terrible R:R.
+
+    Solution — 5-layer hybrid:
+    ┌──────────────────────────────────────────────────────────────────────────┐
+    │ Layer 1: SL CAP — min(CE_stop, 2.5×ATR, 6% hard cap)                  │
+    │          Keeps minimum 0.5×ATR to avoid noise stopouts.                │
+    │ Layer 2: TP SCALING — TPs guaranteed ≥ [1.0, 1.5, 2.5]× risk distance │
+    │          Original TPs kept if already wider (VP/FVG magnets).          │
+    │ Layer 3: REALISM CAP — No TP beyond 15% from entry.                   │
+    │ Layer 4: SIZE PENALTY — If CE was wider than cap, reduce position      │
+    │          proportionally (min 25% of base size).                        │
+    │ Layer 5: LEVERAGE DAMP — Wide-stop trades get leverage reduced by      │
+    │          ratio of (capped_risk / entry) to keep $ risk constant.       │
+    └──────────────────────────────────────────────────────────────────────────┘
+
+    Returns dict with adjusted SL, TPs, size_multiplier, leverage_dampener, rr,
+    or None if signal should be rejected (R:R < 1.0 after all adjustments).
+    """
+    is_long = signal_direction.upper() in ['LONG', 'BUY']
+    sign = 1 if is_long else -1
+
+    # ── Layer 1: Cap SL distance ─────────────────────────────────────────
+    raw_risk = abs(entry - ce_stop)
+    raw_risk_pct = raw_risk / entry if entry > 0 else 0
+
+    # Trending markets (ADX > 30) get slightly wider stops: 3.0×ATR cap
+    # Ranging markets (ADX < 20): tighter 2.0×ATR cap
+    # Default: 2.5×ATR
+    atr_mult_cap = 3.0 if adx > 30 else 2.0 if adx < 20 else 2.5
+    atr_cap = atr_mult_cap * atr
+    hard_cap = entry * 0.06          # 6% absolute max
+    capped_risk = min(raw_risk, atr_cap, hard_cap)
+
+    # Floor: minimum 0.5×ATR to avoid getting stopped by normal noise
+    min_risk = 0.5 * atr
+    capped_risk = max(capped_risk, min_risk)
+
+    stop_loss = entry - sign * capped_risk
+
+    # ── Swing Level Snap (ZigZag-style pivot detection) ───────────────
+    # If a significant swing low (LONG) / swing high (SHORT) sits within
+    # 0.5×ATR of our computed stop, snap to it for a more natural placement.
+    try:
+        if df is not None and len(df) >= 20:
+            _highs = df['high'].values
+            _lows  = df['low'].values
+            left_bars, right_bars = 5, 2
+            swing_candidates = []
+            end_idx = len(_lows) - right_bars - 1
+            for i in range(left_bars, end_idx):
+                if is_long:
+                    if (all(_lows[i] <= _lows[i - j] for j in range(1, left_bars + 1)) and
+                            all(_lows[i] <= _lows[i + j] for j in range(1, right_bars + 1))):
+                        swing_candidates.append(_lows[i])
+                else:
+                    if (all(_highs[i] >= _highs[i - j] for j in range(1, left_bars + 1)) and
+                            all(_highs[i] >= _highs[i + j] for j in range(1, right_bars + 1))):
+                        swing_candidates.append(_highs[i])
+            if swing_candidates:
+                # SAFE-SIDE FILTER: a snap must move the stop DEEPER (away from
+                # entry), never tighter. For LONG this means swing_low ≤ current
+                # stop_loss; for SHORT swing_high ≥ current stop_loss.
+                if is_long:
+                    safe = [s for s in swing_candidates if s <= stop_loss]
+                else:
+                    safe = [s for s in swing_candidates if s >= stop_loss]
+                if safe:
+                    nearest = min(safe, key=lambda s: abs(s - stop_loss))
+                    if abs(nearest - stop_loss) <= 0.5 * atr:
+                        stop_loss = nearest
+    except Exception:
+        pass
+
+    # ── Post-snap safety: re-enforce minimum distance floors ─────────
+    # Guarantees SL is never tighter than max(0.5×ATR, 0.25% of entry) after
+    # any swing snap or rounding. Prevents degenerate R:R ≫ 10:1 signals.
+    _min_dist = max(0.5 * atr, entry * 0.0025)
+    if abs(entry - stop_loss) < _min_dist:
+        stop_loss = entry - sign * _min_dist
+        capped_risk = _min_dist
+
+    # ── Layer 2: Scale TPs to guarantee minimum R:R ──────────────────────
+    # Institutional standard: TP1=1:1, TP2=1.5:1, TP3=2.5:1
+    rr_steps = [1.0, 1.5, 2.5]
+    min_tps = [entry + sign * capped_risk * step for step in rr_steps]
+
+    # Merge: keep the BETTER of original TP or R:R-minimum TP
+    adj_targets = []
+    for i in range(min(3, len(targets))):
+        orig = targets[i]
+        rr_floor = min_tps[i] if i < len(min_tps) else orig
+        if is_long:
+            adj_targets.append(max(orig, rr_floor))
+        else:
+            adj_targets.append(min(orig, rr_floor))
+
+    # Fill to 3 if needed
+    while len(adj_targets) < 3 and len(adj_targets) < len(min_tps):
+        adj_targets.append(min_tps[len(adj_targets)])
+
+    # ── Layer 3: Realism cap — no TP beyond 15% from entry ──────────────
+    max_tp_pct = 0.15
+    for i in range(len(adj_targets)):
+        dist = abs(adj_targets[i] - entry)
+        if dist / entry > max_tp_pct:
+            adj_targets[i] = entry + sign * entry * max_tp_pct
+
+    # ── Layer 4: Position size penalty ───────────────────────────────────
+    # If CE stop was wider than our cap, the pair is more volatile than our
+    # SL can cover. Reduce position size proportionally to compensate.
+    if raw_risk > 0 and raw_risk > capped_risk:
+        size_multiplier = capped_risk / raw_risk
+        size_multiplier = max(0.25, min(1.0, size_multiplier))  # 25%-100%
+    else:
+        size_multiplier = 1.0
+
+    # ── Layer 5: Leverage dampener ───────────────────────────────────────
+    # Wide-risk trades need lower leverage to keep notional risk constant.
+    # Baseline: 2% risk = full leverage. Scale down proportionally.
+    adj_risk_pct = capped_risk / entry if entry > 0 else 0.02
+    leverage_dampener = min(1.0, 0.02 / adj_risk_pct) if adj_risk_pct > 0 else 1.0
+    leverage_dampener = max(0.3, leverage_dampener)  # floor at 30%
+
+    # ── Final R:R validation ─────────────────────────────────────────────
+    best_tp = adj_targets[-1] if adj_targets else entry
+    reward = abs(best_tp - entry)
+    risk = abs(entry - stop_loss)
+    rr = reward / risk if risk > 0 else 0
+
+    # Hard reject: R:R < 1.0 means even TP3 doesn't cover the risk
+    if rr < 1.0:
+        return None
+
+    return {
+        'stop_loss': round(stop_loss, precision),
+        'targets': [round(t, precision) for t in adj_targets],
+        'size_multiplier': round(size_multiplier, 2),
+        'leverage_dampener': round(leverage_dampener, 2),
+        'rr': round(rr, 2),
+        'sl_capped': raw_risk > capped_risk + 1e-10,
+        'raw_risk_pct': round(raw_risk_pct * 100, 2),
+        'adj_risk_pct': round(adj_risk_pct * 100, 2),
+    }
+
 
 def detect_market_regime(df):
     """Detect if market is trending or ranging using ADX and BB Width"""
@@ -228,9 +685,9 @@ class DynamicConfidenceThreshold:
     def __init__(self, max_daily_signals=90):
         self.max_signals = max_daily_signals
         self.tiers = [
-            (0.67, 0.55),   # Signals 1-60: 55% min
-            (0.89, 0.70),   # Signals 61-80: 70% min
-            (1.00, 0.85),   # Signals 81-90: 85% min
+            (0.67, 0.45),   # Signals 1-60: 45% min
+            (0.89, 0.60),   # Signals 61-80: 60% min
+            (1.00, 0.75),   # Signals 81-90: 75% min
         ]
     
     def get_min_confidence(self, current_count):
@@ -299,115 +756,6 @@ class SignalPrioritizer:
 
 
 # ========== ALADDIN PHASE 6: MATHEMATICAL PRECISION ==========
-
-class MonteCarloSimulator:
-    """
-    Runs 10,000+ simulations per signal to calculate Probability of Success (PoS) 
-    and Expected Value (EV) using the high-performance Aladdin Rust Core.
-    """
-    def __init__(self, simulations=10000):
-        self.simulations = simulations
-
-    def simulate_signal(self, entry, sl, tps, atr_pct, drift=0.0):
-        """
-        Simulate potential price paths with optional directional drift.
-        tps: list of (price, weight) tuples e.g. [(price1, 0.4), (price2, 0.25)...]
-        atr_pct: ATR as a percentage of price (volatility proxy)
-        drift: Directional bias (positive for Bullish, negative for Bearish)
-        """
-        if RUST_CORE_AVAILABLE:
-            try:
-                # Use High-Performance Rust Core (Informed Brownian Motion)
-                pos, ev, drawdown = aladdin_core.simulate_monte_carlo(
-                    float(entry),
-                    float(sl),
-                    [(float(p), float(w)) for p, w in tps],
-                    float(atr_pct),
-                    self.simulations,
-                    50, # Time steps
-                    float(drift) # Passing ML directional bias to Rust
-                )
-                return {'pos': pos, 'ev': ev, 'max_drawdown': drawdown, 'source': 'RUST_ACCEL'}
-            except Exception as e:
-                # Fallback to Python if Rust core errors
-                from utils_logger import log_message
-                log_message(f"⚠️ Aladdin Rust Core Error: {e}. Falling back to Python engine.")
-
-        # Legacy Python Implementation (Single-threaded)
-        success_count = 0
-        total_pnl = 0
-        step_vol = atr_pct / np.sqrt(50) # Assuming 50 steps
-        period_drift = float(drift) / 50.0 # Pro-rate drift across steps
-        sim_count = min(self.simulations, 1000)  # Cap at 1000 for Python performance
-        
-        for _ in range(sim_count): 
-            current_sim_price = entry
-            hit_sl = False
-            hit_tps = [False] * len(tps)
-            sim_pnl = 0
-            
-            for _ in range(50):
-                # Standard Brownian Motion + Drift
-                change = np.random.normal(period_drift, step_vol)
-                current_sim_price *= (1 + change)
-                
-                is_long = tps[0][0] > entry
-                if (is_long and current_sim_price <= sl) or (not is_long and current_sim_price >= sl):
-                    pnl = (sl - entry) / entry
-                    if not is_long:
-                        pnl = -pnl
-                    sim_pnl = pnl
-                    hit_sl = True
-                    break
-                
-                for i, (tp_price, weight) in enumerate(tps):
-                    if not hit_tps[i]:
-                        if (is_long and current_sim_price >= tp_price) or (not is_long and current_sim_price <= tp_price):
-                            hit_tps[i] = True
-                            pnl = (tp_price - entry) / entry
-                            if not is_long:
-                                pnl = -pnl
-                            sim_pnl += pnl * weight
-                
-                if all(hit_tps):
-                    break
-            
-            # FIX 3.4: Align with Rust - success = TP1 hit (not any TP)
-            if hit_tps[0] and not hit_sl:
-                success_count += 1
-            
-            if not hit_sl:
-                current_pnl = 0
-                for i, (tp_price, weight) in enumerate(tps):
-                    if hit_tps[i]:
-                        pnl = (tp_price - entry) / entry
-                        if not is_long:
-                            pnl = -pnl
-                        current_pnl += pnl * weight
-                    else:
-                        pnl = (current_sim_price - entry) / entry
-                        if not is_long:
-                            pnl = -pnl
-                        current_pnl += pnl * weight
-                sim_pnl = current_pnl
-            
-            total_pnl += sim_pnl
-
-        pos = success_count / sim_count
-        ev = total_pnl / sim_count
-        
-        # Return EV as raw ratio (same unit as Rust core): 1.0 = breakeven
-        # Gate in main.py checks ev < 1.0 to reject
-        ev_normalized = 1.0 + ev  # Convert PnL fraction to ratio (0% PnL = 1.0)
-        
-        return {
-            'pos': pos,
-            'ev': ev_normalized,
-            'max_drawdown': 0.0,
-            'source': 'PYTHON_LEGACY',
-            'rating': 'HIGH' if ev_normalized > 1.012 else ('MED' if ev_normalized > 1.005 else 'LOW')
-        }
-
 
 class PortfolioCorrelationManager:
     """
@@ -516,79 +864,7 @@ class RegimePositionSizer:
         return max(0.0, min(1.5, final_multiplier))
 
 
-class BlackSwanStressTester:
-    """
-    Institutional-grade Stress Tester for Black Swan events.
-    Simulates various catastrophic scenarios and calculates Value at Risk (VaR).
-    """
-    @staticmethod
-    def run_stress_test(active_signals, scenario="FLASH_CRASH"):
-        """
-        Runs a specific stress scenario on the current portfolio.
-        Returns potential drawdown and severity.
-        """
-        scenarios = {
-            "FLASH_CRASH": {"btc_move": -0.20, "alt_beta": 1.5, "desc": "20% BTC Flash Crash"},
-            "SYSTEMIC_PANIC": {"btc_move": -0.40, "alt_beta": 2.0, "desc": "40% Systemic Panic"},
-            "LIQUIDITY_CRISIS": {"btc_move": -0.15, "alt_beta": 3.0, "desc": "Market-wide Liquidity Squeeze"},
-            "STABLE_DEPEG": {"btc_move": -0.05, "alt_beta": 0.5, "desc": "Stablecoin De-pegging Event"}
-        }
-        
-        config = scenarios.get(scenario, scenarios["FLASH_CRASH"])
-        btc_move = config["btc_move"]
-        alt_beta = config["alt_beta"]
-        
-        total_risk_exposure = 0
-        potential_loss = 0
-        
-        for pair, data in active_signals.items():
-            entry = data.get('entry_price', 0)
-            leverage = data.get('leverage', 1)
-            signal_type = "LONG" if "LONG" in str(data.get('signal_type', 'LONG')).upper() else "SHORT"
-            
-            # Beta-adjusted expected move
-            expected_move = btc_move * (1.0 if "BTC" in pair else alt_beta)
-            
-            # Potential PnL change
-            if signal_type == "LONG":
-                pnl_impact = expected_move * leverage  # Negative in crash
-            else:
-                # Shorts benefit from crash but suffer chaotic slippage/gap risk
-                pnl_impact = -(abs(expected_move) * 0.2 * leverage)  # MUST be negative to count
-            
-            if pnl_impact < 0:
-                potential_loss += abs(pnl_impact)
-                
-        return {
-            'scenario': scenario,
-            'description': config["desc"],
-            'potential_drawdown_risk': potential_loss, # Fraction of total portfolio if size=100%
-            'severity': 'CRITICAL' if potential_loss > 0.4 else ('HIGH' if potential_loss > 0.2 else 'LOW'),
-            'timestamp': datetime.now().isoformat()
-        }
 
-    @staticmethod
-    def calculate_var(active_signals, confidence_level=0.95):
-        """
-        Simplified Value at Risk (VaR) calculation.
-        Estimates the maximum loss over 24h at the given confidence level.
-        """
-        # In a real system, this would use a 30-day historical volatility matrix
-        # For now, we use a 'Regime-Based Volatility' approximation
-        volatilities = {
-            'BTCUSDT': 0.04, 'ETHUSDT': 0.05, 'ALTS': 0.08
-        }
-        
-        total_var = 0
-        for pair, data in active_signals.items():
-            base_vol = volatilities.get(pair, volatilities['ALTS'])
-            leverage = data.get('leverage', 1)
-            # 95% confidence = 1.65 standard deviations
-            z_score = 1.65 if confidence_level == 0.95 else 2.33
-            position_var = base_vol * z_score * leverage
-            total_var += position_var
-            
-        return total_var / max(1, len(active_signals))
 
 
 def check_gpu_availability():

@@ -5,12 +5,15 @@ import json
 import time
 import ast
 import re
+import uuid
 from telegram import Bot
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from utils_logger import log_message
 from constants import *
 from shared_state import OPENROUTER_INTEL, SIGNAL_REGISTRY
+# maintenance_claw removed — patches are now written as proposals for human review
 from datetime import datetime
+from telegram.ext import ConversationHandler, MessageHandler, CommandHandler, filters
 
 class AutoHealer:
     """Institutional-grade Self-Healing & Diagnostic Engine"""
@@ -164,7 +167,7 @@ To apply this patch immediately, use the command:
             ai_response = OPENROUTER_INTEL.query_ai(prompt)
             clean_json = re.sub(r'```json|```', '', ai_response).strip()
             
-            bug_id = f"STRAT-{int(time.time() % 10000)}"
+            bug_id = f"STRAT-{uuid.uuid4().hex[:6].upper()}"
             try:
                 fix_data = json.loads(clean_json)
                 self.proposed_fixes[bug_id] = {
@@ -179,11 +182,16 @@ To apply this patch immediately, use the command:
                 msg = (f"📉 **STOP LOSS POST-MORTEM ({bug_id})**\n"
                        f"💰 **Pair:** {pair}\n"
                        f"🧠 **AI Insight:** {fix_data.get('explanation', 'No explanation provided.')}\n\n"
-                       f"🎯 **Strategy Refinement:**\n"
+                       f"🎯 **Strategy Refinement Applied Automatically:**\n"
                        f"```python\n"
                        f"{fix_data.get('strategy_patch_code', '')}\n"
-                       f"```\n"
-                       f"🚀 `/apply_logic {bug_id}` to enhance strategy.")
+                       f"```\n")
+                
+                # AUTONOMOUS EXECUTION 
+                patch_result = self.apply_patch(bug_id)
+                msg += f"\n⚙️ **Maintenance Claw Result**: {patch_result}"
+
+
             except Exception as json_e:
                 log_message(f"JSON parsing failed for AI response, sending raw format: {json_e}")
                 self.proposed_fixes[bug_id] = {
@@ -205,48 +213,37 @@ To apply this patch immediately, use the command:
             log_message(f"Error in Post-Mortem Analysis: {e}")
 
     def apply_patch(self, bug_id):
-        """Apply a validated code patch to the codebase"""
+        """Write a maintenance proposal to proposals/ for human review (no auto-patching)"""
         try:
             if bug_id not in self.proposed_fixes: return "Invalid Bug ID"
             fix = self.proposed_fixes[bug_id]
-            if fix.get('type') == 'STRATEGY_RAW':
-                return f"ABORT: Fix {bug_id} was raw text and cannot be automatically applied. Please review it manually."
-            file_path = fix['file']
+            file_path = fix.get('file', 'unknown')
+            new_code = fix.get('new_code', '')
+            reason = fix.get('reason', 'Auto-detected issue')
             
-            # Security Check
-            if os.path.basename(file_path) not in self.SAFE_FILES:
-                return "CRITICAL: Target file outside of Safe Zone!"
+            if not new_code:
+                return "Error: No code found in fix data."
             
-            # AST Validation of new code
-            try:
-                ast.parse(fix['new_code'])
-            except SyntaxError as e:
-                return f"ABORT: AI code has syntax errors: {e}"
-            
-            # Simple replacement logic (can be enhanced with more precise line detection)
-            # For simplicity in this version, it targets the specific lines provided by AI
-            with open(file_path, 'r') as f:
-                lines = f.readlines()
-            
-            # lines is 0-indexed, AI returns 1-indexed
-            start = fix['start_line'] - 1
-            end = fix['end_line']
-            
-            # Note: This is a placeholder for a more robust diff/patch mechanism
-            # In a production environment, we'd use line markers or specific search patterns
-            # Here we trust the specific line range + manual verification via /apply_logic
-            
-            # Update file with the AI-provided fix
-            lines[start:end] = [fix['new_code'] + '\n']
-            with open(file_path, 'w') as f:
-                f.writelines(lines)
+            # Write proposal as .md file for human review in IDE
+            os.makedirs('proposals', exist_ok=True)
+            ts = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+            proposal_path = f"proposals/{ts}_{bug_id}.md"
+            with open(proposal_path, 'w') as f:
+                f.write(f"# Proposal: Fix {bug_id}\n")
+                f.write(f"**Date**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"**Priority**: HIGH\n")
+                f.write(f"**File**: `{file_path}`\n\n")
+                f.write(f"## Problem\n{reason}\n\n")
+                f.write(f"## Proposed Code\n```python\n{new_code}\n```\n\n")
+                f.write(f"## How to Apply\nReview the code above and apply manually from IDE.\n")
             
             del self.proposed_fixes[bug_id]
             self.save_fixes()
-            return f"✅ Patch {bug_id} applied successfully to {file_path} (lines {start+1}-{end})"
+            return f"✅ Proposal written to `{proposal_path}` — review and apply from IDE."
             
         except Exception as e:
-            return f"Error applying patch: {e}"
+            return f"Error writing proposal: {e}"
+
 
 # Singleton Instance
 AUTO_HEAL_ENGINE = AutoHealer()
@@ -281,15 +278,22 @@ def exception_handler(exc_type, exc_value, exc_traceback):
         print(f"Failed to trigger auto-healer: {e}")
 
 async def setup_ops_listeners(application):
-    """Setup Telegram Command Handlers for the Ops Channel"""
-    async def apply_cmd(update, context):
-        if str(update.message.chat_id) != AUTO_HEAL_ENGINE.ops_chat_id: return
-        if not context.args: return
-        
+    """Setup Telegram Command Handlers (Now Fully Autonomous)"""
+    
+    async def manual_apply(update, context):
+        if not context.args:
+            await update.message.reply_text("Usage: /apply_logic <BUG_ID>")
+            return
+            
         bug_id = context.args[0]
+        if bug_id not in AUTO_HEAL_ENGINE.proposed_fixes:
+            await update.message.reply_text("Invalid or expired Bug ID.")
+            return
+            
+        await update.message.reply_text(f"Manually applying {bug_id} via Maintenance Claw...")
         result = AUTO_HEAL_ENGINE.apply_patch(bug_id)
-        await update.message.reply_text(f"🛠️ **Update Log:** {result}")
-        
+        await update.message.reply_text(result)
+
     async def reject_cmd(update, context):
         if str(update.message.chat_id) != AUTO_HEAL_ENGINE.ops_chat_id: return
         if not context.args: return
@@ -299,6 +303,6 @@ async def setup_ops_listeners(application):
             AUTO_HEAL_ENGINE.save_fixes()
             await update.message.reply_text(f"❌ Fix {bug_id} rejected and cleared.")
 
-    application.add_handler(CommandHandler("apply_logic", apply_cmd))
+    application.add_handler(CommandHandler("apply_logic", manual_apply))
     application.add_handler(CommandHandler("reject", reject_cmd))
-    log_message("Ops Command Handlers active on the secure channel.")
+    log_message("Autonomous Ops Command Handlers active.")

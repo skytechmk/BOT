@@ -1,11 +1,3 @@
-
-# FORCE FREE MODELS ONLY
-try:
-    from enforce_free_models import enforce_free_models
-    enforce_free_models()
-except Exception as e:
-    print(f"Warning: Could not enforce free models: {e}")
-
 import os
 import torch
 from datetime import datetime, timezone
@@ -18,8 +10,8 @@ from constants import *
 from trading_utilities import (
     CircuitBreaker, PairCooldownManager, AutoBlacklist, 
     DynamicConfidenceThreshold, 
-    MonteCarloSimulator, PortfolioCorrelationManager, 
-    RegimePositionSizer, BlackSwanStressTester, 
+    PortfolioCorrelationManager, 
+    RegimePositionSizer, 
     check_gpu_availability
 )
 from macro_risk_engine import MacroRiskEngine
@@ -33,23 +25,26 @@ from rust_integration import RUST_CORE_AVAILABLE, RUST_CORE_VERSION
 
 API_KEY = os.getenv('BINANCE_API_KEY')
 API_SECRET = os.getenv('BINANCE_API_SECRET')
-client = Client(API_KEY, API_SECRET)
+client = Client(API_KEY, API_SECRET, requests_params={"timeout": 30})
+
+# Proxy pool + connection pool (Webshare rotating proxy when PROXY_ENABLED=true)
+from proxy_config import configure_session as _configure_session
+_configure_session(client.session, pool_connections=30, pool_maxsize=30)
 
 GPU_INFO = check_gpu_availability()
 device = torch.device('cuda' if GPU_INFO['available'] else 'cpu')
 
 CIRCUIT_BREAKER = CircuitBreaker()
 PAIR_COOLDOWN = PairCooldownManager(cooldown_hours=2)
-AUTO_BLACKLIST = AutoBlacklist(max_consecutive_losses=3, blacklist_hours=24)
+AUTO_BLACKLIST = AutoBlacklist(max_consecutive_losses=2, blacklist_hours=24)
 DYNAMIC_THRESHOLD = DynamicConfidenceThreshold(max_daily_signals=90)
 MACRO_RISK_ENGINE = MacroRiskEngine()
 OPENROUTER_INTEL = OpenRouterIntelligence() # Updated instance name
 DEEPSEEK_INTEL = OPENROUTER_INTEL # Legacy alias for compatibility
 OPENROUTER_AVAILABLE = OPENROUTER_INTEL.api_key is not None
-MONTE_CARLO = MonteCarloSimulator(simulations=1000)
+
 PORTFOLIO_MANAGER = PortfolioCorrelationManager(max_correlated_exposure=0.3)
 REGIME_SIZER = RegimePositionSizer()
-STRESS_TESTER = BlackSwanStressTester()
 
 # AI & Institutional Intelligence (Modular Loading)
 try:
@@ -74,7 +69,15 @@ except Exception as e:
     INSTITUTIONAL_ML_AVAILABLE = False
 
 # Global Signal Trackers
-SIGNAL_REGISTRY = {}
+from signal_registry_db import SignalRegistryDB, SignalRegistryProxy
+
+try:
+    _db = SignalRegistryDB()
+    SIGNAL_REGISTRY = SignalRegistryProxy(_db)
+except Exception as e:
+    import logging
+    logging.getLogger("aladdin").error(f"Error starting SQLite Registry: {e}")
+    SIGNAL_REGISTRY = {}
 CORNIX_SIGNALS = {}
 PERFORMANCE_HISTORY = {}
 OPEN_SIGNALS_TRACKER = {}
@@ -94,10 +97,13 @@ try:
     MULTI_TF_ML_AVAILABLE = True
 except ImportError: MULTI_TF_ML_AVAILABLE = False
 
+# RealTimeSignalMonitor disabled — caused Telegram floods on restart.
+# Signal closures handled by _reconcile_sent_signals in performance_tracker.
 try:
-    from realtime_signal_monitor import RealTimeSignalMonitor
-    WEBSOCKET_MONITOR_AVAILABLE = True
-except ImportError: WEBSOCKET_MONITOR_AVAILABLE = False
+    from enhanced_websocket_monitor import RealTimeSignalMonitor
+except ImportError:
+    RealTimeSignalMonitor = None
+WEBSOCKET_MONITOR_AVAILABLE = False
 
 ENHANCED_CACHE_AVAILABLE = False # Default unless specified
 

@@ -6,40 +6,12 @@ from constants import *
 from shared_state import *
 from technical_indicators import *
 from trading_utilities import generate_market_summary
-
-def calculate_base_signal(df):
-    """Calculate base trading signal without ML"""
-    # Get the most recent values only
-    latest = df.iloc[-1]
-    
-    # Volatility Spike Filter (ATR > 150% of recent trend)
-    if 'ATR' in df.columns:
-        avg_atr = df['ATR'].rolling(14).mean().iloc[-1]
-        if pd.notna(avg_atr) and avg_atr > 0 and latest['ATR'] > (avg_atr * 1.5):
-            return 'NEUTRAL'
-    
-    # Enhanced signal confirmation with multiple indicators
-    bullish = (
-        (latest['close'] < latest['Lower Band']) and
-        (latest['MACD Histogram'] < 0) and
-        (latest['close'] < latest['VWAP']) and
-        (latest['close'] > latest['senkou_span_a']) and 
-        (latest['close'] > latest['senkou_span_b'])
-    )
-    
-    bearish = (
-        (latest['close'] > latest['Upper Band']) and
-        (latest['MACD Histogram'] > 0) and
-        (latest['close'] > latest['VWAP']) and
-        (latest['close'] < latest['senkou_span_a']) and
-        (latest['close'] < latest['senkou_span_b'])
-    )
-
-    if bullish:
-        return 'LONG'
-    elif bearish:
-        return 'SHORT'
-    return 'NEUTRAL'
+# CE Hybrid params — single source of truth so signal_generator's CE_Direction /
+# CE_Cloud_Direction match the Rust batch + reverse_hunt gate + ML features.
+from reverse_hunt import (
+    CE_LINE_ATR_LEN, CE_LINE_LOOKBACK, CE_LINE_MULT,
+    CE_CLOUD_ATR_LEN, CE_CLOUD_LOOKBACK, CE_CLOUD_MULT,
+)
 
 def calculate_detailed_confidence(df, signal, total_score):
     """Calculate ultra-precise confidence percentage with exact 0.1% increments from 10.0% to 100.0%"""
@@ -48,8 +20,9 @@ def calculate_detailed_confidence(df, signal, total_score):
         confidence_factors = []
         
         # Enhanced base confidence from signal strength (0-28%)
-        max_possible_score = 6  # BB, MACD, VWAP, Cloud, RSI, Pattern
-        base_score = abs(total_score) / max_possible_score if max_possible_score > 0 else 0
+        # Max weighted: bb(1)+vwap(1.2)+cloud(1)+rsi(1.3)+pattern(2)+ce(2.5)+adx(1.8)+bor(2)+channel(0.8)+tsi(1.5)+lr(1.2) = 16.3
+        max_possible_score = 16.3
+        base_score = min(abs(total_score) / max_possible_score, 1.0) if max_possible_score > 0 else 0
         
         # Price momentum micro-adjustment
         price_momentum = (latest['close'] - df['close'].iloc[-5]) / df['close'].iloc[-5] * 100 if len(df) > 5 else 0
@@ -64,13 +37,13 @@ def calculate_detailed_confidence(df, signal, total_score):
         if 'RSI_14' in df.columns and not pd.isna(latest['RSI_14']):
             try:
                 rsi_val = float(latest['RSI_14'])  # Convert to scalar
-                if signal.upper() == 'LONG' and rsi_val < 55:  # Expanded range for long
-                    rsi_factor = (55 - rsi_val) / 55
-                    rsi_divergence = abs(rsi_val - 30) * 0.08  # Divergence from oversold
+                if signal.upper() == 'LONG' and rsi_val < 50:  # More balanced range for long
+                    rsi_factor = (50 - rsi_val) / 50
+                    rsi_divergence = abs(rsi_val - 35) * 0.08  # Divergence from oversold
                     rsi_confidence = min(rsi_factor * 16 + rsi_divergence, 16)
-                elif signal.upper() == 'SHORT' and rsi_val > 45:  # Expanded range for short
-                    rsi_factor = (rsi_val - 45) / 55
-                    rsi_divergence = abs(rsi_val - 70) * 0.08  # Divergence from overbought
+                elif signal.upper() == 'SHORT' and rsi_val > 50:  # More balanced range for short
+                    rsi_factor = (rsi_val - 50) / 50
+                    rsi_divergence = abs(rsi_val - 65) * 0.08  # Divergence from overbought
                     rsi_confidence = min(rsi_factor * 16 + rsi_divergence, 16)
             except (TypeError, ValueError) as e:
                 log_message(f"Error processing RSI value: {e}")
@@ -83,10 +56,15 @@ def calculate_detailed_confidence(df, signal, total_score):
             avg_volume = df['volume'].rolling(20).mean().iloc[-1]
             if pd.notna(avg_volume) and avg_volume > 0:
                 volume_ratio = latest['volume'] / avg_volume
-                # Ultra-sophisticated volume analysis
+                # Enhanced volume analysis with trend confirmation
                 if volume_ratio > 1.05:
-                    volume_spike = min((volume_ratio - 1) * 7, 8)
-                    volume_consistency = min(abs(volume_ratio - 1.4) * 1.8, 3)  # Optimal around 1.4x
+                    # Volume spike strength
+                    volume_spike = min((volume_ratio - 1) * 6, 8)
+                    # Volume consistency (prefer moderate spikes over extreme)
+                    if volume_ratio < 2.0:
+                        volume_consistency = min(volume_ratio * 2, 3)
+                    else:
+                        volume_consistency = max(3 - (volume_ratio - 2.0) * 0.5, 0)  # Penalize extreme spikes
                     volume_confidence = min(volume_spike + volume_consistency, 12)
         confidence_factors.append(('Volume Confirmation', volume_confidence))
         
@@ -174,11 +152,12 @@ def calculate_detailed_confidence(df, signal, total_score):
         # Round to 1 decimal place for clean display
         final_confidence = round(final_confidence, 1)
         
-        # Log confidence breakdown for debugging
-        log_message(f"Confidence breakdown for {signal} signal:")
-        for factor_name, factor_value in confidence_factors:
-            log_message(f"  {factor_name}: {factor_value:.2f}%")
-        log_message(f"  Final Confidence: {final_confidence:.1f}%")
+        # Log confidence breakdown only for non-neutral signals
+        if signal.upper() != 'NEUTRAL':
+            log_message(f"Confidence breakdown for {signal} signal:")
+            for factor_name, factor_value in confidence_factors:
+                log_message(f"  {factor_name}: {factor_value:.2f}%")
+            log_message(f"  Final Confidence: {final_confidence:.1f}%")
         
         return final_confidence / 100  # Return as decimal
         
@@ -186,10 +165,21 @@ def calculate_detailed_confidence(df, signal, total_score):
         log_message(f"Error calculating detailed confidence: {e}")
         return 0.5  # Default 50% confidence
 
-def calculate_kicko_indicator(df, pair=None, use_ml=True):
+def calculate_kicko_indicator(df, pair=None, use_ml=True, regime=None, pair_tier=None):
     if not isinstance(df, pd.DataFrame) or df.empty:
         log_message("Invalid DataFrame input to calculate_kicko_indicator")
         return df  # Return the DataFrame as is
+
+    # Phase 3: inject batch-pre-computed Rust indicators when available,
+    # skipping ATR, Chandelier Exit, and Ichimoku recomputation entirely.
+    if pair is not None:
+        try:
+            from rust_batch_processor import BATCH_PROCESSOR
+            # Detect timeframe from df length heuristic (HTF dfs are shorter)
+            tf_hint = '4h' if len(df) < 200 else '15m'
+            df = BATCH_PROCESSOR.apply(df, pair, tf_hint)
+        except Exception:
+            pass
     
     try:
         if 'Upper Band' not in df.columns:
@@ -203,20 +193,45 @@ def calculate_kicko_indicator(df, pair=None, use_ml=True):
         if 'tenkan_sen' not in df.columns:
             df = calculate_ichimoku(df)
         if 'CE_Direction' not in df.columns:
-            df = calculate_chandelier_exit(df)
+            df = calculate_chandelier_exit(
+                df,
+                atr_period=CE_LINE_ATR_LEN,
+                mult=CE_LINE_MULT,
+                lookback=CE_LINE_LOOKBACK,
+            )
+        if 'CE_Cloud_Direction' not in df.columns:
+            df = calculate_chandelier_exit_cloud(
+                df,
+                cloud_atr_period=CE_CLOUD_ATR_LEN,
+                cloud_mult=CE_CLOUD_MULT,
+                cloud_lookback=CE_CLOUD_LOOKBACK,
+            )
         if 'Pattern_Type' not in df.columns:
             df = detect_candlestick_patterns(df)
+        if 'TSI' not in df.columns:
+            df = calculate_tsi(df)
+        if 'LR_Osc' not in df.columns:
+            df = calculate_lr_oscillator(df)
+        if 'ADX' not in df.columns:
+            df = calculate_advanced_indicators(df)
     except Exception as e:
         log_message(f"Technical indicator calculation failed: {e}")
         return df
     
+    # P0 ADX mandatory gate: neutralize all rows where ADX < 20 (weak trend / chop)
+    # Winners avg ADX>25, losers avg ADX<18 — this prevents scoring weak setups entirely
+    if 'ADX' in df.columns:
+        df['_adx_ok'] = df['ADX'].fillna(0) >= 20
+    else:
+        df['_adx_ok'] = True  # ADX unavailable — allow scoring (non-blocking fallback)
+
     # More lenient signal logic with lower thresholds for more signals
     # Calculate individual signal scores
     bb_score = np.where(df['close'] < df['Lower Band'], 1,  # Oversold - bullish
                        np.where(df['close'] > df['Upper Band'], -1, 0))  # Overbought - bearish
     
-    macd_score = np.where(df['MACD Histogram'] > 0, 1,  # MACD bullish
-                         np.where(df['MACD Histogram'] < 0, -1, 0))  # MACD bearish
+    macd_score = np.where(df['MACD Histogram'] > 0, 1,  # MACD bullish (histogram positive)
+                         np.where(df['MACD Histogram'] < 0, -1, 0))  # MACD bearish (histogram negative)
     
     vwap_score = np.where(df['close'] > df['VWAP'], 1,  # Above VWAP - bullish
                          np.where(df['close'] < df['VWAP'], -1, 0))  # Below VWAP - bearish
@@ -230,23 +245,49 @@ def calculate_kicko_indicator(df, pair=None, use_ml=True):
         )
     )
     
-    # Tighten RSI thresholds (standard 30/70)
+    # More balanced RSI thresholds (35/65 for better signal frequency)
     rsi_score = 0
     if 'RSI_14' in df.columns:
-        rsi_score = np.where(df['RSI_14'] < 30, 1,
-                            np.where(df['RSI_14'] > 70, -1, 0))
+        rsi_score = np.where(df['RSI_14'] < 35, 1,  # Oversold
+                            np.where(df['RSI_14'] > 65, -1, 0))  # Overbought
     
     # Pattern score
     pattern_score = np.zeros(len(df))
     if 'Pattern_Type' in df.columns:
         pattern_score = np.where(df['Pattern_Type'] == 'Bullish', 1,
                                np.where(df['Pattern_Type'] == 'Bearish', -1, 0))
+
+    # ADX trend-strength score: rewards strong-trend setups, penalizes weak-trend noise
+    # ADX>25 + DI direction aligned → +1.2 (strong confirmed trend)
+    # ADX 20-25 → 0 (neutral)
+    # ADX<20 → -0.5 (penalise — stops will be hit by chop)
+    adx_score = np.zeros(len(df))
+    if 'ADX' in df.columns and 'PLUS_DI' in df.columns and 'MINUS_DI' in df.columns:
+        adx_strong = df['ADX'] > 25
+        adx_weak = df['ADX'] < 20
+        di_bullish = df['PLUS_DI'] > df['MINUS_DI']
+        di_bearish = df['MINUS_DI'] > df['PLUS_DI']
+        adx_score = np.where(adx_strong & di_bullish, 1.2,
+                    np.where(adx_strong & di_bearish, -1.2,
+                    np.where(adx_weak, -0.5, 0.0)))
                                
-    # Chandelier Exit score
+    # Chandelier Exit score — Hybrid Mode (line filtered by cloud)
+    # Cloud layer (ATR 50, mult 5.0) acts as macro trend gate:
+    #   line + cloud AGREE    → full score (±1.0)
+    #   line + cloud DISAGREE → halved score (±0.5)  counter-trend caution
+    #   line NEUTRAL          → 0
     ce_score = np.zeros(len(df))
     if 'CE_Direction' in df.columns:
-        ce_score = np.where(df['CE_Direction'] == 1, 1,
-                           np.where(df['CE_Direction'] == -1, -1, 0))
+        line_dir  = np.where(df['CE_Direction'] == 1, 1.0,
+                    np.where(df['CE_Direction'] == -1, -1.0, 0.0))
+        if 'CE_Cloud_Direction' in df.columns:
+            cloud_dir = np.where(df['CE_Cloud_Direction'] == 1, 1.0,
+                        np.where(df['CE_Cloud_Direction'] == -1, -1.0, 0.0))
+            same_dir  = (line_dir == cloud_dir) & (line_dir != 0)
+            diff_dir  = (line_dir != cloud_dir) & (line_dir != 0)
+            ce_score  = np.where(same_dir, line_dir, np.where(diff_dir, line_dir * 0.5, 0.0))
+        else:
+            ce_score  = line_dir
     
     # Ensure all scores have the same shape and are 1D arrays
     df_len = len(df)
@@ -290,31 +331,133 @@ def calculate_kicko_indicator(df, pair=None, use_ml=True):
             ce_score = np.resize(ce_score, df_len)
     else:
         ce_score = np.full(df_len, ce_score)
+
+    # Handle ADX score
+    if hasattr(adx_score, '__len__'):
+        adx_score = np.asarray(adx_score).flatten()[:df_len]
+        if len(adx_score) != df_len:
+            adx_score = np.resize(adx_score, df_len)
+    else:
+        adx_score = np.full(df_len, adx_score)
     
-    # Dynamic weights based on historical reliability
+    # ── TSI Score (True Strength Index) ──────────────────────────────
+    # TSI > 0 = bullish momentum, TSI < 0 = bearish
+    # TSI_Hist (TSI - Signal) gives crossover direction
+    if 'TSI_Hist' in df.columns:
+        tsi_score = np.where(df['TSI_Hist'] > 0, 1,
+                    np.where(df['TSI_Hist'] < 0, -1, 0)).astype(float)
+    else:
+        tsi_score = np.zeros(df_len)
+
+    # ── LR Oscillator Score (Normalized Linear Regression Slope) ─────
+    # LR_Osc > 0.5  = strong upslope  → bullish
+    # LR_Osc < -0.5 = strong downslope → bearish
+    # LR_Osc near 0 = choppy / neutral
+    if 'LR_Osc' in df.columns:
+        lr_arr = df['LR_Osc'].fillna(0).values
+        lr_score = np.where(lr_arr > 1.0, 1,
+                   np.where(lr_arr < -1.0, -1, 0)).astype(float)
+    else:
+        lr_score = np.zeros(df_len)
+
+    # ── Breakout + Retest pattern score ──────────────────────────────
+    # detect_breakout_retest returns scalar for last candle only
+    # Apply it as a constant array (same value across all rows — last row is what matters)
+    bor_score_val = 0.0
+    channel_score_val = 0.0
+    try:
+        from technical_indicators import detect_breakout_retest
+        bor_result = detect_breakout_retest(df)
+        bor_score_val     = float(bor_result.get('breakout_score', 0.0))
+        channel_slope     = float(bor_result.get('channel_slope', 0.0))
+        channel_position  = float(bor_result.get('channel_position', 0.0))
+        # Channel score: descending channel near lower bound = bullish setup
+        #                ascending channel near upper bound  = bearish setup
+        if channel_slope < -0.0001 and channel_position < -0.5:   # descending, near bottom
+            channel_score_val = 1.0
+        elif channel_slope > 0.0001 and channel_position > 0.5:   # ascending, near top
+            channel_score_val = -1.0
+        if bor_result['breakout_type'] != 'NONE':
+            log_message(f"📐 Breakout/Retest: {bor_result['breakout_type']} at {bor_result['level']} (score={bor_score_val:+.1f})")
+    except Exception:
+        pass
+    bor_score     = np.full(df_len, bor_score_val)
+    channel_score = np.full(df_len, channel_score_val)
+
+    # ── Adaptive weights per regime ──────────────────────────────────
+    # Base weights (conservative defaults)
     weights = {
         'bb': 1.0,
-        'macd': 1.5,
+        'macd': 0.0,     # disabled — TSI covers momentum (double-counting)
         'vwap': 1.2,
         'cloud': 1.0,
         'rsi': 1.3,
         'pattern': 2.0,
-        'ce': 2.5
+        'ce': 2.5,
+        'adx': 1.8,
+        'bor': 2.0,      # breakout+retest — high weight, rare but high accuracy
+        'channel': 0.8,  # channel position — supplementary
+        'tsi': 1.5,      # TSI: cleaner momentum than MACD
+        'lr': 1.2,       # LR Oscillator: slope direction confirmation
     }
+    # Regime-specific weight overrides
+    _regime_name = (regime or {}).get('regime', 'NORMAL') if isinstance(regime, dict) else str(regime or '')
+    if 'TREND' in _regime_name.upper():
+        # Strong trend: CE and ADX are most reliable
+        weights['ce']   = 3.2
+        weights['adx']  = 2.5
+        weights['cloud']= 1.5
+        weights['bb']   = 0.6   # BB fires late in trends
+        weights['rsi']  = 0.8   # RSI stays extended in trends
+    elif 'RANG' in _regime_name.upper() or 'CHOP' in _regime_name.upper():
+        # Ranging: mean-reversion indicators shine
+        weights['bb']   = 2.0
+        weights['rsi']  = 2.0
+        weights['vwap'] = 1.8
+        weights['ce']   = 1.5   # CE less reliable in chop
+        weights['adx']  = 0.8
+    elif 'VOLAT' in _regime_name.upper() or 'PANIC' in _regime_name.upper():
+        # High volatility: breakouts + TSI most reliable
+        weights['bor']  = 3.0
+        weights['tsi']  = 2.2
+        weights['lr']   = 1.8
+        weights['rsi']  = 0.7   # RSI extremes misleading in panic
     
     # Calculate total score with weights
-    total_score = (bb_score * weights['bb'] + 
-                   macd_score * weights['macd'] + 
-                   vwap_score * weights['vwap'] + 
-                   cloud_score * weights['cloud'] + 
-                   rsi_score * weights['rsi'] + 
+    # max: bb(1)+vwap(1.2)+cloud(1)+rsi(1.3)+pattern(2)+ce(2.5)+adx(1.8)+bor(2)+channel(0.8)+tsi(1.5)+lr(1.2) = 16.3
+    total_score = (bb_score * weights['bb'] +
+                   vwap_score * weights['vwap'] +
+                   cloud_score * weights['cloud'] +
+                   rsi_score * weights['rsi'] +
                    pattern_score * weights['pattern'] +
-                   ce_score * weights['ce'])
+                   ce_score * weights['ce'] +
+                   adx_score * weights['adx'] +
+                   bor_score * weights['bor'] +
+                   channel_score * weights['channel'] +
+                   tsi_score * weights['tsi'] +
+                   lr_score * weights['lr'])
     
-    # Stricter signal thresholds to reduce noise and "fakeouts"
-    # Require a higher cumulative score for entry (was 1, now 3.5)
-    signal_conditions = np.where(total_score >= 3.5, 'LONG',
-                               np.where(total_score <= -3.5, 'SHORT', 'NEUTRAL'))
+    # P0: Apply ADX gate — zero out score where trend is too weak to trade
+    adx_ok_mask = df['_adx_ok'].values if '_adx_ok' in df.columns else np.ones(df_len, dtype=bool)
+    total_score = np.where(adx_ok_mask, total_score, 0.0)
+
+    # ── Dynamic signal threshold ──────────────────────────────────────
+    # Base: 3.5 (raised from 1.8 — filters ~60% of weak setups)
+    # small_cap / high_risk require 6.0 (higher bar for volatile micro-caps)
+    _base_threshold = 3.5
+    if pair_tier in ('small_cap', 'high_risk'):
+        # Extra ATR% check: if price moves >12% per candle, demand stronger consensus
+        try:
+            _atr_pct = float(df['ATR'].iloc[-1]) / float(df['close'].iloc[-1]) * 100
+            if _atr_pct > 8.0:
+                _base_threshold = 6.0
+            elif _atr_pct > 5.0:
+                _base_threshold = 4.5
+        except Exception:
+            _base_threshold = 5.0   # can't compute ATR% — be conservative
+
+    signal_conditions = np.where(total_score >= _base_threshold, 'LONG',
+                               np.where(total_score <= -_base_threshold, 'SHORT', 'NEUTRAL'))
     
     # Create signal and position size data efficiently
     signal_data = {
@@ -331,13 +474,14 @@ def calculate_kicko_indicator(df, pair=None, use_ml=True):
     signal_df = pd.DataFrame(signal_data, index=df.index)
     df = pd.concat([df, signal_df], axis=1)
     
-    # Log signal generation details for latest row
+    # Log signal generation details only for non-neutral signals
     latest_idx = df.index[-1]
-    log_message(f"Signal generation details:")
-    log_message(f"  BB Score: {bb_score[-1]}, MACD Score: {macd_score[-1]}, VWAP Score: {vwap_score[-1]}")
-    log_message(f"  Cloud Score: {cloud_score[-1]}, RSI Score: {rsi_score[-1] if hasattr(rsi_score, '__getitem__') else rsi_score}")
-    log_message(f"  Pattern Score: {pattern_score[-1] if hasattr(pattern_score, '__getitem__') else pattern_score}, CE Score: {ce_score[-1] if hasattr(ce_score, '__getitem__') else ce_score}")
-    log_message(f"  Total Score: {total_score[-1]}, Signal: {signal_conditions[-1]}")
+    if signal_conditions[-1] != 'NEUTRAL':
+        log_message(f"Signal generation details:")
+        log_message(f"  BB Score: {bb_score[-1]}, MACD Score: {macd_score[-1]}, VWAP Score: {vwap_score[-1]}")
+        log_message(f"  Cloud Score: {cloud_score[-1]}, RSI Score: {rsi_score[-1] if hasattr(rsi_score, '__getitem__') else rsi_score}")
+        log_message(f"  Pattern Score: {pattern_score[-1] if hasattr(pattern_score, '__getitem__') else pattern_score}, CE Score: {ce_score[-1] if hasattr(ce_score, '__getitem__') else ce_score}")
+        log_message(f"  Total Score: {total_score[-1]}, Signal: {signal_conditions[-1]}")
     
     # Apply Smart Money Analysis if available
     smart_money_signal = None
@@ -348,7 +492,7 @@ def calculate_kicko_indicator(df, pair=None, use_ml=True):
             # Get base signal for smart money analysis
             base_signal = df['Signal'].iloc[-1]
             
-            if base_signal != 'Neutral':
+            if base_signal.upper() != 'NEUTRAL':
                 log_message(f"Running Smart Money analysis for signal: {base_signal}")
                 
                 # Perform smart money analysis
@@ -361,16 +505,18 @@ def calculate_kicko_indicator(df, pair=None, use_ml=True):
                     log_message(f"Smart Money analysis: {smart_money_signal} (confidence: {smart_money_confidence:.2f})")
                     
                     # Check if smart money analysis agrees with base signal
-                    if smart_money_signal == base_signal:
+                    sm_norm = smart_money_signal.upper() if smart_money_signal else ''
+                    base_norm = base_signal.upper()
+                    if sm_norm == base_norm:
                         # Smart money confirms the signal - boost confidence
                         log_message(f"Smart Money CONFIRMS {base_signal} signal")
                         # Add smart money confirmation to the dataframe
                         df.loc[df.index[-1], 'Smart_Money_Confirmation'] = True
                         df.loc[df.index[-1], 'Smart_Money_Confidence'] = smart_money_confidence
-                    elif smart_money_signal in ['Long', 'Short'] and smart_money_confidence > 0.7:
+                    elif sm_norm in ['LONG', 'SHORT'] and smart_money_confidence > 0.7:
                         # Strong smart money signal that disagrees - override
-                        log_message(f"Smart Money OVERRIDE: {base_signal} -> {smart_money_signal} (confidence: {smart_money_confidence:.2f})")
-                        df.loc[df.index[-1], 'Signal'] = smart_money_signal.upper()
+                        log_message(f"Smart Money OVERRIDE: {base_signal} -> {sm_norm} (confidence: {smart_money_confidence:.2f})")
+                        df.loc[df.index[-1], 'Signal'] = sm_norm
                         df.loc[df.index[-1], 'Smart_Money_Override'] = True
                         df.loc[df.index[-1], 'Smart_Money_Confidence'] = smart_money_confidence
                     else:
@@ -385,150 +531,8 @@ def calculate_kicko_indicator(df, pair=None, use_ml=True):
             df.loc[df.index[-1], 'Smart_Money_Confirmation'] = False
             df.loc[df.index[-1], 'Smart_Money_Confidence'] = 0.0
 
-    # Apply Institutional ML Analysis if available
-    institutional_ml_signal = None
-    institutional_ml_confidence = 0.0
-    
-    if INSTITUTIONAL_ML_AVAILABLE:
-        try:
-            # Use the pair parameter if available, otherwise use a default
-            pair_symbol = pair if pair else 'BTCUSDT'
-            
-            # Get base signal for institutional ML analysis
-            base_signal = df['Signal'].iloc[-1]
-            
-            if base_signal != 'Neutral':
-                log_message(f"Running Institutional ML analysis for signal: {base_signal}")
-                
-                # Initialize ML system if not already done
-                initialize_institutional_ml()
-                
-                # Get ML prediction for the current pair
-                institutional_prediction = get_institutional_prediction(pair_symbol, timeframe='1h')
-                
-                if institutional_prediction and 'signal' in institutional_prediction:
-                    institutional_ml_signal = institutional_prediction['signal']
-                    institutional_ml_confidence = institutional_prediction.get('confidence', 0.0)
-                    
-                    log_message(f"Institutional ML analysis: {institutional_ml_signal} (confidence: {institutional_ml_confidence:.2f})")
-                    
-                    # ML signal logic
-                    if institutional_ml_signal == base_signal and institutional_ml_confidence > 0.6:
-                        # Strong ML confirmation - boost confidence
-                        log_message(f"Institutional ML CONFIRMS {base_signal} signal")
-                        df.loc[df.index[-1], 'ML_Confirmation'] = True
-                        df.loc[df.index[-1], 'ML_Confidence'] = institutional_ml_confidence
-                        
-                        # Boost signal strength if both Smart Money and ML agree
-                        if smart_money_signal == base_signal:
-                            log_message(f"TRIPLE CONFIRMATION: Base + Smart Money + ML all agree on {base_signal}")
-                            df.loc[df.index[-1], 'Triple_Confirmation'] = True
-                        
-                    elif institutional_ml_signal != base_signal and institutional_ml_confidence > 0.8:
-                        # Very strong ML disagreement - consider override
-                        log_message(f"Institutional ML STRONG OVERRIDE: {base_signal} -> {institutional_ml_signal} (confidence: {institutional_ml_confidence:.2f})")
-                        df.loc[df.index[-1], 'Signal'] = institutional_ml_signal.upper()
-                        df.loc[df.index[-1], 'ML_Override'] = True
-                        df.loc[df.index[-1], 'ML_Confidence'] = institutional_ml_confidence
-                        
-                    else:
-                        # Weak ML signal or moderate disagreement - note but don't override
-                        log_message(f"Institutional ML analysis noted: {institutional_ml_signal} (confidence: {institutional_ml_confidence:.2f})")
-                        df.loc[df.index[-1], 'ML_Confirmation'] = False
-                        df.loc[df.index[-1], 'ML_Confidence'] = institutional_ml_confidence
-                
-                else:
-                    log_message("Institutional ML analysis returned no prediction")
-                    df.loc[df.index[-1], 'ML_Confirmation'] = False
-                    df.loc[df.index[-1], 'ML_Confidence'] = 0.0
-                    
-        except Exception as e:
-            log_message(f"Institutional ML analysis error: {e}")
-            # Add default values if analysis fails
-            df.loc[df.index[-1], 'ML_Confirmation'] = False
-            df.loc[df.index[-1], 'ML_Confidence'] = 0.0
-    else:
-        # Add default values if ML not available
-        df.loc[df.index[-1], 'ML_Confirmation'] = False
-        df.loc[df.index[-1], 'ML_Confidence'] = 0.0
-
-    # Apply ML enhancement if enabled
-    if use_ml:
-        try:
-            # Get current signal (may have been modified by smart money analysis)
-            current_signal = df['Signal'].iloc[-1]
-            
-            if current_signal != 'Neutral':
-                # Try XGBoost first
-                from ml_training import predict_with_ml
-                xgb_signal, xgb_conf = predict_with_ml(df)
-                if xgb_signal is not None:
-                    ml_signal = 'LONG' if xgb_signal else 'SHORT'
-                    log_message(f"XGBoost prediction: {ml_signal} (Confidence: {xgb_conf:.2f})")
-                    
-                    # Override signal if ML disagrees and smart money didn't already override
-                    if ml_signal != current_signal and not df.get('Smart_Money_Override', pd.Series([False])).iloc[-1]:
-                        # NEW CONSENSUS LOGIC: Only overrule if confidence is extreme
-                        if xgb_conf >= 0.85:
-                            log_message(f"🔥 Aladdin Institutional Overrule: {current_signal} -> {ml_signal} ({xgb_conf:.2f} confidence)")
-                            df.loc[df.index[-1], 'Signal'] = ml_signal
-                            df.loc[df.index[-1], 'ML_Override'] = True
-                            # P0 Fix: Update Signal_Score so main.py doesn't evaluate this as 0 precision!
-                            df.loc[df.index[-1], 'Signal_Score'] = 8.0 * xgb_conf if ml_signal == 'LONG' else -8.0 * xgb_conf
-                        else:
-                            # Conflicting signal: Technicals and ML disagree and ML is not extreme
-                            log_message(f"✋ Conflicting Signal Neutralized: Technicals {current_signal} vs ML {ml_signal} (Low {xgb_conf:.2f} confidence conflict)")
-                            df.loc[df.index[-1], 'Signal'] = 'Neutral'
-                            df.loc[df.index[-1], 'Conflict_Neutralized'] = True
-                            df.loc[df.index[-1], 'Signal_Score'] = 0.0
-                        
-                elif current_signal != 'Neutral':
-                    trans_signal, trans_conf = predict_with_transformer(df)
-                    if trans_signal is not None:
-                        ml_signal = 'LONG' if trans_signal else 'SHORT'
-                        log_message(f"Transformer prediction: {ml_signal} (Confidence: {trans_conf:.2f})")
-                        
-                        if ml_signal != current_signal and not df.get('Smart_Money_Override', pd.Series([False])).iloc[-1]:
-                            if trans_conf >= 0.85:
-                                log_message(f"🔥 Aladdin Transformer Overrule: {current_signal} -> {ml_signal} ({trans_conf:.2f} confidence)")
-                                df.loc[df.index[-1], 'Signal'] = ml_signal
-                                df.loc[df.index[-1], 'ML_Override'] = True
-                                df.loc[df.index[-1], 'Signal_Score'] = 8.0 * trans_conf if ml_signal == 'LONG' else -8.0 * trans_conf
-                            else:
-                                log_message(f"✋ Conflicting Signal Neutralized (Transformer): {current_signal} vs ML {ml_signal} (Low {trans_conf:.2f} confidence conflict)")
-                                df.loc[df.index[-1], 'Signal'] = 'Neutral'
-                                df.loc[df.index[-1], 'Conflict_Neutralized'] = True
-                                df.loc[df.index[-1], 'Signal_Score'] = 0.0
-                            
-        except Exception as e:
-            log_message(f"ML prediction error: {e}")
-    
     return df
 
-def predict_with_transformer(df):
-    """Generate predictions using transformer model with GPU support and confidence score"""
-    try:
-        news_text = generate_market_summary(df)
-        inputs = tokenizer(news_text, return_tensors="pt", padding=True, truncation=True, max_length=512)
-        
-        # Move inputs to GPU if available
-        if GPU_INFO['available']:
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-        
-        with torch.no_grad():
-            outputs = transformer_model(**inputs)
-            logits = outputs.logits
-            if logits.shape[0] > 0 and logits.shape[1] >= 2:
-                probs = torch.softmax(logits, dim=1)
-                best_prob = probs.max().item()
-                # Confidence is the softmax probability of the winning class
-                return (logits.argmax().item() == 1), best_prob
-            else:
-                log_message("Invalid transformer output shape")
-                return None, 0.0
-    except Exception as e:
-        log_message(f"Transformer prediction error: {e}")
-        return None, 0.0
 
 def log_detailed_analysis(pair, df):
     """Log comprehensive analysis details for each trading pair"""

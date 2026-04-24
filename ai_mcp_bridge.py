@@ -5,8 +5,13 @@ import asyncio
 import pandas as pd
 from datetime import datetime
 from shared_state import SIGNAL_REGISTRY, OPEN_SIGNALS_TRACKER
-from data_fetcher import fetch_data, client
+from data_fetcher import fetch_data, client, analyze_funding_rate_sentiment, get_open_interest as fetch_open_interest
 from utils_logger import log_message
+
+# Import newly added OpenClaw feature port modules
+from long_term_memory import store_core_belief, recall_core_beliefs, store_memory, recall_memory
+from system_monitor import run_system_diagnostic
+
 
 # MCP Tool Definitions (OpenAI-compatible Schema)
 TOOLS = [
@@ -56,7 +61,38 @@ TOOLS = [
                 "type": "object",
                 "properties": {
                     "pair": {"type": "string", "description": "Trading pair (e.g., BTCUSDT)."},
+                    "symbol": {"type": "string", "description": "Alias for pair (e.g., BTCUSDT)."},
                     "interval": {"type": "string", "description": "Candle interval (e.g., 1h, 15m).", "default": "1h"}
+                },
+                "required": ["pair"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_funding_rate",
+            "description": "Get current Binance funding rate analysis for a USDT perpetual pair.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pair": {"type": "string", "description": "Trading pair (e.g., BTCUSDT)."},
+                    "symbol": {"type": "string", "description": "Alias for pair (e.g., BTCUSDT)."}
+                },
+                "required": ["pair"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_open_interest",
+            "description": "Get current Binance open interest snapshot and recent change context for a USDT perpetual pair.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pair": {"type": "string", "description": "Trading pair (e.g., BTCUSDT)."},
+                    "symbol": {"type": "string", "description": "Alias for pair (e.g., BTCUSDT)."}
                 },
                 "required": ["pair"]
             }
@@ -530,6 +566,31 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "read_channel_messages",
+            "description": "Read recent messages directly from a Telegram channel using the Telethon user session. Use this to see what signals were posted, check ops messages, or search for specific pairs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "channel": {
+                        "type": "string",
+                        "description": "Channel alias: 'signals' (main signals channel), 'closed' (closed signals), 'ops' (ops group), or a raw numeric chat_id."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Number of recent messages to fetch (1-100, default 20)."
+                    },
+                    "search": {
+                        "type": "string",
+                        "description": "Optional keyword to filter messages (e.g. 'BTCUSDT', 'SHORT', 'TARGET')."
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "tag_real_ops_member",
             "description": "Tag a real Ops channel member for conversation",
             "parameters": {
@@ -623,6 +684,72 @@ TOOLS = [
                 "required": []
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "store_core_belief",
+            "description": "Store an overriding rule or preference (overwrites if topic exists)",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "topic": {"type": "string", "description": "The subject/topic of the belief"},
+                    "fact": {"type": "string", "description": "The actual rule or preference"}
+                },
+                "required": ["topic", "fact"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recall_core_beliefs",
+            "description": "Retrieve all stored overriding rules and preferences",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "store_memory",
+            "description": "Store a generic memory or conversation snippet for long-term recall",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "event": {"type": "string", "description": "The event or information to remember"}
+                },
+                "required": ["event"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recall_memory",
+            "description": "Semantically retrieve relevant memories using Free-Text Search",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "What to search for in memory"}
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_system_diagnostic",
+            "description": "Run strict read-only shell diagnostics on the Linux server",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command_key": {"type": "string", "description": "Command to run: 'uptime', 'disk_space', 'memory_usage', 'cpu_processes', 'whoami', 'date', 'os_info'"},
+                    "command": {"type": "string", "description": "Alias for command_key."}
+                },
+                "required": ["command_key"]
+            }
+        }
     }
 ]
 
@@ -649,6 +776,8 @@ class MCPBridge:
                     except: history = []
             
             history.append(entry)
+            if len(history) > 500:       # cap — keep newest 500 entries
+                history = history[-500:]
             with open(log_file, 'w') as f:
                 json.dump(history, f, indent=2)
         except Exception as e:
@@ -657,42 +786,113 @@ class MCPBridge:
     @staticmethod
     def read_file(file_path):
         try:
-            if not os.path.exists(file_path): return f"Error: File {file_path} not found."
+            if not os.path.exists(file_path):
+                return json.dumps({"success": False, "error": f"File {file_path} not found."})
             with open(file_path, 'r') as f:
                 content = f.read()
-                return f"SUCCESS: Read {len(content)} bytes from {file_path}.\nCONTENT:\n{content}"
+            return json.dumps({"success": True, "file": file_path, "bytes": len(content), "content": content})
         except Exception as e:
-            return f"Error reading file: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     def edit_file(file_path, content):
         try:
-            # Safety: Ensure it's not trying to delete the OS or sensitive dirs
             if not file_path.endswith(('.py', '.json', '.env', '.txt', '.md')):
-                return "REJECTED: Unauthorized file extension."
-            
-            # Simple AST Validation
+                return json.dumps({"success": False, "error": "Unauthorized file extension."})
             if file_path.endswith('.py'):
                 try: ast.parse(content)
-                except SyntaxError as e: return f"REJECTED: Syntax error in proposal: {e}"
-
+                except SyntaxError as e:
+                    return json.dumps({"success": False, "error": f"Syntax error: {e}"})
             with open(file_path, 'w') as f:
                 f.write(content)
-            
             MCPBridge.log_expert_action("CODE_EDIT", {"file": file_path, "len": len(content)})
-            return f"SUCCESS: File {file_path} has been overwritten and verified."
+            return json.dumps({"success": True, "file": file_path, "bytes_written": len(content)})
         except Exception as e:
-            return f"Error writing file: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     def get_open_signals():
-        return json.dumps(OPEN_SIGNALS_TRACKER, indent=2)
+        """
+        Returns a combined view of:
+          1. In-memory OPEN_SIGNALS_TRACKER  — positions currently being tracked
+          2. SQLite signal_registry.db        — last 48h of sent/closed signals
+        SPECTRE should use this instead of read_file so it always gets live data.
+        """
+        import time as _time, sqlite3 as _sqlite3
+        from datetime import datetime as _dt
+
+        result = {
+            "active_positions": {},
+            "recent_signals_48h": [],
+            "summary": {}
+        }
+
+        # ── 1. In-memory tracker (currently open) ─────────────────────────────
+        try:
+            result["active_positions"] = dict(OPEN_SIGNALS_TRACKER)
+        except Exception as e:
+            result["active_positions"] = {"error": str(e)}
+
+        # ── 2. SQLite registry — last 48h ─────────────────────────────────────
+        try:
+            db_path = "signal_registry.db"
+            cutoff  = _time.time() - 48 * 3600
+            con = _sqlite3.connect(db_path)
+            con.row_factory = _sqlite3.Row
+            cur = con.cursor()
+            cur.execute(
+                "SELECT signal_id, pair, signal, price, confidence, targets_json, "
+                "stop_loss, leverage, timestamp, status, pnl "
+                "FROM signals WHERE timestamp >= ? ORDER BY timestamp DESC LIMIT 50",
+                (cutoff,)
+            )
+            rows = cur.fetchall()
+            con.close()
+
+            for r in rows:
+                result["recent_signals_48h"].append({
+                    "signal_id":  r["signal_id"],
+                    "pair":       r["pair"],
+                    "direction":  r["signal"],
+                    "entry":      round(float(r["price"]), 6),
+                    "confidence": f"{float(r['confidence'])*100:.1f}%",
+                    "targets":    json.loads(r["targets_json"]) if r["targets_json"] else [],
+                    "stop_loss":  round(float(r["stop_loss"]), 6),
+                    "leverage":   r["leverage"],
+                    "status":     r["status"],
+                    "pnl":        round(float(r["pnl"]), 4) if r["pnl"] else 0.0,
+                    "sent_at":    _dt.utcfromtimestamp(r["timestamp"]).strftime("%Y-%m-%d %H:%M UTC"),
+                })
+        except Exception as e:
+            result["recent_signals_48h"] = [{"error": str(e)}]
+
+        # ── 3. Summary ─────────────────────────────────────────────────────────
+        total_48h   = len([s for s in result["recent_signals_48h"] if "error" not in s])
+        longs_48h   = len([s for s in result["recent_signals_48h"] if s.get("direction","").upper() == "LONG"])
+        shorts_48h  = len([s for s in result["recent_signals_48h"] if s.get("direction","").upper() == "SHORT"])
+        active_cnt  = len(result["active_positions"])
+
+        result["summary"] = {
+            "active_open_positions":    active_cnt,
+            "signals_last_48h":         total_48h,
+            "longs_48h":                longs_48h,
+            "shorts_48h":               shorts_48h,
+            "note": (
+                "active_positions is the live in-memory tracker (resets on restart). "
+                "recent_signals_48h comes directly from SQLite and is always accurate."
+            )
+        }
+
+        return json.dumps(result, indent=2)
 
     @staticmethod
-    def get_market_context(pair, interval='1h'):
+    def get_market_context(pair=None, symbol=None, interval='1h'):
         try:
+            pair = pair or symbol
+            if not pair:
+                return json.dumps({"success": False, "error": "Missing required parameter: pair/symbol"}, indent=2)
             df = fetch_data(pair, interval=interval)
-            if df.empty: return f"Error: No data found for {pair}."
+            if df.empty: return json.dumps({"success": False, "error": f"No data found for {pair}."}, indent=2)
             
             last_candles = df.tail(5).to_dict('records')
             current_price = df.iloc[-1]['close']
@@ -703,7 +903,29 @@ class MCPBridge:
                 "recent_candles": last_candles
             }, indent=2)
         except Exception as e:
-            return f"Error fetching market data: {e}"
+            return json.dumps({"success": False, "error": str(e)})
+
+    @staticmethod
+    def get_funding_rate(pair=None, symbol=None):
+        try:
+            pair = pair or symbol
+            if not pair:
+                return json.dumps({"success": False, "error": "Missing required parameter: pair/symbol"}, indent=2)
+            result = analyze_funding_rate_sentiment(pair)
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)})
+
+    @staticmethod
+    def get_open_interest(pair=None, symbol=None):
+        try:
+            pair = pair or symbol
+            if not pair:
+                return json.dumps({"success": False, "error": "Missing required parameter: pair/symbol"}, indent=2)
+            result = fetch_open_interest(pair)
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     def cancel_trade_signal(signal_id, reason):
@@ -711,10 +933,10 @@ class MCPBridge:
             if signal_id in OPEN_SIGNALS_TRACKER:
                 del OPEN_SIGNALS_TRACKER[signal_id]
                 MCPBridge.log_expert_action("TRADE_CANCEL", {"id": signal_id, "reason": reason})
-                return f"SUCCESS: Signal {signal_id} removed from open tracker. Reason: {reason}"
-            return f"Error: Signal {signal_id} not found in active tracker."
+                return json.dumps({"success": True, "signal_id": signal_id, "reason": reason})
+            return json.dumps({"success": False, "error": f"Signal {signal_id} not found in active tracker."})
         except Exception as e:
-            return f"Error canceling trade: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     def quick_security_scan():
@@ -722,9 +944,9 @@ class MCPBridge:
             from ai_audit_interface import quick_security_scan
             result = quick_security_scan()
             MCPBridge.log_expert_action("AUDIT_QUICK", {"type": "security_scan"})
-            return f"SUCCESS: Quick security scan completed.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error during security scan: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     def full_code_audit():
@@ -732,9 +954,9 @@ class MCPBridge:
             from ai_audit_interface import full_code_audit
             result = full_code_audit()
             MCPBridge.log_expert_action("AUDIT_FULL", {"type": "comprehensive"})
-            return f"SUCCESS: Full code audit completed.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error during full audit: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     def analyze_specific_file(file_path):
@@ -742,9 +964,9 @@ class MCPBridge:
             from ai_audit_interface import analyze_specific_file
             result = analyze_specific_file(file_path)
             MCPBridge.log_expert_action("AUDIT_FILE", {"file": file_path})
-            return f"SUCCESS: File analysis completed for {file_path}.\n\n{result}"
+            return json.dumps({"success": True, "file": file_path, "result": result})
         except Exception as e:
-            return f"Error analyzing file {file_path}: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     def get_audit_recommendations():
@@ -752,9 +974,9 @@ class MCPBridge:
             from ai_audit_interface import get_improvement_recommendations
             result = get_improvement_recommendations()
             MCPBridge.log_expert_action("AUDIT_RECOMMENDATIONS", {"type": "recommendations"})
-            return f"SUCCESS: Audit recommendations generated.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error generating recommendations: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     def save_audit_report(filename=None):
@@ -762,9 +984,9 @@ class MCPBridge:
             from ai_audit_interface import save_audit_report
             result = save_audit_report(filename)
             MCPBridge.log_expert_action("AUDIT_SAVE", {"filename": filename})
-            return f"SUCCESS: Audit report saved.\n\n{result}"
+            return json.dumps({"success": True, "filename": filename, "result": result})
         except Exception as e:
-            return f"Error saving audit report: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def get_chat_administrators(chat_id, use_ops_bot=False):
@@ -772,9 +994,9 @@ class MCPBridge:
             from telegram_group_manager import get_chat_administrators_mcp
             result = await get_chat_administrators_mcp(chat_id, use_ops_bot)
             MCPBridge.log_expert_action("GET_ADMINS", {"chat_id": chat_id})
-            return f"SUCCESS: Retrieved administrators.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error getting administrators: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def get_chat_member(chat_id, user_id, use_ops_bot=False):
@@ -782,9 +1004,9 @@ class MCPBridge:
             from telegram_group_manager import get_chat_member_mcp
             result = await get_chat_member_mcp(chat_id, user_id, use_ops_bot)
             MCPBridge.log_expert_action("GET_MEMBER", {"chat_id": chat_id, "user_id": user_id})
-            return f"SUCCESS: Retrieved member info.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error getting member info: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def get_chat_member_count(chat_id, use_ops_bot=False):
@@ -792,9 +1014,9 @@ class MCPBridge:
             from telegram_group_manager import get_chat_member_count_mcp
             result = await get_chat_member_count_mcp(chat_id, use_ops_bot)
             MCPBridge.log_expert_action("GET_MEMBER_COUNT", {"chat_id": chat_id})
-            return f"SUCCESS: Retrieved member count.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error getting member count: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def get_chat_info(chat_id, use_ops_bot=False):
@@ -802,9 +1024,9 @@ class MCPBridge:
             from telegram_group_manager import get_chat_info_mcp
             result = await get_chat_info_mcp(chat_id, use_ops_bot)
             MCPBridge.log_expert_action("GET_CHAT_INFO", {"chat_id": chat_id})
-            return f"SUCCESS: Retrieved chat info.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error getting chat info: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def ban_chat_member(chat_id, user_id, until_date=None, revoke_messages=True, use_ops_bot=False):
@@ -812,9 +1034,9 @@ class MCPBridge:
             from telegram_group_manager import ban_chat_member_mcp
             result = await ban_chat_member_mcp(chat_id, user_id, until_date, revoke_messages, use_ops_bot)
             MCPBridge.log_expert_action("BAN_MEMBER", {"chat_id": chat_id, "user_id": user_id})
-            return f"SUCCESS: Member banned.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error banning member: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def unban_chat_member(chat_id, user_id, only_if_banned=True, use_ops_bot=False):
@@ -822,9 +1044,9 @@ class MCPBridge:
             from telegram_group_manager import unban_chat_member_mcp
             result = await unban_chat_member_mcp(chat_id, user_id, only_if_banned, use_ops_bot)
             MCPBridge.log_expert_action("UNBAN_MEMBER", {"chat_id": chat_id, "user_id": user_id})
-            return f"SUCCESS: Member unbanned.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error unbanning member: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def restrict_chat_member(chat_id, user_id, permissions, use_independent_chat_permissions=False, use_ops_bot=False):
@@ -832,9 +1054,9 @@ class MCPBridge:
             from telegram_group_manager import restrict_chat_member_mcp
             result = await restrict_chat_member_mcp(chat_id, user_id, permissions, use_independent_chat_permissions, use_ops_bot)
             MCPBridge.log_expert_action("RESTRICT_MEMBER", {"chat_id": chat_id, "user_id": user_id})
-            return f"SUCCESS: Member restricted.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error restricting member: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def promote_chat_member(chat_id, user_id, permissions, use_ops_bot=False):
@@ -842,9 +1064,9 @@ class MCPBridge:
             from telegram_group_manager import promote_chat_member_mcp
             result = await promote_chat_member_mcp(chat_id, user_id, permissions, use_ops_bot)
             MCPBridge.log_expert_action("PROMOTE_MEMBER", {"chat_id": chat_id, "user_id": user_id})
-            return f"SUCCESS: Member promoted.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error promoting member: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def demote_chat_member(chat_id, user_id, use_ops_bot=False):
@@ -852,9 +1074,9 @@ class MCPBridge:
             from telegram_group_manager import demote_chat_member_mcp
             result = await demote_chat_member_mcp(chat_id, user_id, use_ops_bot)
             MCPBridge.log_expert_action("DEMOTE_MEMBER", {"chat_id": chat_id, "user_id": user_id})
-            return f"SUCCESS: Member demoted.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error demoting member: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def send_message(chat_id, text, reply_to_message_id=None, parse_mode=None, use_ops_bot=False):
@@ -862,9 +1084,9 @@ class MCPBridge:
             from telegram_chat_interface import send_message_mcp
             result = await send_message_mcp(chat_id, text, reply_to_message_id, parse_mode, use_ops_bot)
             MCPBridge.log_expert_action("SEND_MESSAGE", {"chat_id": chat_id})
-            return f"SUCCESS: Message sent.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error sending message: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def send_reply(chat_id, reply_to_message_id, text, use_ops_bot=False):
@@ -872,9 +1094,9 @@ class MCPBridge:
             from telegram_chat_interface import send_reply_mcp
             result = await send_reply_mcp(chat_id, reply_to_message_id, text, use_ops_bot)
             MCPBridge.log_expert_action("SEND_REPLY", {"chat_id": chat_id, "reply_to": reply_to_message_id})
-            return f"SUCCESS: Reply sent.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error sending reply: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def send_inline_keyboard(chat_id, text, buttons, use_ops_bot=False):
@@ -882,9 +1104,9 @@ class MCPBridge:
             from telegram_chat_interface import send_inline_keyboard_mcp
             result = await send_inline_keyboard_mcp(chat_id, text, buttons, use_ops_bot)
             MCPBridge.log_expert_action("SEND_KEYBOARD", {"chat_id": chat_id})
-            return f"SUCCESS: Inline keyboard sent.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error sending inline keyboard: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def forward_message(from_chat_id, to_chat_id, message_id, use_ops_bot=False):
@@ -892,9 +1114,9 @@ class MCPBridge:
             from telegram_chat_interface import forward_message_mcp
             result = await forward_message_mcp(from_chat_id, to_chat_id, message_id, use_ops_bot)
             MCPBridge.log_expert_action("FORWARD_MESSAGE", {"from": from_chat_id, "to": to_chat_id})
-            return f"SUCCESS: Message forwarded.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error forwarding message: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def edit_message(chat_id, message_id, text, use_ops_bot=False):
@@ -902,9 +1124,9 @@ class MCPBridge:
             from telegram_chat_interface import edit_message_mcp
             result = await edit_message_mcp(chat_id, message_id, text, use_ops_bot)
             MCPBridge.log_expert_action("EDIT_MESSAGE", {"chat_id": chat_id, "message_id": message_id})
-            return f"SUCCESS: Message edited.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error editing message: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def delete_message(chat_id, message_id, use_ops_bot=False):
@@ -912,9 +1134,9 @@ class MCPBridge:
             from telegram_chat_interface import delete_message_mcp
             result = await delete_message_mcp(chat_id, message_id, use_ops_bot)
             MCPBridge.log_expert_action("DELETE_MESSAGE", {"chat_id": chat_id, "message_id": message_id})
-            return f"SUCCESS: Message deleted.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error deleting message: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def get_chat_history(chat_id, limit=50, use_ops_bot=False):
@@ -922,9 +1144,9 @@ class MCPBridge:
             from telegram_chat_interface import get_chat_history_mcp
             result = await get_chat_history_mcp(chat_id, limit, use_ops_bot)
             MCPBridge.log_expert_action("GET_CHAT_HISTORY", {"chat_id": chat_id})
-            return f"SUCCESS: Chat history retrieved.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error getting chat history: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def analyze_user_message(chat_id, user_id, message_text, use_ops_bot=False):
@@ -932,9 +1154,9 @@ class MCPBridge:
             from telegram_chat_interface import analyze_user_message_mcp
             result = await analyze_user_message_mcp(chat_id, user_id, message_text, use_ops_bot)
             MCPBridge.log_expert_action("ANALYZE_MESSAGE", {"chat_id": chat_id, "user_id": user_id})
-            return f"SUCCESS: Message analyzed.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error analyzing user message: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def start_conversation(chat_id, greeting=None, use_ops_bot=False):
@@ -942,9 +1164,9 @@ class MCPBridge:
             from telegram_chat_interface import start_conversation_mcp
             result = await start_conversation_mcp(chat_id, greeting, use_ops_bot)
             MCPBridge.log_expert_action("START_CONVERSATION", {"chat_id": chat_id})
-            return f"SUCCESS: Conversation started.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error starting conversation: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def end_conversation(chat_id, farewell=None, use_ops_bot=False):
@@ -952,9 +1174,9 @@ class MCPBridge:
             from telegram_chat_interface import end_conversation_mcp
             result = await end_conversation_mcp(chat_id, farewell, use_ops_bot)
             MCPBridge.log_expert_action("END_CONVERSATION", {"chat_id": chat_id})
-            return f"SUCCESS: Conversation ended.\n\n{result}"
+            return json.dumps({"success": True, "result": result})
         except Exception as e:
-            return f"Error ending conversation: {e}"
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def autonomous_engagement(chat_id=None, force=False):
@@ -1037,6 +1259,14 @@ class MCPBridge:
             return json.dumps({"success": False, "error": str(e)}, indent=2)
 
     @staticmethod
+    def read_channel_messages(channel="signals", limit=20, search=None):
+        try:
+            from telethon_reader import fetch_channel_messages
+            return fetch_channel_messages(channel=str(channel), limit=int(limit), search=search)
+        except Exception as e:
+            return json.dumps({"error": str(e)}, indent=2)
+
+    @staticmethod
     async def tag_real_ops_member(conversation_type="general"):
         try:
             from hybrid_ops_tagger import tag_ops_member_hybrid
@@ -1069,22 +1299,39 @@ class MCPBridge:
     @staticmethod
     async def get_real_members_combined():
         try:
-            from real_members_group_manager import get_real_members_combined
-            result = await get_real_members_combined()
-            MCPBridge.log_expert_action("REAL_MEMBERS_COMBINED_FETCHED", {})
-            return result
+            from telegram_metadata import get_real_members_combined
+            return await get_real_members_combined()
         except Exception as e:
-            return json.dumps({"success": False, "error": str(e)}, indent=2)
+            return json.dumps({"success": False, "error": str(e)})
 
     @staticmethod
     async def search_internet(query, engine="duckduckgo", max_results=5):
         try:
             from ai_internet_search import search_internet
             result = await search_internet(query, engine, max_results)
-            MCPBridge.log_expert_action("INTERNET_SEARCH_PERFORMED", {"query": query, "engine": engine})
             return result
         except Exception as e:
-            return json.dumps({"success": False, "error": str(e)}, indent=2)
+            return json.dumps({"success": False, "error": str(e)})
+
+    @staticmethod
+    async def store_core_belief(topic, fact):
+        return await store_core_belief(topic, fact)
+
+    @staticmethod
+    async def recall_core_beliefs():
+        return await recall_core_beliefs()
+        
+    @staticmethod
+    async def store_memory(event):
+        return await store_memory(event)
+        
+    @staticmethod
+    async def recall_memory(query):
+        return await recall_memory(query)
+        
+    @staticmethod
+    async def run_system_diagnostic(command_key):
+        return await run_system_diagnostic(command_key)
 
     @staticmethod
     async def search_trading_news(query="trading signals"):
@@ -1138,8 +1385,8 @@ class MCPBridge:
     # Sync tools (no event loop needed)
     _SYNC_TOOLS = {
         "read_file", "edit_file", "get_open_signals", "get_market_context",
-        "cancel_trade_signal", "quick_security_scan", "full_code_audit",
-        "analyze_specific_file", "get_audit_recommendations", "save_audit_report",
+        "get_funding_rate", "get_open_interest", "cancel_trade_signal", "quick_security_scan", "full_code_audit",
+        "analyze_specific_file", "get_audit_recommendations", "save_audit_report", "read_channel_messages",
     }
 
     @classmethod
@@ -1168,3 +1415,4 @@ class MCPBridge:
 
 def get_mcp_tools_schema():
     return TOOLS
+

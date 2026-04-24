@@ -35,7 +35,8 @@ cargo clean
 if [ "$1" = "--dev" ] || [ "$1" = "-d" ]; then
     echo "🚀 Building in development mode..."
     maturin develop --release
-    echo "✅ Development build complete!"
+    cp target/release/libaladdin_core.so ../aladdin_core.so
+    echo "✅ Development build complete! (.so copied to project root)"
 else
     # Build in release mode (optimized)
     echo "🚀 Building in release mode..."

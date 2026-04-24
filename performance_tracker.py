@@ -11,12 +11,19 @@ PERFORMANCE_FILE = SIGNAL_PERFORMANCE_FILE # Alias for consistency
 LAST_SIGNAL_CHECK = 0  # Local tracker for monitor_active_trades() interval
 
 def load_open_signals_tracker():
-    """Load open signals tracker from file"""
+    """Load open signals tracker from file.
+    
+    IMPORTANT: We use .clear() + .update() to mutate the dict in-place
+    so that every module that imported OPEN_SIGNALS_TRACKER sees the data.
+    Reassigning with `= json.load(f)` would create a new dict object,
+    leaving other modules still pointing at the old empty dict.
+    """
     try:
         if os.path.exists(OPEN_SIGNALS_FILE):
             with open(OPEN_SIGNALS_FILE, 'r') as f:
-                global OPEN_SIGNALS_TRACKER
-                OPEN_SIGNALS_TRACKER = json.load(f)
+                data = json.load(f)
+            OPEN_SIGNALS_TRACKER.clear()
+            OPEN_SIGNALS_TRACKER.update(data)
             log_message(f"Loaded {len(OPEN_SIGNALS_TRACKER)} open signals")
     except Exception as e:
         log_message(f"Error loading open signals tracker: {e}")
@@ -31,12 +38,13 @@ def save_open_signals_tracker():
         log_message(f"Error saving open signals tracker: {e}")
 
 def load_active_trades_monitor():
-    """Load active trades monitor from file"""
+    """Load active trades monitor from file (in-place mutation)"""
     try:
         if os.path.exists(TRADE_MONITOR_FILE):
             with open(TRADE_MONITOR_FILE, 'r') as f:
-                global ACTIVE_TRADES_MONITOR
-                ACTIVE_TRADES_MONITOR = json.load(f)
+                data = json.load(f)
+            ACTIVE_TRADES_MONITOR.clear()
+            ACTIVE_TRADES_MONITOR.update(data)
             log_message(f"Loaded {len(ACTIVE_TRADES_MONITOR)} active trades")
     except Exception as e:
         log_message(f"Error loading active trades monitor: {e}")
@@ -51,12 +59,13 @@ def save_active_trades_monitor():
         log_message(f"Error saving active trades monitor: {e}")
 
 def load_learning_insights():
-    """Load learning insights from file"""
+    """Load learning insights from file (in-place mutation)"""
     try:
         if os.path.exists(LEARNING_INSIGHTS_FILE):
             with open(LEARNING_INSIGHTS_FILE, 'r') as f:
-                global LEARNING_INSIGHTS
-                LEARNING_INSIGHTS = json.load(f)
+                data = json.load(f)
+            LEARNING_INSIGHTS.clear()
+            LEARNING_INSIGHTS.update(data)
             log_message(f"Loaded {len(LEARNING_INSIGHTS)} learning insights")
     except Exception as e:
         log_message(f"Error loading learning insights: {e}")
@@ -92,20 +101,24 @@ def check_signal_limit():
         log_message(f"Error checking signal limit: {e}")
         return True, "Limit check failed - allowing signal"
 
-def add_open_signal(signal_id, pair, signal_type, entry_price, timestamp=None):
+def add_open_signal(signal_id, pair, signal_type, entry_price, timestamp=None,
+                    stop_loss=None, targets=None, leverage=1):
     """Add a signal to the open signals tracker"""
     try:
         if timestamp is None:
             timestamp = time.time()
-        
+
         signal_entry = {
-            'signal_id': signal_id,
-            'pair': pair,
+            'signal_id':   signal_id,
+            'pair':        pair,
             'signal_type': signal_type,
             'entry_price': entry_price,
-            'timestamp': timestamp,
-            'status': 'OPEN',
-            'last_updated': timestamp
+            'stop_loss':   stop_loss,
+            'targets':     targets or [],
+            'leverage':    leverage,
+            'timestamp':   timestamp,
+            'status':      'OPEN',
+            'last_updated': timestamp,
         }
         
         OPEN_SIGNALS_TRACKER[signal_id] = signal_entry
@@ -437,28 +450,39 @@ def track_signal_performance(pair, old_entry, current_price):
             time_factor = 'very_long'
         
         # Store enhanced performance data
+        _signal_id = old_entry.get('signal_id', '')
         performance_entry = {
-            'pair': pair,
-            'signal': entry_signal,
-            'entry_price': entry_price,
-            'exit_price': current_price,
+            'signal_id':       _signal_id,
+            'pair':            pair,
+            'signal':          entry_signal,
+            'entry_price':     entry_price,
+            'stop_loss':       old_entry.get('stop_loss'),
+            'targets':         old_entry.get('targets', []),
+            'leverage':        old_entry.get('leverage', 1),
+            'exit_price':      current_price,
             'price_change_pct': price_change_pct,
-            'time_held': time_held,
-            'hours_held': hours_held,
-            'success': success,
-            'success_level': success_level,
-            'time_factor': time_factor,
-            'confidence': entry_confidence,
-            'timestamp': entry_time,
-            'exit_timestamp': time.time(),
+            'time_held':       time_held,
+            'hours_held':      hours_held,
+            'success':         success,
+            'success_level':   success_level,
+            'time_factor':     time_factor,
+            'confidence':      entry_confidence,
+            'timestamp':       entry_time,
+            'exit_timestamp':  time.time(),
+            'source':          'PRICE_RECONCILE',
             'market_conditions': get_market_conditions_at_time(pair, entry_time)
         }
-        
-        # Add to performance history
+
+        # Add to performance history — deduplicate by signal_id
         if pair not in PERFORMANCE_HISTORY:
             PERFORMANCE_HISTORY[pair] = []
-        
-        PERFORMANCE_HISTORY[pair].append(performance_entry)
+        if _signal_id and any(e.get('signal_id') == _signal_id for e in PERFORMANCE_HISTORY[pair]):
+            PERFORMANCE_HISTORY[pair] = [
+                performance_entry if e.get('signal_id') == _signal_id else e
+                for e in PERFORMANCE_HISTORY[pair]
+            ]
+        else:
+            PERFORMANCE_HISTORY[pair].append(performance_entry)
         
         # Keep only last 200 entries per pair (increased from 100)
         if len(PERFORMANCE_HISTORY[pair]) > 200:
@@ -494,12 +518,19 @@ def save_performance_data():
         log_message(f"Error saving performance data: {e}")
 
 def load_performance_data():
-    """Load performance history from file"""
+    """Load performance history from file.
+
+    IMPORTANT: We use .clear() + .update() to mutate the dict in-place
+    so that every module that imported PERFORMANCE_HISTORY sees the data.
+    Reassigning with `= json.load(f)` would create a new dict object,
+    leaving other modules still pointing at the old empty dict.
+    """
     try:
         if os.path.exists(PERFORMANCE_FILE):
             with open(PERFORMANCE_FILE, 'r') as f:
-                global PERFORMANCE_HISTORY
-                PERFORMANCE_HISTORY = json.load(f)
+                data = json.load(f)
+            PERFORMANCE_HISTORY.clear()
+            PERFORMANCE_HISTORY.update(data)
             log_message(f"Loaded performance data for {len(PERFORMANCE_HISTORY)} pairs")
     except Exception as e:
         log_message(f"Error loading performance data: {e}")
@@ -743,7 +774,9 @@ async def emergency_de_risk(severity="HIGH"):
         
         # 1. Critical Panic: Close all positions immediately
         if severity == "CRITICAL":
-            await send_telegram_message("☢️ **SYSTEMIC BLACK SWAN DETECTED** ☢️\nEmergency protocol: Closing ALL positions.")
+            # DISABLED: Emergency broadcast
+            # await send_telegram_message("☢️ **SYSTEMIC BLACK SWAN DETECTED** ☢️\nEmergency protocol: Closing ALL positions.")
+            log_message("☢️ SYSTEMIC BLACK SWAN DETECTED - Emergency protocol: Closing ALL positions.")
             
             signal_ids = list(OPEN_SIGNALS_TRACKER.keys())
             for sid in signal_ids:
@@ -754,7 +787,9 @@ async def emergency_de_risk(severity="HIGH"):
             
         # 2. High Risk: Close non-performing or low-confidence positions
         if severity == "HIGH":
-            await send_telegram_message("⚠️ **HIGH SYSTEMIC RISK** ⚠️\nReducing exposure: Closing low-confidence positions.")
+            # DISABLED: Emergency broadcast
+            # await send_telegram_message("⚠️ **HIGH SYSTEMIC RISK** ⚠️\nReducing exposure: Closing low-confidence positions.")
+            log_message("⚠️ HIGH SYSTEMIC RISK - Reducing exposure: Closing low-confidence positions.")
             
             signal_ids = list(OPEN_SIGNALS_TRACKER.keys())
             closed_count = 0
@@ -765,10 +800,20 @@ async def emergency_de_risk(severity="HIGH"):
                     close_open_signal(sid, "RISK_REDUCTION", pnl=estimated_pnl)
                     closed_count += 1
             
-            if closed_count > 0:
-                await send_telegram_message(f"✅ Closed {closed_count} high-risk positions.")
-            else:
-                await send_telegram_message("ℹ️ No low-confidence positions found to close.")
+            # DISABLED: Emergency de-risk broadcast messages
+            # if closed_count > 0:
+            #     await send_telegram_message(f"✅ Closed {closed_count} high-risk positions.")
+            # else:
+            #     await send_telegram_message("ℹ️ No low-confidence positions found to close.")
+            log_message(f"Emergency de-risk: Closed {closed_count} high-risk positions.")
+        # Also signal global risk state (was previously only in the old main.py stub)
+        try:
+            from macro_risk_engine import MacroRiskEngine
+            macro = MacroRiskEngine()
+            macro.state['market_regime'] = 'SYSTEMIC_PANIC'
+            macro.save_state()
+        except Exception:
+            pass
                 
     except Exception as e:
         log_message(f"Error during emergency de-risk: {e}")
@@ -802,11 +847,7 @@ def generate_daily_summary(daily_signal_count, circuit_breaker, auto_blacklist, 
                     pnl = sig.get('pnl_percentage', sig.get('pnl', 0.0))
                     status = sig.get('status', '').upper()
                     
-                    # Also check if it's stored under cornix_response by telegram_handler
-                    if 'cornix_response' in sig and 'parsed_data' in sig['cornix_response']:
-                        if 'pnl_value' in sig['cornix_response']['parsed_data']:
-                            pnl = sig['cornix_response']['parsed_data']['pnl_value']
-                            
+                    
                     if status not in ('CLOSED', 'TP_HIT', 'SL_HIT', 'SUCCESS', 'FAILED'):
                         continue # Skip active or unknown signals
                         
@@ -865,16 +906,21 @@ def generate_daily_summary(daily_signal_count, circuit_breaker, auto_blacklist, 
     except Exception as e:
         return f"📊 Daily Summary Error: {str(e)[:100]}"
 
-# Daily Signal Cap Logic
-MAX_DAILY_SIGNALS = 90
+# MAX_DAILY_SIGNALS is defined in constants.py — do not redefine here
 
 def check_daily_signal_limit():
-    """Check if we've reached the daily signal limit. Resets at midnight UTC."""
-    global DAILY_SIGNAL_COUNTER
+    """Check if we've reached the daily signal limit. Resets at midnight UTC.
+
+    IMPORTANT: We mutate the dict in-place (not reassign) so that every
+    module that imported DAILY_SIGNAL_COUNTER from shared_state sees the
+    updated values.  Reassignment would create a new dict object, leaving
+    main.py reading a stale copy.
+    """
     today = datetime.now(timezone.utc).date()
     if DAILY_SIGNAL_COUNTER['date'] != today:
         log_message(f"📅 Daily signal counter reset. Yesterday: {DAILY_SIGNAL_COUNTER['count']} signals")
-        DAILY_SIGNAL_COUNTER = {'count': 0, 'date': today}
+        DAILY_SIGNAL_COUNTER['count'] = 0
+        DAILY_SIGNAL_COUNTER['date'] = today
     
     remaining = MAX_DAILY_SIGNALS - DAILY_SIGNAL_COUNTER['count']
     if remaining <= 0:
@@ -882,41 +928,353 @@ def check_daily_signal_limit():
     return True, remaining
 
 def increment_daily_signal_count():
-    """Increment the daily signal counter."""
-    global DAILY_SIGNAL_COUNTER
+    """Increment the daily signal counter (in-place mutation)."""
     today = datetime.now(timezone.utc).date()
     if DAILY_SIGNAL_COUNTER['date'] != today:
-        DAILY_SIGNAL_COUNTER = {'count': 0, 'date': today}
+        DAILY_SIGNAL_COUNTER['count'] = 0
+        DAILY_SIGNAL_COUNTER['date'] = today
     DAILY_SIGNAL_COUNTER['count'] += 1
     return DAILY_SIGNAL_COUNTER['count']
 
-def can_send_direction(pair, requested_direction):
+def can_send_direction(pair, requested_direction, same_direction_window_hours=24):
     """
     Ensure the bot doesn't spam the same direction for a pair.
-    Only allows signaling if the direction is flipped compared to the last signal.
+    Requires a direction flip OR that the last same-direction signal is older than
+    same_direction_window_hours (default 24h). This prevents permanent lock-out in
+    trending/bear markets where a pair keeps generating signals in the same direction.
     """
     from shared_state import SIGNAL_REGISTRY
-    
+    import time as _time
+
     last_time = 0
     last_direction = None
-    
+
     for sid, sdata in SIGNAL_REGISTRY.items():
         if sdata.get('pair') == pair and sdata.get('status') in ['SENT', 'CLOSED']:
             t = sdata.get('timestamp', 0)
             if t > last_time:
                 last_time = t
                 last_direction = sdata.get('signal')
-                
+
     if not last_direction:
-        return True # First time trading this pair
-        
+        return True  # First time trading this pair
+
     last_norm = 'LONG' if last_direction.upper() in ['LONG', 'BUY'] else 'SHORT'
     req_norm = 'LONG' if requested_direction.upper() in ['LONG', 'BUY'] else 'SHORT'
-    
-    # Only allow if it's a flip
+
     if last_norm == req_norm:
-        log_message(f"🚫 Signal Rejected for {pair}: Ignoring sequential {req_norm} signal (must flip direction).")
-        return False
-        
+        elapsed_hours = (_time.time() - last_time) / 3600
+        if elapsed_hours < same_direction_window_hours:
+            log_message(f"🚫 Signal Rejected for {pair}: Sequential {req_norm} signal within {same_direction_window_hours}h window ({elapsed_hours:.1f}h since last).")
+            return False
+        # Enough time has passed — allow re-entry in same direction
+        log_message(f"✅ Direction re-entry allowed for {pair}: {req_norm} (last {req_norm} was {elapsed_hours:.1f}h ago)")
+
     return True
+
+
+def check_direction_balance(requested_direction, window_hours=6, max_ratio=0.60):
+    """
+    S3: Prevent directional clustering — reject a signal if sending it would
+    push the same-direction ratio above max_ratio in the last window_hours.
+
+    E.g. if 8/10 signals in the past 6h are SHORT and we try to send another
+    SHORT, this returns False (the 9th SHORT would be 90% > 60% cap).
+    """
+    from shared_state import SIGNAL_REGISTRY
+    import time as _time
+
+    cutoff = _time.time() - window_hours * 3600
+    req_norm = 'LONG' if requested_direction.upper() in ('LONG', 'BUY') else 'SHORT'
+
+    recent = [
+        'LONG' if s.get('signal', '').upper() in ('LONG', 'BUY') else 'SHORT'
+        for s in SIGNAL_REGISTRY.values()
+        if s.get('timestamp', 0) >= cutoff
+    ]
+
+    if len(recent) < 3:          # Not enough history — allow freely
+        return True
+
+    same = recent.count(req_norm)
+    total_after = len(recent) + 1
+    ratio_after = (same + 1) / total_after
+
+    if ratio_after > max_ratio:
+        opposite = 'SHORT' if req_norm == 'LONG' else 'LONG'
+        log_message(
+            f"🚫 Direction Balance Cap: {req_norm} would be {ratio_after:.0%} of last-{window_hours}h signals "
+            f"({same + 1}/{total_after}) — max allowed {max_ratio:.0%}. "
+            f"Waiting for more {opposite} setups."
+        )
+        return False
+    return True
+
+
+def _reconcile_sent_signals(max_age_hours=72):
+    """
+    Auto-close SENT signals whose SL or max-TP has been hit at ANY point since
+    the signal was opened. Uses kline HIGH/LOW (not just current ticker) to
+    catch peaks/troughs that occurred between the real-time monitor's ticks.
+
+    Resolution order per signal:
+      1. Fetch 1m klines from signal.timestamp → now
+      2. For LONG: check if any HIGH ≥ TP, any LOW ≤ SL
+         For SHORT: check if any LOW ≤ TP, any HIGH ≥ SL
+      3. Reconstruct chronological order (SL before TP vs TP before SL)
+         to determine actual outcome
+      4. Only close at the FINAL TP (not partials) so trailing logic can upgrade
+    """
+    import json as _json
+    import time as _t
+    import sqlite3 as _sql
+    from data_fetcher import client as _client
+
+    con = _sql.connect('signal_registry.db')
+    con.row_factory = _sql.Row
+    cur = con.cursor()
+    # Ensure trailing-SL columns exist so the SELECT below can reference them.
+    # The actual trail-SL persist + fan-out is handled async in main.py via
+    # trailing_engine.run_trailing_cycle() (so announcements can fire).
+    try:
+        from trailing_engine import ensure_schema as _trail_ensure
+        _trail_ensure()
+    except Exception as _te:
+        log_message(f"[trailing] schema-ensure skipped: {_te}")
+
+    cur.execute(
+        "SELECT signal_id, pair, signal, price, targets_json, stop_loss, leverage, "
+        "timestamp, targets_hit, "
+        "COALESCE(trail_sl, 0) AS trail_sl "
+        "FROM signals WHERE status IN ('SENT','OPEN') ORDER BY timestamp DESC"
+    )
+    rows = cur.fetchall()
+
+    now = _t.time()
+    age_cutoff = now - max_age_hours * 3600
+    updates          = []       # (pnl, targets_hit, closed_ts, sid, pair) for close
+    partial_updates  = []       # (targets_hit, sid) for partial TP only
+    void_updates     = []       # (closed_ts, sid) for instant-fake-win voids
+    sl_count = tp_count = age_count = void_count = 0
+
+    # Threshold: ALL TPs hit within this many seconds of signal creation
+    # AND price moved more than this % from entry → likely stale entry geometry
+    INSTANT_VOID_MAX_AGE  = 900   # 15 minutes
+    INSTANT_VOID_MIN_MOVE = 5.0   # 5% move required to reach max TP
+
+    for r in rows:
+        sid = r['signal_id']
+        entry   = float(r['price'] or 0)
+        sl      = float(r['stop_loss'] or 0)
+        try:
+            lev_early = int(r['leverage'] or 1)
+        except (ValueError, TypeError):
+            lev_early = 1
+        is_long_early = r['signal'].upper() in ('LONG', 'BUY')
+
+        if r['timestamp'] < age_cutoff:
+            # Fix: record actual PnL at current price instead of 0.0
+            try:
+                from live_price_feed import LIVE_FEED as _LF
+                _px_now = (_LF.get(r['pair']) or {}).get('mark', 0)
+                if _px_now and _px_now > 0 and entry > 0:
+                    _raw = (((_px_now - entry) / entry) if is_long_early else ((entry - _px_now) / entry)) * 100
+                    aged_pnl = round(_raw * lev_early, 2)
+                else:
+                    aged_pnl = 0.0
+            except Exception:
+                aged_pnl = 0.0
+            updates.append((aged_pnl, int(r['targets_hit'] or 0), now, sid, r['pair']))
+            age_count += 1
+            continue
+        targets = _json.loads(r['targets_json']) if r['targets_json'] else []
+        if not entry or not sl or not targets:
+            continue
+        try:
+            lev = int(r['leverage'] or 1)
+        except (ValueError, TypeError):
+            lev = 1
+        is_long  = r['signal'].upper() in ('LONG', 'BUY')
+
+        # ── Dynamic Trailing SL: if TP1 already hit, use best of ─────────
+        # (original_sl, entry, trail_sl).  The trailing_engine writes
+        # `trail_sl` every 5-min reconcile tick using Chandelier Exit on 1h.
+        # Falls back to breakeven (entry) if trailing engine is disabled.
+        _targets_hit_so_far = int(r['targets_hit'] or 0) if str(r['targets_hit']).lstrip('-').isdigit() else 0
+        try:
+            _trail = float(r['trail_sl'] or 0)
+        except Exception:
+            _trail = 0.0
+        if _targets_hit_so_far >= 1:
+            if is_long:
+                sl = max(sl, entry, _trail) if _trail > 0 else max(sl, entry)
+            else:
+                sl = min(sl, entry, _trail) if _trail > 0 else min(sl, entry)
+
+        # ── Fetch 1m klines from signal timestamp → now ───────────────────
+        start_ms = int(r['timestamp'] * 1000)
+        end_ms   = int(now * 1000)
+        try:
+            klines = _client.futures_klines(
+                symbol=r['pair'], interval='1m',
+                startTime=start_ms, endTime=end_ms, limit=1500
+            )
+        except Exception as e:
+            _err_str = str(e)
+            if 'restricted location' in _err_str.lower():
+                # Proxy IP geo-restricted — retry via direct server IP (no proxy)
+                try:
+                    import requests as _req
+                    _r = _req.get(
+                        'https://fapi.binance.com/fapi/v1/klines',
+                        params={'symbol': r['pair'], 'interval': '1m',
+                                'startTime': start_ms, 'endTime': end_ms, 'limit': 1500},
+                        proxies={}, timeout=15
+                    )
+                    _r.raise_for_status()
+                    klines = _r.json()
+                except Exception as _e2:
+                    log_message(f"Reconcile: kline direct-IP fallback also failed for {r['pair']}: {_e2}")
+                    continue
+            else:
+                log_message(f"Reconcile: kline fetch failed for {r['pair']}: {e}")
+                continue
+        if not klines:
+            continue
+
+        # ── Walk klines chronologically to find first hit ────────────────
+        # Each kline: [open_time, o, h, l, c, v, close_time, ...]
+        reason = None       # 'SL_HIT' or 'TP{N}_HIT'
+        tp_hit = 0
+        hit_price = None
+        hit_ts = None
+        for k in klines:
+            hi = float(k[2])
+            lo = float(k[3])
+            # SL check first — whichever was hit FIRST wins
+            sl_hit = (is_long and lo <= sl) or (not is_long and hi >= sl)
+            # Max-TP hit check
+            max_tp = targets[-1]
+            max_tp_hit = (is_long and hi >= max_tp) or (not is_long and lo <= max_tp)
+
+            if sl_hit and max_tp_hit:
+                # Both hit in same bar — conservative: assume SL first
+                reason = 'SL_HIT'
+                hit_price = sl
+                hit_ts = int(k[0]) / 1000
+                break
+            elif sl_hit:
+                reason = 'SL_HIT'
+                hit_price = sl
+                hit_ts = int(k[0]) / 1000
+                break
+            elif max_tp_hit:
+                tp_hit = len(targets)
+                reason = f'TP{tp_hit}_HIT'
+                hit_price = max_tp
+                hit_ts = int(k[0]) / 1000
+                break
+
+        # ── Also walk for highest intermediate TP (for partial tracking) ──
+        if reason is None:
+            for k in klines:
+                hi = float(k[2])
+                lo = float(k[3])
+                for i, tp in enumerate(targets):
+                    tn = i + 1
+                    if tn <= tp_hit:
+                        continue
+                    reached = (is_long and hi >= tp) or (not is_long and lo <= tp)
+                    if reached:
+                        tp_hit = tn
+
+        # ── Persist result ────────────────────────────────────────────────
+        if reason == 'SL_HIT':
+            raw_pct = ((sl - entry) / entry * 100) if is_long else ((entry - sl) / entry * 100)
+            pnl = round(raw_pct * lev, 2)
+            updates.append((pnl, 0, hit_ts or now, sid, r['pair']))
+            sl_count += 1
+        elif reason and reason.startswith('TP') and tp_hit == len(targets):
+            # Final TP hit — check for instant fake-win before counting it.
+            # Pattern: ALL TPs hit within 15 min AND price gapped >5% from entry
+            # → the entry price was stale (e.g. stock token off-hours freeze).
+            # Void the signal so it doesn't pollute win-rate statistics.
+            tp_price   = targets[tp_hit - 1]
+            signal_age = (hit_ts or now) - r['timestamp']
+            price_move = abs(tp_price - entry) / entry * 100 if entry > 0 else 0
+            if signal_age < INSTANT_VOID_MAX_AGE and price_move > INSTANT_VOID_MIN_MOVE:
+                log_message(
+                    f"🚫 VOID [{r['pair']}]: ALL TPs hit {signal_age:.0f}s after open "
+                    f"with {price_move:.1f}% move from entry — stale entry geometry, not counted"
+                )
+                void_updates.append((hit_ts or now, sid, r['pair']))
+                void_count += 1
+                continue
+            raw_pct  = ((tp_price - entry) / entry * 100) if is_long else ((entry - tp_price) / entry * 100)
+            pnl = round(raw_pct * lev, 2)
+            updates.append((pnl, tp_hit, hit_ts or now, sid, r['pair']))
+            tp_count += 1
+        elif tp_hit > 0:
+            # Partial TP only — update progress, don't close
+            current_th = int(r['targets_hit'] or 0) if str(r['targets_hit']).isdigit() else 0
+            if tp_hit > current_th:
+                partial_updates.append((tp_hit, sid))
+
+    if void_updates:
+        cur.executemany(
+            "UPDATE signals SET status='VOIDED', pnl=0.0, targets_hit=0, closed_timestamp=? WHERE signal_id=?",
+            [(ts, sid) for ts, sid, _pair in void_updates],
+        )
+        con.commit()
+        log_message(f"🚫 Voided {void_count} instant-fake-win signals (stale entry geometry)")
+
+    if updates:
+        cur.executemany(
+            "UPDATE signals SET status='CLOSED', pnl=?, targets_hit=?, closed_timestamp=? WHERE signal_id=?",
+            [(pnl, th, ts, sid) for pnl, th, ts, sid, _pair in updates],
+        )
+        con.commit()
+        log_message(
+            f"📊 Signal reconciliation: closed {len(updates)} "
+            f"(SL={sl_count}, TP={tp_count}, aged={age_count})"
+        )
+
+        # ── Wire feedback loops ──────────────────────────────────────────
+        # AUTO_BLACKLIST is ALWAYS updated — even after a restart when the
+        # signal is no longer in OPEN_SIGNALS_TRACKER.  close_open_signal()
+        # is only called when the signal is still in-memory (for CB + RL).
+        for pnl_val, _th, _close_ts, sid, pair in updates:
+            is_win = pnl_val > 0
+            # ── Always update blacklist regardless of memory state ────────
+            try:
+                AUTO_BLACKLIST.record_outcome(pair, is_win)
+                if not is_win:
+                    log_message(f"📉 Loss recorded for {pair} via reconciler "
+                                f"(consecutive: {AUTO_BLACKLIST.consecutive_losses.get(pair, 0)})")
+                # Large-loss guard: any leveraged loss > 30% → immediate 48h blacklist
+                if pnl_val <= -30.0:
+                    import time as _tmod
+                    AUTO_BLACKLIST.blacklisted_until[pair] = _tmod.time() + 48 * 3600
+                    AUTO_BLACKLIST.save_state()
+                    log_message(f"🚨 Large-loss blacklist: {pair} blocked 48h (pnl={pnl_val:.1f}%)")
+            except Exception as _bl_err:
+                log_message(f"Reconcile blacklist error for {pair}: {_bl_err}")
+            # ── in-memory feedback (CB + RL) only when still tracked ─────
+            if sid in OPEN_SIGNALS_TRACKER:
+                _close_reason = 'SL_HIT' if pnl_val <= -0.01 else ('TP_HIT' if pnl_val >= 0.01 else 'EXPIRED')
+                try:
+                    close_open_signal(sid, _close_reason, pnl=pnl_val)
+                except Exception as _fb_err:
+                    log_message(f"Reconcile feedback error for {sid}: {_fb_err}")
+
+    # ── Partial TP progress (signal stays open, progress persists) ─────────
+    if partial_updates:
+        cur.executemany(
+            "UPDATE signals SET targets_hit=? WHERE signal_id=?",
+            partial_updates,
+        )
+        con.commit()
+        log_message(f"📈 Signal reconciliation: {len(partial_updates)} partial TP updates")
+
+    con.close()
 

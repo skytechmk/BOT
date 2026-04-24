@@ -10,7 +10,11 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from telegram import Bot, Update
 from telegram.ext import Application
+from telegram.request import HTTPXRequest
 from shared_state import log_message
+
+# Shared HTTPXRequest with larger pool for all Telegram operations
+_TG_REQUEST = HTTPXRequest(connection_pool_size=30, connect_timeout=30.0, read_timeout=30.0)
 
 class TelegramGroupManager:
     """Advanced Telegram group management capabilities"""
@@ -18,8 +22,8 @@ class TelegramGroupManager:
     def __init__(self):
         self.bot_token = os.getenv('TELEGRAM_TOKEN')
         self.ops_token = os.getenv('OPS_TELEGRAM_TOKEN')
-        self.main_bot = Bot(token=self.bot_token) if self.bot_token else None
-        self.ops_bot = Bot(token=self.ops_token) if self.ops_token else None
+        self.main_bot = Bot(token=self.bot_token, request=_TG_REQUEST) if self.bot_token else None
+        self.ops_bot = Bot(token=self.ops_token, request=_TG_REQUEST) if self.ops_token else None
         
     async def get_chat_administrators(self, chat_id: str, use_ops_bot: bool = False) -> List[Dict[str, Any]]:
         """

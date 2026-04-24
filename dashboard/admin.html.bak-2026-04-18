@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aladdin — Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0e17;
+            --surface: #131a27;
+            --surface2: #1a2332;
+            --border: #2a3444;
+            --text: #e1e7ef;
+            --text-dim: #7a8a9e;
+            --gold: #f0b90b;
+            --green: #00d68f;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; padding: 40px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+        .header h1 { font-size: 24px; color: var(--gold); display: flex; align-items: center; gap: 10px; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-dim); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { font-size: 14px; }
+        tr:last-child td { border-bottom: none; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .badge.tier-pro { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge.tier-elite { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .btn { background: var(--gold); color: #000; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .btn:hover { background: #d4a50a; box-shadow: 0 0 15px rgba(240,185,11,0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .empty { text-align: center; color: var(--text-dim); padding: 40px; font-size: 15px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><span>👑</span> Admin Panel</h1>
+        <div><a href="/" style="color:var(--text-dim); text-decoration:none;">&larr; Back to Dashboard</a></div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h2 style="font-size:18px;margin:0">NOWPayments Config</h2>
+            <button class="btn" onclick="refreshConfig()">Refresh</button>
+        </div>
+        <div id="np-config-body">
+            <div class="empty">Loading...</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h2 style="font-size:18px;margin:0">Payment History (All)</h2>
+            <button class="btn" onclick="refreshHistory()">Refresh</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Method</th>
+                    <th>Order ID</th>
+                </tr>
+            </thead>
+            <tbody id="history-tbody">
+                <tr><td colspan="7" class="empty">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" style="opacity:0.6">
+        <h2 style="margin-bottom: 20px; font-size: 18px;">Legacy: Pending Manual Payments</h2>
+        <p style="color:var(--text-dim);margin-bottom:12px;font-size:13px">This section is for manual wallet payments (NOWPayments auto-activates, no manual approval needed).</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Memo/TX</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="payments-tbody">
+                <tr><td colspan="7" class="empty">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('aladdin_token');
+        if (!token) {
+            alert('Not logged in. Redirecting to dashboard.');
+            window.location.href = '/';
+        }
+
+        async function fetchPending() {
+            try {
+                const res = await fetch('/api/admin/payments/pending', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401 || res.status === 403) {
+                    alert('Admin access denied.');
+                    window.location.href = '/';
+                    return;
+                }
+                const data = await res.json();
+                renderPayments(data.payments || []);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderPayments(payments) {
+            const tbody = document.getElementById('payments-tbody');
+            if (payments.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty">No pending payments.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = payments.map(p => `
+                <tr>
+                    <td style="color:var(--text-dim)">${new Date(p.created_at * 1000).toLocaleString()}</td>
+                    <td>
+                        <div style="font-weight:500">${p.username}</div>
+                        <div style="font-size:12px; color:var(--text-dim)">${p.email}</div>
+                    </td>
+                    <td><span class="badge tier-${p.tier_granted}">${p.tier_granted}</span></td>
+                    <td style="font-weight:600">$${p.amount_usd}</td>
+                    <td style="text-transform:uppercase">${p.crypto_currency}</td>
+                    <td>
+                        <div style="font-size:12px">Memo: ${p.crypto_amount}</div>
+                        <div style="font-size:12px; font-family:monospace; color:var(--text-dim)">ID: ${p.payment_id.slice(-8)}</div>
+                    </td>
+                    <td>
+                        <button class="btn" onclick="activatePayment('${p.payment_id}', this)">Approve</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function activatePayment(pid, btn) {
+            if (!confirm('Are you sure you want to activate this subscription?')) return;
+            btn.textContent = 'Processing...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/admin/payments/activate/${pid}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.status === 'activated' || data.status === 'already_activated') {
+                    alert('Subscription Activated!');
+                    fetchPending();
+                } else {
+                    alert('Error: ' + JSON.stringify(data));
+                    btn.textContent = 'Approve';
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                alert('Request failed');
+                btn.textContent = 'Approve';
+                btn.disabled = false;
+            }
+        }
+
+        async function fetchConfig() {
+            try {
+                const res = await fetch('/api/admin/payments/config', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401 || res.status === 403) {
+                    document.getElementById('np-config-body').innerHTML = `<div class="empty">Access denied</div>`;
+                    return;
+                }
+                const data = await res.json();
+                renderConfig(data);
+            } catch (e) {
+                console.error(e);
+                document.getElementById('np-config-body').innerHTML = `<div class="empty">Failed to load</div>`;
+            }
+        }
+
+        function renderConfig(data) {
+            const body = document.getElementById('np-config-body');
+            const cfg = data.config || {};
+            const health = data.health || {};
+            const ok = health.ok ? '✅' : '❌';
+            const currencies = data.currencies || [];
+            const currencyCount = data.currency_count || 0;
+
+            body.innerHTML = `
+                <table style="margin-bottom:16px">
+                    <tr><td style="width:200px;color:var(--text-dim)">API Health</td><td>${ok} ${health.message || 'Unknown'}</td></tr>
+                    <tr><td style="color:var(--text-dim)">Sandbox Mode</td><td>${cfg.sandbox ? '🧪 Yes' : '✅ No (Production)'}</td></tr>
+                    <tr><td style="color:var(--text-dim)">API Key Set</td><td>${cfg.api_key_set ? '✅ Yes' : '❌ No'}</td></tr>
+                    <tr><td style="color:var(--text-dim)">IPN Secret Set</td><td>${cfg.ipn_secret_set ? '✅ Yes' : '❌ No'}</td></tr>
+                    <tr><td style="color:var(--text-dim)">Configured</td><td>${cfg.configured ? '✅ Ready' : '❌ Not ready'}</td></tr>
+                    <tr><td style="color:var(--text-dim)">Enabled Currencies</td><td>${currencyCount} available</td></tr>
+                    <tr><td style="color:var(--text-dim)">IPN Callback URL</td><td><code style="font-size:11px;background:rgba(0,0,0,.2);padding:2px 6px;border-radius:3px">${cfg.ipn_url || 'N/A'}</code></td></tr>
+                </table>
+                ${currencies.length > 0 ? `
+                    <div style="margin-top:12px">
+                        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px">First 20 enabled currencies:</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px">
+                            ${currencies.slice(0,20).map(c => `<span class="badge" style="background:rgba(255,255,255,.05);color:var(--text);border:1px solid rgba(255,255,255,.1)">${c}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        async function refreshConfig() {
+            document.getElementById('np-config-body').innerHTML = `<div class="empty">Refreshing...</div>`;
+            await fetchConfig();
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch('/api/admin/payments/history?limit=50', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401 || res.status === 403) {
+                    document.getElementById('history-tbody').innerHTML = `<tr><td colspan="7" class="empty">Access denied</td></tr>`;
+                    return;
+                }
+                const data = await res.json();
+                renderHistory(data.payments || []);
+            } catch (e) {
+                console.error(e);
+                document.getElementById('history-tbody').innerHTML = `<tr><td colspan="7" class="empty">Failed to load</td></tr>`;
+            }
+        }
+
+        function renderHistory(payments) {
+            const tbody = document.getElementById('history-tbody');
+            if (payments.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty">No payments yet.</td></tr>`;
+                return;
+            }
+
+            const statusColors = {
+                'completed': 'color:#00d68f',
+                'awaiting_payment': 'color:#f0b90b',
+                'confirming': 'color:#60a5fa',
+                'failed': 'color:#f87171',
+                'expired': 'color:#f87171',
+                'refunded': 'color:#f87171',
+            };
+
+            tbody.innerHTML = payments.map(p => `
+                <tr>
+                    <td style="color:var(--text-dim);font-size:12px">${new Date(p.created_at * 1000).toLocaleString()}</td>
+                    <td>
+                        <div style="font-weight:500">${p.username || 'N/A'}</div>
+                        <div style="font-size:11px; color:var(--text-dim)">${p.email || 'N/A'}</div>
+                    </td>
+                    <td><span class="badge tier-${p.tier_granted || 'free'}">${p.tier_granted || 'N/A'}</span></td>
+                    <td style="font-weight:600">$${p.amount_usd}</td>
+                    <td style="${statusColors[p.status] || ''};font-weight:600;text-transform:uppercase;font-size:12px">${p.status || 'unknown'}</td>
+                    <td style="text-transform:uppercase;font-size:12px">${p.pay_method || 'N/A'}</td>
+                    <td style="font-size:11px;font-family:monospace;color:var(--text-dim)">${p.payment_id?.slice(-10) || 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function refreshHistory() {
+            document.getElementById('history-tbody').innerHTML = `<tr><td colspan="7" class="empty">Refreshing...</td></tr>`;
+            await fetchHistory();
+        }
+
+        fetchConfig();
+        fetchHistory();
+        fetchPending();
+    </script>
+</body>
+</html>

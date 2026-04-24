@@ -9,7 +9,7 @@ from utils_logger import log_message
 # Rust Core availability check with version compatibility
 RUST_CORE_AVAILABLE = False
 RUST_CORE_VERSION = None
-EXPECTED_RUST_VERSION = "0.1.0"  # Keep in sync with Cargo.toml
+EXPECTED_RUST_VERSION = "0.2.0"  # Keep in sync with Cargo.toml
 
 try:
     import aladdin_core

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920">
+  <title>Anunnaki World Signals — Live Stream View</title>
+  <link rel="icon" href="/static/logo.jpeg">
+  <link rel="stylesheet" href="/static/css/stream.css?v=2">
+</head>
+<body>
+
+<!-- ═══ HEADER BAR ═══ -->
+<header class="sv-header">
+  <div class="sv-logo">
+    <img src="/static/logo.jpeg" alt="Anunnaki World">
+    <div>
+      <div class="sv-brand">ANUNNAKI WORLD SIGNALS</div>
+      <div class="sv-tagline"><span class="sv-live-dot"></span> LIVE — Scanning <span id="sv-pair-count">—</span> USDT Perpetuals</div>
+    </div>
+  </div>
+  <div class="sv-clock">
+    <div class="sv-clock-time" id="sv-clock">--:--:--</div>
+    <div class="sv-clock-date" id="sv-date">—</div>
+  </div>
+  <a class="sv-cta" href="https://anunnakiworld.com" target="_blank" rel="noopener">
+    <div class="sv-cta-head">Live signals in your Telegram<br>and copy-trading on our website</div>
+    <div class="sv-cta-sub">Upgrade to <b>Pro</b> — 109 USDT/mo</div>
+    <div class="sv-cta-link">anunnakiworld.com ↗</div>
+  </a>
+</header>
+
+<main class="sv-main">
+
+  <!-- ═══ LEFT: TSI ZONES HEATMAP ═══ -->
+  <section class="sv-panel sv-zones">
+    <div class="sv-panel-head">
+      <span class="sv-panel-icon">📊</span>
+      <span class="sv-panel-title">TSI Zones</span>
+      <span class="sv-panel-sub">Extreme momentum detector</span>
+    </div>
+    <div class="sv-zone-grid">
+      <div class="sv-zone-card ob-l2">
+        <div class="sv-zone-count" id="sv-ob2">0</div>
+        <div class="sv-zone-label">🔴 OB_L2</div>
+        <div class="sv-zone-desc">Extreme short</div>
+      </div>
+      <div class="sv-zone-card ob-l1">
+        <div class="sv-zone-count" id="sv-ob1">0</div>
+        <div class="sv-zone-label">🟠 OB_L1</div>
+        <div class="sv-zone-desc">Watch short</div>
+      </div>
+      <div class="sv-zone-card os-l1">
+        <div class="sv-zone-count" id="sv-os1">0</div>
+        <div class="sv-zone-label">🔵 OS_L1</div>
+        <div class="sv-zone-desc">Watch long</div>
+      </div>
+      <div class="sv-zone-card os-l2">
+        <div class="sv-zone-count" id="sv-os2">0</div>
+        <div class="sv-zone-label">🟢 OS_L2</div>
+        <div class="sv-zone-desc">Extreme long</div>
+      </div>
+    </div>
+    <div class="sv-zone-lists" id="sv-zone-lists">
+      <!-- pair chips injected here -->
+    </div>
+  </section>
+
+  <!-- ═══ CENTER: PRE-SIGNAL SUSPENSE ═══ -->
+  <section class="sv-panel sv-presignals">
+    <div class="sv-panel-head">
+      <span class="sv-panel-icon">🎯</span>
+      <span class="sv-panel-title">Pre-Signal Alerts</span>
+      <span class="sv-panel-sub">Pairs approaching signal trigger</span>
+    </div>
+    <div class="sv-ps-grid" id="sv-ps-grid">
+      <div class="sv-ps-empty">No pairs in extreme zones right now.</div>
+    </div>
+  </section>
+
+  <!-- ═══ RIGHT: STATS + SIGNAL FEED ═══ -->
+  <aside class="sv-sidebar">
+    <div class="sv-stats">
+      <div class="sv-stat">
+        <div class="sv-stat-val" id="sv-total-signals">—</div>
+        <div class="sv-stat-label">Total Signals</div>
+      </div>
+      <div class="sv-stat">
+        <div class="sv-stat-val" id="sv-win-rate">—</div>
+        <div class="sv-stat-label">Win Rate</div>
+      </div>
+      <div class="sv-stat">
+        <div class="sv-stat-val" id="sv-profit-factor">—</div>
+        <div class="sv-stat-label">Profit Factor</div>
+      </div>
+    </div>
+
+    <div class="sv-feed-head">
+      <span class="sv-panel-icon">📡</span>
+      <span>Signal Feed</span>
+      <span class="sv-embargo-badge">🔒 30 min delay</span>
+    </div>
+    <div class="sv-feed" id="sv-feed">
+      <div class="sv-ps-empty">Loading signals…</div>
+    </div>
+  </aside>
+
+</main>
+
+<!-- ═══ FOOTER TICKER ═══ -->
+<footer class="sv-footer">
+  <div class="sv-ticker">
+    <span class="sv-disclaimer">⚠️ Not financial advice · Signals shown are delayed 30 min · Real-time access exclusive to Pro subscribers · <b>anunnakiworld.com</b></span>
+  </div>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STREAM VIEW — no auth, polls sanitized /api/stream/* endpoints
+// Embargoed signals show countdown; reveal with animation when expired
+// ═══════════════════════════════════════════════════════════════
+(function() {
+  'use strict';
+
+  const STREAM_KEY = new URLSearchParams(window.location.search).get('key') || '';
+  const KEY_Q = STREAM_KEY ? ('?key=' + encodeURIComponent(STREAM_KEY)) : '';
+
+  let _embargoSec = 1800;
+  let _serverSkewSec = 0; // server_time - client_time
+
+  // ── Helpers ────────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+
+  function fmtCountdown(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  function fmtPrice(n) {
+    if (n == null || n === 0) return '—';
+    const abs = Math.abs(n);
+    if (abs >= 1000) return n.toFixed(2);
+    if (abs >= 1)    return n.toFixed(3);
+    if (abs >= 0.01) return n.toFixed(5);
+    return n.toFixed(7);
+  }
+  function shortPair(p) { return (p || '').replace(/USDT$/, ''); }
+
+  // ── Clock / date ───────────────────────────────────────────
+  function tickClock() {
+    const d = new Date();
+    $('sv-clock').textContent = d.toTimeString().slice(0,8);
+    $('sv-date').textContent = d.toDateString();
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
+
+  // ── Fetch wrapper ──────────────────────────────────────────
+  async function fetchJSON(path) {
+    const url = path + (path.includes('?') ? '&' : KEY_Q ? KEY_Q : '');
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch(e) { return null; }
+  }
+
+  // ── Load config once ───────────────────────────────────────
+  async function loadConfig() {
+    const cfg = await fetchJSON('/api/stream/config');
+    if (!cfg) return;
+    _embargoSec = cfg.embargo_sec || 1800;
+    if (cfg.server_time) _serverSkewSec = cfg.server_time - (Date.now()/1000);
+    const mm = Math.round(_embargoSec / 60);
+    document.querySelector('.sv-embargo-badge').textContent = `🔒 ${mm} min delay`;
+    document.querySelector('.sv-disclaimer').innerHTML =
+      `⚠️ Not financial advice · Signals shown are delayed ${mm} min · Real-time access exclusive to Pro subscribers · <b>anunnakiworld.com</b>`;
+  }
+
+  // ── Stats panel ────────────────────────────────────────────
+  async function refreshStats() {
+    const s = await fetchJSON('/api/stream/stats');
+    if (!s) return;
+    $('sv-total-signals').textContent = (s.total_signals || 0).toLocaleString();
+    $('sv-win-rate').textContent = (s.win_rate || 0).toFixed(1) + '%';
+    $('sv-profit-factor').textContent = (s.profit_factor || 0).toFixed(2);
+    $('sv-pair-count').textContent = (s.pairs_monitored || 0);
+  }
+
+  // ── Zones panel ────────────────────────────────────────────
+  async function refreshZones() {
+    const d = await fetchJSON('/api/stream/monitored');
+    if (!d || !d.pairs) return;
+    const counts = { OB_L2:0, OB_L1:0, OS_L1:0, OS_L2:0 };
+    const lists  = { OB_L2:[], OB_L1:[], OS_L1:[], OS_L2:[] };
+    for (const p of d.pairs) {
+      if (counts[p.zone] !== undefined) {
+        counts[p.zone]++;
+        if (lists[p.zone].length < 12) lists[p.zone].push(shortPair(p.pair));
+      }
+    }
+    $('sv-ob2').textContent = counts.OB_L2;
+    $('sv-ob1').textContent = counts.OB_L1;
+    $('sv-os1').textContent = counts.OS_L1;
+    $('sv-os2').textContent = counts.OS_L2;
+
+    $('sv-zone-lists').innerHTML = ['OB_L2','OB_L1','OS_L1','OS_L2'].map(z => {
+      const label = { OB_L2:'🔴 Extreme Short', OB_L1:'🟠 Watch Short',
+                      OS_L1:'🔵 Watch Long',    OS_L2:'🟢 Extreme Long' }[z];
+      if (!lists[z].length) return '';
+      return `<div class="sv-zone-list">
+        <div class="sv-zone-list-label">${label}</div>
+        <div class="sv-zone-chips">${lists[z].map(p => `<span class="sv-chip ${z.toLowerCase()}">${p}</span>`).join('')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Pre-signals panel ──────────────────────────────────────
+  async function refreshPresignals() {
+    const d = await fetchJSON('/api/stream/presignals');
+    const grid = $('sv-ps-grid');
+    if (!d || !d.presignals || !d.presignals.length) {
+      grid.innerHTML = '<div class="sv-ps-empty">No pairs in extreme zones right now.</div>';
+      return;
+    }
+    const rcolor = { IMMINENT:'#ff4444', HIGH:'#f4a236', MEDIUM:'#66ccff', LOW:'#999' };
+    grid.innerHTML = d.presignals.map(p => `
+      <div class="sv-ps-card" style="border-color:${rcolor[p.readiness]}55">
+        <div class="sv-ps-readiness" style="color:${rcolor[p.readiness]}">${p.readiness}</div>
+        <div class="sv-ps-pair">${shortPair(p.pair)}<span>/USDT</span></div>
+        <div class="sv-ps-zone ${p.zone.toLowerCase()}">Zone: ${p.zone}</div>
+        <div class="sv-ps-locked">🔒 Direction locked</div>
+      </div>
+    `).join('');
+  }
+
+  // ── Signal feed (embargoed) ────────────────────────────────
+  let _lastSignals = null;
+  async function refreshFeed() {
+    const d = await fetchJSON('/api/stream/signals');
+    if (!d || !d.signals) return;
+    if (d.server_time) _serverSkewSec = d.server_time - (Date.now()/1000);
+    _lastSignals = d.signals;
+    renderFeed();
+  }
+
+  function renderFeed() {
+    if (!_lastSignals || !_lastSignals.length) {
+      $('sv-feed').innerHTML = '<div class="sv-ps-empty">No recent signals.</div>';
+      return;
+    }
+    const now = (Date.now()/1000) + _serverSkewSec;
+    $('sv-feed').innerHTML = _lastSignals.slice(0, 12).map(s => {
+      const age = now - (s.timestamp || 0);
+      const locked = age < _embargoSec;
+      if (locked) {
+        const remain = Math.max(0, _embargoSec - age);
+        return `<div class="sv-sig sv-sig-locked">
+          <div class="sv-sig-row1">
+            <span class="sv-sig-pair">${shortPair(s.pair)}<small>/USDT</small></span>
+            <span class="sv-sig-dir locked">🔒 LOCKED</span>
+          </div>
+          <div class="sv-sig-countdown">Revealing in <b>${fmtCountdown(remain)}</b></div>
+        </div>`;
+      }
+      const dir = (s.direction || '').toUpperCase();
+      const isLong = dir === 'LONG';
+      const pnl = s.pnl || 0;
+      const pnlCls = pnl > 0 ? 'pos' : (pnl < 0 ? 'neg' : '');
+      const th = s.targets_hit || 0;
+      const tps = (s.targets || []).slice(0,3);
+      return `<div class="sv-sig sv-sig-revealed">
+        <div class="sv-sig-row1">
+          <span class="sv-sig-pair">${shortPair(s.pair)}<small>/USDT</small></span>
+          <span class="sv-sig-dir ${isLong ? 'long' : 'short'}">${isLong ? '🚀 LONG' : '📉 SHORT'}</span>
+          <span class="sv-sig-status">${s.status || ''}</span>
+        </div>
+        <div class="sv-sig-row2">
+          <span>Entry <b>${fmtPrice(s.price)}</b></span>
+          <span>SL <b class="neg">${fmtPrice(s.stop_loss)}</b></span>
+          <span>Lev <b>${s.leverage || '—'}x</b></span>
+        </div>
+        <div class="sv-sig-row3">
+          ${tps.map((tp,i) => `<span class="sv-tp ${th>i?'hit':''}">TP${i+1} ${fmtPrice(tp)}</span>`).join('')}
+          ${pnl ? `<span class="sv-sig-pnl ${pnlCls}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Re-render feed every second for countdown updates
+  setInterval(renderFeed, 1000);
+
+  // ── Polling ────────────────────────────────────────────────
+  async function refreshAll() {
+    await Promise.all([refreshStats(), refreshZones(), refreshPresignals(), refreshFeed()]);
+  }
+
+  (async () => {
+    await loadConfig();
+    await refreshAll();
+    setInterval(refreshStats,      60_000);  // stats: 60s
+    setInterval(refreshZones,      15_000);  // zones: 15s
+    setInterval(refreshPresignals, 15_000);  // presignals: 15s
+    setInterval(refreshFeed,       20_000);  // feed: 20s
+  })();
+})();
+</script>
+
+</body>
+</html>

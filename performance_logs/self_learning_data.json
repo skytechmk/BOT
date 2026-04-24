@@ -3177,6 +3177,174 @@
         "trend": "sideways",
         "volume": "normal"
       }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:35:24.632261",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:35:29.430478",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:35:34.345363",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:35:39.425946",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:47:38.865194",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:47:46.973493",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:47:51.169121",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:55:35.564928",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:52.952769",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:53.247404",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:13.108823",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:50.982522",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
     }
   ],
   "1000PEPEUSDT": [
@@ -3816,6 +3984,76 @@
       "prediction": "SELL",
       "actual_outcome": "BREAKEVEN",
       "timestamp": "2025-10-23T10:08:37.143004",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:44:55.915262",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:45:03.406979",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:45.960478",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:52.764363",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:42.351826",
       "accuracy": 0,
       "prediction_confidence": 0.5,
       "market_conditions": {
@@ -4541,6 +4779,20 @@
         "trend": "sideways",
         "volume": "normal"
       }
+    },
+    {
+      "symbol": "SPELLUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:38.940501",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
     }
   ],
   "MEWUSDT": [
@@ -4797,6 +5049,20 @@
         "trend": "sideways",
         "volume": "low"
       }
+    },
+    {
+      "symbol": "HOTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-06T22:47:53.233227",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
     }
   ],
   "DENTUSDT": [
@@ -5009,6 +5275,188 @@
         "trend": "sideways",
         "volume": "normal"
       }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:48.206720",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:06.682207",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:21.696098",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:27.938298",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:34.735605",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:44.376095",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:54:09.328798",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:54:20.917712",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:54:25.309912",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:57.592349",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:33.138716",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:03.832978",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DENTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:12:20.322833",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
     }
   ],
   "VTHOUSDT": [
@@ -5046,6 +5494,202 @@
       "prediction": "SELL",
       "actual_outcome": "BREAKEVEN",
       "timestamp": "2025-07-14T14:21:57.973440",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:45:07.387144",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:45:15.775619",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:00.957028",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:05.354200",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:12.179112",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:18.998887",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:29.207792",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:36.021648",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:01.980465",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:37.538489",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:08.226767",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:18.511271",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:04.446161",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:49.308262",
       "accuracy": 0,
       "prediction_confidence": 0.5,
       "market_conditions": {
@@ -6114,6 +6758,48 @@
       "prediction": "SELL",
       "actual_outcome": "BREAKEVEN",
       "timestamp": "2025-10-23T09:07:52.936098",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "NEIROUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:28.227413",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NEIROUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:01.747578",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "NEIROUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:58.802288",
       "accuracy": 0,
       "prediction_confidence": 0.5,
       "market_conditions": {
@@ -8759,6 +9445,34 @@
         "trend": "sideways",
         "volume": "low"
       }
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:01.776696",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:33.200093",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
     }
   ],
   "GALAUSDT": [
@@ -8978,6 +9692,174 @@
       "prediction": "SELL",
       "actual_outcome": "PARTIAL",
       "timestamp": "2026-03-15T11:34:34.848476",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:51.284449",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:58.235542",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:12.990287",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:14.949790",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:32.227184",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:47.838596",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:45:11.929703",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:15.522246",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:30.154728",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:41.402317",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:49.357547",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "GALAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:09.087194",
       "accuracy": 0,
       "prediction_confidence": 0.5,
       "market_conditions": {
@@ -9665,6 +10547,118 @@
         "trend": "bearish",
         "volume": "low"
       }
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:44:39.285993",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:44:44.153859",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:08.758910",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:15.579087",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:19.429552",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:22.617996",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "timeframe": "15m",
+      "prediction": "LONG",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-06T21:02:17.738041",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-07T05:14:45.803276",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
     }
   ],
   "HMSTRUSDT": [
@@ -9961,6 +10955,48 @@
         "trend": "bearish",
         "volume": "normal"
       }
+    },
+    {
+      "symbol": "HMSTRUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:20.865712",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HMSTRUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:48:46.613914",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HMSTRUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:09.479736",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
     }
   ],
   "1MBABYDOGEUSDT": [
@@ -10255,6 +11291,90 @@
       "market_conditions": {
         "volatility": "unknown",
         "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1MBABYDOGEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:25.810477",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1MBABYDOGEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:32.625912",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1MBABYDOGEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:39.450352",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1MBABYDOGEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:24.319164",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1MBABYDOGEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:48.605086",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1MBABYDOGEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:45.091283",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
         "volume": "low"
       }
     }
@@ -10554,6 +11674,48 @@
         "volatility": "unknown",
         "trend": "sideways",
         "volume": "normal"
+      }
+    },
+    {
+      "symbol": "MEMEUSDT",
+      "timeframe": "15m",
+      "prediction": "LONG",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:44:59.293449",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "MEMEUSDT",
+      "timeframe": "15m",
+      "prediction": "LONG",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:59:22.399205",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "MEMEUSDT",
+      "timeframe": "15m",
+      "prediction": "LONG",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:43.175984",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
       }
     }
   ],
@@ -10963,6 +12125,20 @@
         "trend": "sideways",
         "volume": "normal"
       }
+    },
+    {
+      "symbol": "1000SHIBUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:29.293567",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
     }
   ],
   "MOCAUSDT": [
@@ -11192,6 +12368,62 @@
         "volatility": "unknown",
         "trend": "sideways",
         "volume": "normal"
+      }
+    },
+    {
+      "symbol": "BANANAS31USDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:35:51.611520",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "BANANAS31USDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:35:55.618799",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "BANANAS31USDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:48:32.200135",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "BANANAS31USDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:48:36.242218",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
       }
     }
   ],
@@ -11855,6 +13087,160 @@
         "trend": "sideways",
         "volume": "low"
       }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:27.117946",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:42.700636",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:49.534123",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:53.932447",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:58.327821",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:05.155554",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:09.553851",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:33.200133",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:40.341694",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:48.163829",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "HIPPOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:06:00.277665",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
     }
   ],
   "NOTUSDT": [
@@ -12181,6 +13567,76 @@
         "trend": "sideways",
         "volume": "low"
       }
+    },
+    {
+      "symbol": "1000CATUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T12:42:14.001820",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "1000CATUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T12:50:37.727457",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000CATUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T12:54:31.973193",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000CATUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T12:59:23.305927",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "1000CATUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T13:36:54.226330",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
     }
   ],
   "DMCUSDT": [
@@ -12366,6 +13822,188 @@
         "volatility": "unknown",
         "trend": "bearish",
         "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:03.716305",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:08.111737",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:12.508357",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:16.901266",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:23.721447",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:39.296090",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:46.128409",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:44.745811",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:53.807069",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:06:04.927851",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:06:09.324412",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:06:12.743044",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DEGENUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:06:17.148807",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
       }
     }
   ],
@@ -15230,6 +16868,230 @@
         "volatility": "unknown",
         "trend": "sideways",
         "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:29.376115",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:38.877366",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:46.086979",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:17.620129",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:33.948967",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:45.383956",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:50:19.551533",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:50:23.941404",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:21.123994",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:00:47.006975",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:06.636111",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:57.882751",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:09:40.540683",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:09:44.935029",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:09:58.572216",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:10:03.033375",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
       }
     }
   ],
@@ -18167,6 +20029,90 @@
         "trend": "bearish",
         "volume": "low"
       }
+    },
+    {
+      "symbol": "ENAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T12:52:57.111696",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "ENAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T12:54:27.535694",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "ENAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T13:00:42.075807",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "ENAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T13:02:32.619946",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "ENAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T13:20:22.564780",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "ENAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T13:30:14.047771",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
     }
   ],
   "CKBUSDT": [
@@ -18547,6 +20493,118 @@
         "trend": "bullish",
         "volume": "normal"
       }
+    },
+    {
+      "symbol": "PIPPINUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:01.722218",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "PIPPINUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:17.345296",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "PIPPINUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:24.391982",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "PIPPINUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:36.172534",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "PIPPINUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:44.792374",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "PIPPINUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:56.087792",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "PIPPINUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:07.362080",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "PIPPINUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:18.629595",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
     }
   ],
   "COSUSDT": [
@@ -18618,6 +20676,62 @@
         "volatility": "unknown",
         "trend": "bearish",
         "volume": "low"
+      }
+    },
+    {
+      "symbol": "COSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:55.095420",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "COSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:55.900116",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "COSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:54:04.673292",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "COSUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:06:23.437036",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
       }
     }
   ],
@@ -18901,6 +21015,76 @@
         "trend": "bullish",
         "volume": "normal"
       }
+    },
+    {
+      "symbol": "TAGUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:54.644915",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "TAGUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:09.219446",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "TAGUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:41.248609",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "TAGUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:52.510754",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "TAGUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:58:08.705761",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
     }
   ],
   "AKEUSDT": [
@@ -18952,6 +21136,20 @@
       "prediction": "SELL",
       "actual_outcome": "BREAKEVEN",
       "timestamp": "2025-10-23T00:55:45.356870",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "AKEUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:28.718028",
       "accuracy": 0,
       "prediction_confidence": 0.5,
       "market_conditions": {
@@ -19346,6 +21544,20 @@
         "volatility": "unknown",
         "trend": "bullish",
         "volume": "low"
+      }
+    },
+    {
+      "symbol": "BASUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-05T03:19:47.703100",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
       }
     }
   ],
@@ -20121,6 +22333,20 @@
         "trend": "bullish",
         "volume": "normal"
       }
+    },
+    {
+      "symbol": "LINEAUSDT",
+      "timeframe": "15m",
+      "prediction": "LONG",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-05T16:33:38.145163",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
     }
   ],
   "XANUSDT": [
@@ -20396,6 +22622,1954 @@
         "volatility": "unknown",
         "trend": "bullish",
         "volume": "low"
+      }
+    }
+  ],
+  "NOMUSDT": [
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:08.346365",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:16.527148",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:25.336620",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:42.472480",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:52.032306",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:36:56.034751",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:04.763127",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:08.693030",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:23.304070",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:40:27.562311",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:40:42.173470",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:41:05.526813",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:41:22.059637",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:41:51.472669",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:42:13.658550",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:42:44.877037",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:48:58.283029",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:05.145896",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:14.203918",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:21.011863",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:37.360976",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:48.792635",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:49:58.140830",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:50:08.102536",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:54:28.712866",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:54:42.983756",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:55:05.767105",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:55:25.318945",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:55:50.094136",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:56:10.604031",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:56:34.421457",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:30.547217",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "NOMUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:16.397930",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    }
+  ],
+  "JCTUSDT": [
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:19.723042",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:28.297932",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:42.636030",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:47.933470",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:05.761668",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:20.717255",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:32.825345",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:40.000694",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:44.735348",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:51.622021",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:38:59.567166",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:10.100751",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:18.343821",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:25.053136",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:35.996291",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:39.440210",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:51.196413",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:58.548989",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:40:03.031685",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:40:12.032765",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:40:52.382531",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:41:11.300072",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:41:39.346189",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:42:03.476624",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:42:18.307580",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:42:56.387063",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:43:10.222679",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:43:34.249486",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:43:52.923323",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:44:17.485833",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:50:27.331968",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:50:36.297720",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:50:45.203301",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:50:54.057695",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:07.695057",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:22.311947",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:33.549883",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:48.191319",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:59.487030",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:10.761497",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:24.205717",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:33.371669",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:44.656948",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:52:59.311309",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:08.869582",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:49.023551",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:54:12.974051",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:54:54.243704",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:55:16.197554",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:55:39.978586",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:56:00.514532",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:56:19.802598",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:56:46.954137",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:56:59.562601",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:57:18.042364",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:57:32.680949",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "JCTUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:58:20.270192",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    }
+  ],
+  "STOUSDT": [
+    {
+      "symbol": "STOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:34.653027",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "STOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:37:39.276113",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "STOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:01.959132",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "STOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:51:18.918923",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "STOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:04:20.320014",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "STOUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:12.977695",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    }
+  ],
+  "DUSDT": [
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:03.257894",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:28.691679",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:44.485693",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:39:54.833636",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:40:22.966320",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:16.751625",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:20.145209",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:24.537174",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:31.336034",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:53:39.463276",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:11.031725",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:23.403628",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "DUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:31.800912",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    }
+  ],
+  "B3USDT": [
+    {
+      "symbol": "B3USDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:44:07.449269",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "B3USDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T09:57:52.339758",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    }
+  ],
+  "SOLVUSDT": [
+    {
+      "symbol": "SOLVUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:01:43.961297",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "SOLVUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:26.063879",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    }
+  ],
+  "CTSIUSDT": [
+    {
+      "symbol": "CTSIUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:02:54.378308",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "CTSIUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:58.100215",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "normal"
+      }
+    }
+  ],
+  "HEMIUSDT": [
+    {
+      "symbol": "HEMIUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:17.221533",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "low"
+      }
+    }
+  ],
+  "FIDAUSDT": [
+    {
+      "symbol": "FIDAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:28.530844",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "FIDAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:31.947110",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "FIDAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:35.350770",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "FIDAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:38.768546",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "FIDAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:03:53.702766",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "FIDAUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T10:05:01.754939",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    }
+  ],
+  "USTCUSDT": [
+    {
+      "symbol": "USTCUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T18:47:40.538679",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    }
+  ],
+  "ZKUSDT": [
+    {
+      "symbol": "ZKUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T23:11:02.311296",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "ZKUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T23:17:05.518285",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "ZKUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T23:21:09.930636",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "ZKUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-04T23:55:20.233294",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "ZKUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-05T00:03:13.056782",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "ZKUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-05T00:04:40.463246",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    }
+  ],
+  "KATUSDT": [
+    {
+      "symbol": "KATUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-05T00:32:28.593216",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "KATUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-05T01:17:56.817661",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    }
+  ],
+  "XNYUSDT": [
+    {
+      "symbol": "XNYUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-05T03:29:34.955120",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bullish",
+        "volume": "high"
+      }
+    }
+  ],
+  "ONGUSDT": [
+    {
+      "symbol": "ONGUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-05T05:43:44.017132",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "bearish",
+        "volume": "normal"
+      }
+    }
+  ],
+  "VETUSDT": [
+    {
+      "symbol": "VETUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-06T00:34:24.032949",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "normal"
+      }
+    },
+    {
+      "symbol": "VETUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-06T00:47:12.124449",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VETUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-06T01:00:16.530392",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "low"
+      }
+    },
+    {
+      "symbol": "VETUSDT",
+      "timeframe": "15m",
+      "prediction": "SHORT",
+      "actual_outcome": "FAILURE",
+      "timestamp": "2026-04-06T20:14:32.256895",
+      "accuracy": 0,
+      "prediction_confidence": 0.5,
+      "market_conditions": {
+        "volatility": "unknown",
+        "trend": "sideways",
+        "volume": "high"
       }
     }
   ]

@@ -1,0 +1,1280 @@
+{
+  "STRAT-8142": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The empty snapshot prevents exact root-cause attribution, but DEGENUSDT shorts typically fail due to three structural weaknesses in standard technical systems: (1) Counter-trend entries against a dominant higher-timeframe (HTF) macro uptrend, (2) Volatility expansion/liquidity squeezes that trigger false breakdowns followed by rapid mean-reversion spikes, and (3) Oscillator divergence where RSI/MACD signal overextension while underlying trend momentum (ADX/EMA slope) ...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-824": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The empty data snapshot prevents exact reconstruction, but 1000SATSUSDT exhibits structural characteristics (low order-book depth, high volatility, frequent liquidity sweeps) that routinely trigger stop hunts. Standard technical indicators (e.g., MA crossovers, RSI thresholds, or fixed-breakout levels) are highly susceptible to lag and false breakdowns in this regime. The stop loss was likely executed on a volatility wick rather than a confirmed bearish structure shift, indic...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-868": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The empty data snapshot prevents precise post-mortem attribution, but institutional sell-stops typically fail due to: (1) false breakdowns in low-volume/low-liquidity regimes, (2) indicator lag during rapid momentum reversals, (3) absence of higher-timeframe trend alignment, and (4) wick-driven stop hunts common in altcoin pairs like RVVUSDT. The proposed patch introduces a multi-layer validation gate that requires HTF bearish bias, volume expansion on breakdown, volatility-a...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-918": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The provided DATA SNAPSHOT is empty, preventing precise attribution of this specific failure. However, institutional post-mortems for EPTUSDT sell-side stop runs consistently reveal three structural weaknesses: (1) false breakdowns triggered by liquidity sweeps below visible support, (2) single-indicator signals lacking volume/momentum confluence, and (3) static or overly tight stop placements that ignore realized volatility (ATR expansion) and recent wick structure. ...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-984": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The empty data snapshot prevents precise root-cause attribution, but PUMPUSDT exhibits classic low-float meme-coin behavior where standard mean-reversion indicators (RSI, MACD, EMA crossovers) fail during momentum-driven breakouts. The short was likely triggered by a lagging oscillator signal that ignored real-time regime shifts: expanding ATR, volume surges above 1.8x average, and price holding above key moving averages. Without a pre-execution validation gate, the s...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-991": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. We have no data snapshot provided, but we can infer that a stop loss triggered on a SELL trade, meaning price went up (since sell position). Technical indicators failed to signal that price would go up, leading to loss. So we need to suggest a logic change: maybe add a volatility filter, or require confirmation from multiple timeframes, or incorporate a trend strength indicator, or add a trailing stop or adjust stop loss based on A...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1002": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The SELL trade",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1019": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. The system: institutional trading post-mortem. Event: Stop loss achieved for YALAUSDT SELL. Trade failed. Why did our technical indicators fail? Data snapshot empty. Need to recommend logic change to prevent this specific failure pattern. Likely need to add extra confirmation, like volume filter, or use higher timeframe, or avoid selling when price near recent high, or use ATR-based stop loss, or add a condition to not trigger SELL...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1029": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nOkay, I need to analyze this trading post-mortem scenario. The user is describing an institutional trading situation where a stop loss was triggered for a HMSTRUSDT short position, and the trade failed. They want me to recommend a logic change to prevent this specific failure pattern.\n\nLooking at the context: \"Stop Loss achieved for HMSTRUSDT Short\" and \"The trade failed. Why did our technical indicators fail here?\" The data snapshot is empty, which is tricky, but I need to infer what might have...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1034": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code. The context: institutional trading post-mortem, stop loss achieved for 1000SATSUSDT Neutral. The trade failed, why did technical indicators fail? Need to recommend a logic change to prevent this specific failure pattern. Provide explanation and code patch for signal_generator.py.\n\nWe don't have the actual code, but we can assume typical structure: signal_generator.py likely contains functions for generating signals based on indica...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1038": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The stop\u2011loss was triggered because the neutral signal was generated during a low\u2011volatility, sideways market where the moving\u2011average crossover and RSI thresholds produced a false entry. The price then experienced a brief spike that hit the stop before the expected mean\u2011reversion could develop. To avoid this pattern, we should require an additional volatility\u2011based filter (e.g., ATR\u2011scaled band) and a confirmation candle before accepting a neutral signal.\",\n  \"strategy_patch...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1049": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The stop\u2011loss was triggered because the neutral signal was generated during a low\u2011volatility, sideways market where the moving\u2011average crossover and RSI thresholds produced a false entry. The price then experienced a brief spike that hit the stop before the expected mean\u2011reversion could develop. To avoid this pattern, we should require an additional volatility\u2011based filter (e.g., ATR\u2011scaled band) and a confirmation candle before accepting a neutral signal.\",\n  \"strategy_patch...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1128": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nOkay, let's break down the user's query. They're asking about an institutional trading post-mortem where a stop loss was hit for a DOGSUSDT Neutral trade. The task is to figure out why the technical indicators failed and recommend a logic change to prevent this in the future. The response needs to be in JSON with 'explanation' and 'strategy_patch_code' for signal_generator.py.\n\nFirst, I need to understand the context. The trade was Neutral for DOGSUSDT, meaning they were probably not taking a di...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1137": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The short entry was triggered solely based on a crossover e",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1141": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The short PTBUSDT trade was stopped out because the price moved upward contrary to the bearish signal. The original logic relied solely on a single\u2011timeframe bearish crossover (e.g., EMA20own",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1154": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nOkay, I need to analyze this institutional trading post-mortem scenario. The event is: \"Stop Loss achieved for BLURUSDT SHORT\" and it says \"The trade failed.\" The context asks why technical indicators failed here, and I need to recommend a logic change to prevent this specific failure pattern.\n\nFirst, I should understand what happened. It's a SHORT position on BLURUSDT that hit the stop loss, meaning the price moved against the short (i.e., price went up when we were short, so we lost money). Th...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1159": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The short PTBUSDT trade was stopped out because the price moved upward contrary to the bearish signal. The original logic relied solely on a single\u2011timeframe bearish crossover (e.g., EMA20own",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1163": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. We have no data snapshot, but we infer that stop loss achieved for GALAUSDT SHORT, trade failed: price went up against short, hitting stop loss. Technical indicators failed: perhaps they gave a short signal but price reversed. Need to suggest logic change: maybe add trend filter, require higher timeframe confirmation, avoid trading against strong upward momentum, add volatility filter, or require price to be below moving average, o...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1170": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code for signal_generator.py. The context: Stop Loss achieved for TOSHIUSDT SHORT, trade failed, technical indicators failed. We need to recommend logic change to prevent this specific failure pattern. Since no data snapshot provided, we must infer generic improvements: maybe add volatility filter, confirm with higher timeframe, require multiple indicator confluence, add trailing stop, or adjust stop loss placement, or incorporate order...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1249": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The data snapshot is empty, but this failure pattern is highly characteristic of volatile, low-liquidity altcoins/memecoins like PIPPINUSDT. Standard technical indicators (RSI, MACD, EMA crosses) fail in this regime because they are lagging and mathematically blind to order book dynamics, liquidity voids, and sudden momentum regime shifts. The short signal likely triggered on a false breakdown, low-volume wick trap, or during a volatility spike that ran stops before t...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1321": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"With an empty data snapshot, the failure is attributed to a well-documented institutional pattern: technical indicators triggered on a false breakdown or liquidity sweep rather than genuine trend continuation. Oscillators and static breakout levels fail in this context because they are lagging, threshold-bound, and blind to regime shifts. Without volume confirmation, higher-timeframe alignment, or volatility-adaptive risk parameters, the system entered a short during low-liqu...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1398": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nOkay, I need to analyze this institutional trading post-mortem scenario. The event is: \"Stop Loss achieved for BLURUSDT SHORT\" and it says \"The trade failed.\" The context asks why technical indicators failed here, and I need to recommend a logic change to prevent this specific failure pattern.\n\nFirst, I should understand what happened. It's a SHORT position on BLURUSDT that hit the stop loss, meaning the price moved against the short (i.e., price went up when we were short, so we lost money). Th...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1410": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The data snapshot is empty, but this failure pattern is highly characteristic of volatile, low-liquidity altcoins/memecoins like PIPPINUSDT. Standard technical indicators (RSI, MACD, EMA crosses) fail in this regime because they are lagging and mathematically blind to order book dynamics, liquidity voids, and sudden momentum regime shifts. The short signal likely triggered on a false breakdown, low-volume wick trap, or during a volatility spike that ran stops before t...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1415": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nOkay, I need to analyze this institutional trading post-mortem scenario. The event is: \"Stop Loss achieved for BLURUSDT SHORT\" and it says \"The trade failed.\" The context asks why technical indicators failed here, and I need to recommend a logic change to prevent this specific failure pattern.\n\nFirst, I should understand what happened. It's a SHORT position on BLURUSDT that hit the stop loss, meaning the price moved against the short (i.e., price went up when we were short, so we lost money). Th...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1421": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The short entry was triggered solely based on a crossover e",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1428": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. The context: Institutional Trading Post-Mortem, event: Stop Loss achieved for COSUSDT SHORT. Trade failed. Why technical indicators failed? Need to recommend logic change to prevent this specific failure pattern. No data snapshot provided. We must infer likely scenario: a short trade on COSUSDT (maybe Cosmos token) triggered stop loss, meaning price moved against short (price went up). Technical indicators gave false signal to go s...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1433": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code. The event: Stop Loss achieved for GUSDT SHORT. Trade failed. Why did technical indicators fail? No data given. We must infer typical failure: maybe false signal due to whipsaw, need to add confirmation, e.g., require volume, trend filter, or use multiple timeframe confirmation, or adjust stop loss placement.\n\nWe need to output JSON with fields: explanation (string) and strategy_patch_code (string) representing code patch for signa...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1442": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code. The event: Stop Loss achieved for GUSDT SHORT. Trade failed. Why did technical indicators fail? No data given. We must infer typical failure: maybe false signal due to whipsaw, need to add confirmation, e.g., require volume, trend filter, or use multiple timeframe confirmation, or adjust stop loss placement.\n\nWe need to output JSON with fields: explanation (string) and strategy_patch_code (string) representing code patch for signa...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1454": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code for signal_generator.py. Need to infer failure pattern: stop loss achieved for B3USDT SHORT, technical indicators failed. Likely need to add confirmation, avoid false signals, maybe incorporate volatility filter, or require trend alignment, or add higher timeframe filter, or require price to be below certain moving average for short, etc.\n\nWe need to output JSON only? Probably yes. Provide explanation and code patch (diff or snippe...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1461": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code. The event: Stop Loss achieved for GUSDT SHORT. Trade failed. Why did technical indicators fail? No data given. We must infer typical failure: maybe false signal due to whipsaw, need to add confirmation, e.g., require volume, trend filter, or use multiple timeframe confirmation, or adjust stop loss placement.\n\nWe need to output JSON with fields: explanation (string) and strategy_patch_code (string) representing code patch for signa...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1487": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The short PTBUSDT trade was stopped out because the price moved upward contrary to the bearish signal. The original logic relied solely on a single\u2011timeframe bearish crossover (e.g., EMA20own",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1501": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. We have no data snapshot, but we infer that stop loss achieved for GALAUSDT SHORT, trade failed: price went up against short, hitting stop loss. Technical indicators failed: perhaps they gave a short signal but price reversed. Need to suggest logic change: maybe add trend filter, require higher timeframe confirmation, avoid trading against strong upward momentum, add volatility filter, or require price to be below moving average, o...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1521": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The provided data snapshot was empty, so specific indicator values cannot be audited. However, failed short signals on highly volatile assets like BOME/USDT typically stem from two patterns: (1) Shorting into a strong momentum reversal without higher-timeframe confirmation, or (2) Static stop-loss placement being triggered by standard volatility wicks before the intended move materializes. The recommended logic change introduces a multi-timeframe trend filter to block...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1592": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"With an empty data snapshot, the failure is inferred from TURBO/USDT's known market microstructure: high retail participation, frequent liquidity sweeps, and sharp mean-reversion. Technical SHORT signals typically fail here due to (1) false breakdowns triggered on declining volume, (2) counter-trend entries against a higher-timeframe (HTF) macro uptrend, and (3) wick-driven stop hunts that pierce support before reversing. Single-timeframe oscillator/MA crosses lack co...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1657": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"Meme coins exhibit non-Gaussian return distributions and frequently decouple from classical technical indicators during sentiment-driven liquidity events. The failed SHORT likely triggered on a standard mean-reversion or breakdown pattern while the market was entering a latent pump phase. Without regime filtering, the signal generator ignored three critical failure precursors: 1) Volatility expansion (ATR spikes typically precede retail FOMO), 2) Volume surges (indicating wha...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1664": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The short signal was triggeredtrigger",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1670": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The provided data snapshot was empty, so specific indicator values cannot be audited. However, failed short signals on highly volatile assets like BOME/USDT typically stem from two patterns: (1) Shorting into a strong momentum reversal without higher-timeframe confirmation, or (2) Static stop-loss placement being triggered by standard volatility wicks before the intended move materializes. The recommended logic change introduces a multi-timeframe trend filter to block...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1675": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The short signal was triggered purely based on a bearish crossover without confirming the broader market context, leading to a stop\u2011loss hit when the price reversed upward. To reduce false short entries, we should require additional confirmation: the price must be below a longer\u2011term trend filter (e.g., 200 the",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1682": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. We have no data snapshot, but we infer that stop loss achieved for GALAUSDT SHORT, trade failed: price went up against short, hitting stop loss. Technical indicators failed: perhaps they gave a short signal but price reversed. Need to suggest logic change: maybe add trend filter, require higher timeframe confirmation, avoid trading against strong upward momentum, add volatility filter, or require price to be below moving average, o...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1696": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code for signal_generator.py. The context: Stop Loss achieved for TOSHIUSDT SHORT, trade failed, technical indicators failed. We need to recommend logic change to prevent this specific failure pattern. Since no data snapshot provided, we must infer generic improvements: maybe add volatility filter, confirm with higher timeframe, require multiple indicator confluence, add trailing stop, or adjust stop loss placement, or incorporate order...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1702": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code for signal_generator.py. We need to infer from context: trade was a short on 1000SATSUSDT, stop loss achieved, trade failed. Likely technical indicators gave false signal. We need to recommend a logic change to prevent this specific failure pattern. Without data, we assume maybe need to add volatility filter, or require confirmation from multiple timeframes, or add ATR-based stop loss distance, or require price to be below a moving ...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1707": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nOkay, I need to analyze this institutional trading post-mortem for a SOLVUSDT SHORT trade where the stop loss was achieved, meaning the trade failed (price moved against the short position, hitting the stop loss). The task is to recommend a logic change to prevent this specific failure pattern, returning JSON with 'explanation' and 'strategy_patch_code' for signal_generator.py.\n\nFirst, since the DATA SNAPSHOT is empty ({}), I have to infer what might have gone wrong based on common trading pitfa...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1712": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. The context: Institutional Trading Post-Mortem, event: Stop Loss achieved for COSUSDT SHORT. Trade failed. Why technical indicators failed? Need to recommend logic change to prevent this specific failure pattern. No data snapshot provided. We must infer likely scenario: a short trade on COSUSDT (maybe Cosmos token) triggered stop loss, meaning price moved against short (price went up). Technical indicators gave false signal to go s...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1717": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"The short PTBUSDT trade was stopped out because the price moved upward contrary to the bearish signal. The original logic relied solely on a single\u2011timeframe bearish crossover (e.g., EMA20own",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1725": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code for signal_generator.py. The context: Stop Loss achieved for TOSHIUSDT SHORT, trade failed, technical indicators failed. We need to recommend logic change to prevent this specific failure pattern. Since no data snapshot provided, we must infer generic improvements: maybe add volatility filter, confirm with higher timeframe, require multiple indicator confluence, add trailing stop, or adjust stop loss placement, or incorporate order...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1736": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nOkay, the user wants a JSON response with 'explanation' and 'strategy_patch_code' for signal_generator.py, regarding a failed short trade on 1000CHEEMSUSDT where stop loss was hit. The context: trade failed, stop loss achieved, meaning price moved against the short (i.e., price went up). They want to know why technical indicators failed and recommend a logic change to prevent this specific failure pattern.\n\nWe need to infer what might have caused the failure. Since no data snapshot provided, we ...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1741": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code. The context: Institutional Trading Post-Mortem: Stop Loss achieved for FIDAUSDT SHORT. The trade failed. Why did technical indicators fail? We need to recommend a logic change to prevent this specific failure pattern. The data snapshot is empty; we have no specifics. We need to infer typical failure: maybe false signal due to whipsaw, need to add confirmation, volatility filter, or use higher timeframe, or add volume confirmation,...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1750": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"With an empty data snapshot, the failure is attributed to a well-documented institutional pattern: technical indicators triggered on a false breakdown or liquidity sweep rather than genuine trend continuation. Oscillators and static breakout levels fail in this context because they are lagging, threshold-bound, and blind to regime shifts. Without volume confirmation, higher-timeframe alignment, or volatility-adaptive risk parameters, the system entered a short during low-liqu...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1759": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. We have no data snapshot, but we infer that stop loss achieved for GALAUSDT SHORT, trade failed: price went up against short, hitting stop loss. Technical indicators failed: perhaps they gave a short signal but price reversed. Need to suggest logic change: maybe add trend filter, require higher timeframe confirmation, avoid trading against strong upward momentum, add volatility filter, or require price to be below moving average, o...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1765": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nOkay, the user is asking about an institutional trading post-mortem for a NOTUSDT SHORT trade where the stop loss was hit, meaning the trade failed. The trade was a short position, so if the stop loss was achieved, that likely means the price moved against the short\u2014i.e., it went up, triggering the stop loss to close the position at a loss.\n\nThe context says: \"The trade failed. Why did our technical indicators fail here?\" And there's a data snapshot, but it's empty: {}.\n\nI need to recommend a lo...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1769": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code. We have no data snapshot, but we infer that stop loss achieved for GALAUSDT SHORT, trade failed: price went up against short, hitting stop loss. Technical indicators failed: perhaps they gave a short signal but price reversed. Need to suggest logic change: maybe add trend filter, require higher timeframe confirmation, avoid trading against strong upward momentum, add volatility filter, or require price to be below moving average, o...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1773": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n{\n  \"explanation\": \"Meme coins exhibit non-Gaussian return distributions and frequently decouple from classical technical indicators during sentiment-driven liquidity events. The failed SHORT likely triggered on a standard mean-reversion or breakdown pattern while the market was entering a latent pump phase. Without regime filtering, the signal generator ignored three critical failure precursors: 1) Volatility expansion (ATR spikes typically precede retail FOMO), 2) Volume surges (indicating wha...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1780": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-3026": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-3039": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-3069": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-3100": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2009": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9133": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered due to a false breakdown below the key support level, followed by a rapid reversal. The technical indicators failed to account for the high volatility and liquidity shifts in the CKBUSDT pair, leading to premature stop loss execution. The current logic does not incorporate volatility adjustments or volume confirmation, which could have filtered out the false signal.\",\n  \"strategy_patch_code\": \"def enhanced_signal_generator(df):\\n    # Calcu...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9149": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The trade failed because the technical indicators did not account for the sudden volatility spike in FUNUSDT, leading to an inaccurate stop loss placement. The indicators failed to detect the rapid price movement, resulting in the stop loss being triggered prematurely.\",\n  \"strategy_patch_code\": \"def enhanced_signal_generator(data):\\n    # Add volatility check\\n    volatility = calculate_volatility(data)\\n    if volatility > THRESHOLD:\\n        adjust_stop_loss(data, ...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9180": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered because the technical indicators failed to detect the sudden price drop and volume spike. The existing signal generator relied too heavily on short-term moving averages and RSI, which did not capture the rapid shift in market sentiment. A more robust approach would incorporate volume analysis and a longer-term moving average to filter out false signals and provide better trend confirmation.\",\n  \"strategy_patch_code\": \"def generate_signals(d...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-4520": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered due to a false breakdown below the key support level, followed by a rapid reversal. The technical indicators failed to account for the low liquidity and potential market manipulation in the XPINUSDT pair, which caused an exaggerated price movement that triggered the stop loss before the actual trend reversal. The indicators were too sensitive to short-term price action without considering volume confirmation and broader market context.\",\n  ...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-4542": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The trade failed because the stop loss was triggered due to unexpected price volatility that was not captured by the existing technical indicators. The indicators may not have accounted for sudden market movements or external factors affecting the asset price.\",\n  \"strategy_patch_code\": \"def enhanced_signal_generator(df):\\n    # Add additional volatility indicators\\n    df['ATR'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], timeperiod=14)\\n  ...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6336": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered because the technical indicators failed to account for a sudden volume spike and price manipulation that occurred during a low-liquidity period. The existing signal logic did not incorporate volume-weighted analysis or anomaly detection, leading to an overly aggressive short position that was vulnerable to rapid price reversals.\",\n  \"strategy_patch_code\": \"def enhanced_signal_generator(df):\\n    # Add volume anomaly detection\\n    df['vol_m...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6358": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered because the price broke below the support level, but our indicators failed to recognize the strength of the bearish momentum. The RSI was in neutral territory and the MACD showed a weak bearish crossover, which was not sufficient to predict the sharp decline. We need to enhance our indicators to better capture strong bearish momentum and incorporate additional confirmation signals.\",\n  \"strategy_patch_code\": \"def enhanced_bearish_signal(pri...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9994": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9827": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-4740": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-5014": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The trade failed because the stop loss was triggered despite the technical indicators suggesting a short position. This indicates that the indicators may not have accurately captured the market's momentum or potential reversal points. The failure could be due to a lag in the indicators, insufficient consideration of market volatility, or an over-reliance on a single technical signal without cross-verification.\",\n  \"strategy_patch_code\": \"def enhanced_signal_generator(...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-5062": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered due to a false breakdown signal below the ascending support line. The price briefly dipped below the support level but quickly recovered, indicating a potential whipsaw rather than a true trend reversal. This suggests the need for additional confirmation filters to avoid premature short entries.\",\n  \"strategy_patch_code\": \"def enhance_signal_generation(df):\\n    # Add RSI confirmation for breakdown signals\\n    df['rsi'] = ta.momentum.rsi(d...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-5112": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9673": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered because the price broke below the 4H 200 EMA and RSI dropped below 30, but the exit signal was delayed due to the lack of a concurrent volume confirmation. The price decline was not accompanied by a significant volume spike, which could have provided an earlier warning of the reversal.\",\n  \"strategy_patch_code\": \"def enhanced_exit_signal(df):\\n    # Check for price breaking below 4H 200 EMA\\n    price_below_ema = df['close'].iloc[-1] < df['...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2957": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered due to a false breakdown signal below the support level, followed by a rapid reversal. The technical indicators failed to account for low liquidity conditions and potential whale manipulation in the SAHARAUSDT pair. The RSI and MACD showed bearish momentum, but volume analysis was insufficient to confirm the breakdown's legitimacy.\",\n  \"strategy_patch_code\": \"def enhanced_volume_filter(df):\\n    \\\"\\\"\\\"\\n    Adds volume confirmation to break...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6078": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The trade failed because the stop loss was triggered, indicating that the price moved against the position beyond the predefined risk threshold. This suggests that the technical indicators used for the short position did not adequately account for potential volatility or unexpected price movements. To prevent this specific failure pattern in the future, the strategy should incorporate additional volatility indicators or adjust the stop loss mechanism to be more adapti...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6117": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to output JSON with explanation and strategy_patch_code for signal_generator.py. No data provided. Need to infer typical failure: stop loss triggered for a long position likely due to false signal; perhaps need to add additional confirmation like volume filter, or require multiple timeframes, or adjust stop loss placement based on ATR, or add trend filter like moving average slope.\n\nWe must produce JSON. Provide explanation and code patch snippet. Assume signal_generator.py has a functio...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7884": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered because the RSI divergence was not strong enough to overcome the sudden price drop. The RSI was in a bullish zone, but the price action did not confirm the bullish trend, leading to a false signal. The strategy should incorporate a more robust confirmation mechanism, such as waiting for a higher low in price and RSI before entering a long position.\",\n  \"strategy_patch_code\": \"def enhanced_rsi_divergence(self, df):\\n    # Calculate RSI\\n    ...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7921": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nWe need to produce JSON with explanation and strategy_patch_code for signal_generator.py. Need to infer failure pattern: Stop loss achieved for FUNUSDT LONG. Likely because technical indicators gave false long signal, market reversed quickly. Suggest adding volatility filter, confirm with higher timeframe, add ATR-based stop loss, or require multiple confirmations (e.g., RSI > 50 and MACD bullish cross plus price above 200 EMA). Also incorporate volume filter. Provide code patch: modify signal g...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6880": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\n```json\n{\n  \"explanation\": \"The stop loss was triggered due to a sharp price drop that our technical indicators failed to anticipate. This suggests our indicators may not be accounting for sudden volatility spikes or lack of volume confirmation before major price moves. We need to enhance our signal generation to incorporate volatility measures and volume-weighted confirmation to filter out false signals during unstable market conditions.\",\n  \"strategy_patch_code\": \"def enhanced_signal_generator...",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9696": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI temporarily unavailable. Using free models only.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2040": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2135": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-8467": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2989": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2455": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-3809": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6748": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6771": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7917": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-8672": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-35": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2234": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2883": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1964": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7049": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7050": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-8992": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2994": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1AC958": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-941FB1": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-BE6AC2": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-F882FA": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-8F076B": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6138EC": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-F0C88D": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-DA87D4": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-EB30BC": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-C81C17": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9EEA19": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-253B37": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-5C6FB8": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-B64865": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-A93F53": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-0D98EB": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-02688F": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-5C3F7A": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-4427AB": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-895FBD": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-59A511": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-07C51F": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-722BFB": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-8909C3": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-FB8EC7": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-78BE5C": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2F11CF": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-D21905": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-41D3D0": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-A71149": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1B2E21": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9FF997": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-53F1A8": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-32A4ED": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1FA24E": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-D93CBE": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-D88411": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6193A4": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-222B09": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-CBC295": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-F8E9E7": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-465910": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7142A6": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-E171FB": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-4638E7": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-94C722": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-23D24F": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-F2B2F9": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-34724A": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9092D0": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-B17612": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-474CD4": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-DD88AC": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2B348C": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-49C857": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-415EAA": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-322BBD": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1B4346": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6645B7": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-442C65": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-CFEE53": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-B78800": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2FE09A": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-134956": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-8E26FA": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-D300C1": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-AF036E": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-295057": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-55B776": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-5DDAE1": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-CA1E90": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-DB896F": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-B405ED": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-6CC36C": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-420C24": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1D0134": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7E6A5B": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-07C449": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-B3105B": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-DF866A": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-E91503": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-EF8340": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-498E54": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-BAC66F": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-65639B": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-AD2C06": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-81F527": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-E1CEDD": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-4BA2BE": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-45BBF3": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-D42AF0": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-E397D0": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-E6447B": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-BA27ED": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-65B859": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-D73328": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-AFA1EF": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-D0E11E": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-94F39A": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-91213B": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-EF731B": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-E0E2A1": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-43CC7D": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-C838B1": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-23690D": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-E24AF9": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-61F73C": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-2DE5A2": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7BA7F5": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-F35D42": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-7BED12": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-896BC1": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-9B397D": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-1F1AF4": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-D79B24": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-BD9623": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  }
+}

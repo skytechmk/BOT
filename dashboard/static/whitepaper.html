@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anunnaki World — Intelligence Platform Whitepaper</title>
+<style>
+  :root {
+    --gold: #f0b90b;
+    --dark: #0a0e17;
+    --surface: #131a27;
+    --border: #2a3444;
+    --text: #e1e7ef;
+    --text-dim: #8899aa;
+    --green: #00d68f;
+    --red: #ff4d6a;
+    --purple: #a78bfa;
+    --blue: #50b4ff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: #fff;
+    color: #1a1a2e;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* ── Cover Page ── */
+  .cover {
+    background: linear-gradient(160deg, #0a0e17 0%, #131a27 60%, #0d1117 100%);
+    color: #e1e7ef;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    text-align: center;
+    page-break-after: always;
+  }
+  .cover .logo-wrap {
+    margin-bottom: 32px;
+  }
+  .cover .logo-wrap img {
+    height: 110px;
+    width: 110px;
+    border-radius: 20px;
+    object-fit: cover;
+    border: 3px solid rgba(240,185,11,0.4);
+    box-shadow: 0 0 40px rgba(240,185,11,0.2);
+  }
+  .cover h1 {
+    font-size: 38px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #f0b90b;
+    margin-bottom: 8px;
+    font-family: 'Georgia', serif;
+  }
+  .cover .tagline {
+    font-size: 16px;
+    color: #8899aa;
+    margin-bottom: 40px;
+    max-width: 480px;
+    font-style: italic;
+  }
+  .cover .cover-divider {
+    width: 80px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #f0b90b, transparent);
+    margin: 32px auto;
+  }
+  .cover .cover-meta {
+    font-size: 12px;
+    color: #5a6a7a;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .cover .cover-domain {
+    font-size: 18px;
+    color: #50b4ff;
+    margin-top: 12px;
+    font-weight: 600;
+  }
+
+  /* ── Content Pages ── */
+  .page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 60px 48px;
+  }
+
+  @media (max-width: 640px) {
+    .page { padding: 32px 20px; }
+    .cover h1 { font-size: 26px; }
+  }
+
+  h2 {
+    font-size: 24px;
+    color: #0a0e17;
+    margin: 48px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #f0b90b;
+    font-family: 'Georgia', serif;
+  }
+  h3 {
+    font-size: 17px;
+    color: #1a1a2e;
+    margin: 28px 0 10px;
+    font-family: 'Georgia', serif;
+  }
+  h4 {
+    font-size: 14px;
+    color: #444;
+    margin: 18px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  p { margin-bottom: 14px; color: #2a2a3e; }
+  ul, ol { margin: 10px 0 16px 24px; }
+  li { margin-bottom: 6px; color: #2a2a3e; }
+  strong { color: #1a1a2e; }
+
+  /* ── Table of Contents ── */
+  .toc { background: #f9f9fc; border: 1px solid #e0e0f0; border-radius: 10px; padding: 28px 32px; margin: 32px 0; }
+  .toc h3 { margin-top: 0; margin-bottom: 16px; color: #0a0e17; }
+  .toc-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ccc; font-size: 13px; }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-num { color: #f0b90b; font-weight: 700; margin-right: 12px; }
+  .toc-page { color: #888; }
+
+  /* ── Highlight boxes ── */
+  .callout {
+    background: #f8f4e8;
+    border-left: 4px solid #f0b90b;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+    font-size: 13px;
+  }
+  .callout.info {
+    background: #eef4ff;
+    border-color: #50b4ff;
+  }
+  .callout.success {
+    background: #eefaf4;
+    border-color: #00d68f;
+  }
+
+  /* ── Tier table ── */
+  .tier-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+  .tier-table th {
+    padding: 10px 14px;
+    text-align: left;
+    background: #0a0e17;
+    color: #f0b90b;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .tier-table th:first-child { border-radius: 8px 0 0 0; }
+  .tier-table th:last-child { border-radius: 0 8px 0 0; }
+  .tier-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e8e8f0;
+    vertical-align: middle;
+  }
+  .tier-table tr:last-child td { border-bottom: none; }
+  .tier-table tr:nth-child(even) td { background: #f9f9fc; }
+  .check { color: #00d68f; font-weight: 700; }
+  .cross { color: #ccc; }
+  .partial { color: #f0b90b; font-weight: 600; }
+  .tier-free { color: #888; font-weight: 700; }
+  .tier-plus { color: #f0b90b; font-weight: 700; }
+  .tier-pro { color: #a78bfa; font-weight: 700; }
+
+  /* ── Tech stack ── */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .tech-card {
+    background: #f9f9fc;
+    border: 1px solid #e0e0f0;
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .tech-card .icon { font-size: 22px; margin-bottom: 6px; }
+  .tech-card .name { font-weight: 700; font-size: 13px; color: #1a1a2e; }
+  .tech-card .desc { font-size: 11px; color: #888; margin-top: 4px; }
+
+  /* ── Data flow diagram ── */
+  .flow {
+    background: #0a0e17;
+    border-radius: 10px;
+    padding: 24px;
+    margin: 20px 0;
+    color: #e1e7ef;
+    font-size: 12px;
+    font-family: monospace;
+    text-align: center;
+    line-height: 2;
+  }
+  .flow .arrow { color: #f0b90b; }
+  .flow .node {
+    display: inline-block;
+    background: #1e2a3a;
+    border: 1px solid #2a3444;
+    border-radius: 6px;
+    padding: 4px 12px;
+    margin: 2px 4px;
+    color: #e1e7ef;
+  }
+  .flow .node.highlight { border-color: #f0b90b; color: #f0b90b; }
+
+  /* ── Disclaimer ── */
+  .disclaimer {
+    background: #fff8f8;
+    border: 1px solid #ffcccc;
+    border-radius: 8px;
+    padding: 18px;
+    margin: 32px 0;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.6;
+  }
+
+  /* ── Footer ── */
+  .wp-footer {
+    background: #0a0e17;
+    color: #5a6a7a;
+    text-align: center;
+    padding: 32px;
+    font-size: 12px;
+    margin-top: 60px;
+  }
+  .wp-footer a { color: #50b4ff; text-decoration: none; }
+
+  /* ── Print styles ── */
+  @media print {
+    body { font-size: 12px; }
+    .cover { min-height: auto; padding: 80px 60px; page-break-after: always; }
+    h2 { page-break-before: auto; }
+    .callout, .tier-table, .tech-grid { page-break-inside: avoid; }
+    .wp-footer { page-break-inside: avoid; }
+    @page { margin: 15mm 20mm; size: A4; }
+  }
+</style>
+</head>
+<body>
+
+<div style="position:fixed;top:16px;right:16px;z-index:999">
+  <a href="/whitepaper/mk" style="background:rgba(240,185,11,0.15);border:1px solid rgba(240,185,11,0.4);color:#f0b90b;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;font-family:sans-serif">🇲🇰 Македонски</a>
+</div>
+
+<!-- ══════════════════ COVER ══════════════════ -->
+<div class="cover">
+  <div class="logo-wrap">
+    <img src="/static/logo.jpeg" alt="Anunnaki World">
+  </div>
+  <h1>Anunnaki World</h1>
+  <p class="tagline">Institutional-Grade Crypto Intelligence Platform — Real-Time Liquidation Analysis, AI Signal Engine &amp; Market Structure Tools</p>
+  <div class="cover-divider"></div>
+  <p style="color:#8899aa;font-size:13px;max-width:520px">
+    This document describes the architecture, data sources, signal methodology, and membership tiers of the Anunnaki World Intelligence Platform — a premium analytics and trading signal service for cryptocurrency futures markets.
+  </p>
+  <div class="cover-divider"></div>
+  <p class="cover-meta">Platform Whitepaper · Version 1.0 · April 2026</p>
+  <p class="cover-domain">anunnakiworld.com</p>
+</div>
+
+<!-- ══════════════════ CONTENT ══════════════════ -->
+<div class="page">
+
+  <!-- Table of Contents -->
+  <div class="toc">
+    <h3>Table of Contents</h3>
+    <div class="toc-item"><span><span class="toc-num">1.</span>Executive Overview</span><span class="toc-page">2</span></div>
+    <div class="toc-item"><span><span class="toc-num">2.</span>The Problem We Solve</span><span class="toc-page">2</span></div>
+    <div class="toc-item"><span><span class="toc-num">3.</span>Data Layer &amp; Market Feeds</span><span class="toc-page">3</span></div>
+    <div class="toc-item"><span><span class="toc-num">4.</span>Liquidation Intelligence Engine</span><span class="toc-page">4</span></div>
+    <div class="toc-item"><span><span class="toc-num">5.</span>AI Signal Engine (Reverse Hunt)</span><span class="toc-page">5</span></div>
+    <div class="toc-item"><span><span class="toc-num">6.</span>Dashboard Features</span><span class="toc-page">6</span></div>
+    <div class="toc-item"><span><span class="toc-num">7.</span>Membership Tiers</span><span class="toc-page">8</span></div>
+    <div class="toc-item"><span><span class="toc-num">8.</span>Technology Stack</span><span class="toc-page">9</span></div>
+    <div class="toc-item"><span><span class="toc-num">9.</span>Risk Disclosure</span><span class="toc-page">10</span></div>
+    <div class="toc-item"><span><span class="toc-num">10.</span>Contact &amp; Community</span><span class="toc-page">10</span></div>
+  </div>
+
+  <!-- 1. Overview -->
+  <h2>1. Executive Overview</h2>
+  <p>
+    Anunnaki World is an institutional-grade cryptocurrency intelligence platform providing real-time market microstructure data, AI-driven trading signals, and advanced risk analysis tools for futures traders. The platform monitors over <strong>538 USDT perpetual futures pairs</strong> on Binance simultaneously, processing millions of data points every minute.
+  </p>
+  <p>
+    Unlike conventional signal services that rely solely on lagging technical indicators, Anunnaki World layers <strong>real liquidation cascade data</strong>, <strong>order book depth</strong>, <strong>volume profile (VPVR)</strong>, and <strong>funding rate intelligence</strong> on top of its proprietary signal engine — giving subscribers a market view typically reserved for quantitative hedge funds.
+  </p>
+  <div class="callout success">
+    <strong>Core Value Proposition:</strong> Know where the smart money is trapped, where cascades are likely to accelerate, and where price is magnetically pulled — before it happens.
+  </div>
+
+  <!-- 2. Problem -->
+  <h2>2. The Problem We Solve</h2>
+  <p>Retail crypto traders face three structural disadvantages in perpetual futures markets:</p>
+  <ol>
+    <li><strong>Asymmetric information</strong> — Exchanges and market makers see real-time liquidation queues. Retail traders don't know where forced selling and buying will occur.</li>
+    <li><strong>Indicator noise</strong> — Standard RSI/MACD/Bollinger signals are lagging, over-optimized, and widely gamed by institutional players who see the same signals.</li>
+    <li><strong>Leverage traps</strong> — Without understanding liquidity structure, traders set stop-losses and take-profits at arbitrary levels — often exactly where market makers hunt for liquidity.</li>
+  </ol>
+  <div class="callout">
+    <strong>Anunnaki World solves this</strong> by giving retail traders access to the same liquidation cascade maps, order flow data, and volume profile tools used by institutional participants — delivered in real-time through a premium web dashboard and Telegram signal channel.
+  </div>
+
+  <!-- 3. Data Layer -->
+  <h2>3. Data Layer &amp; Market Feeds</h2>
+  <p>The platform ingests data from multiple Binance Futures APIs and WebSocket streams simultaneously:</p>
+
+  <h3>3.1 Real-Time Streams (WebSocket)</h3>
+  <ul>
+    <li><strong>forceOrder@arr</strong> — Global liquidation stream covering all USDT perpetual pairs. Captures every forced liquidation event with price, quantity, and side (long/short).</li>
+    <li><strong>kline_1h streams</strong> — Live OHLCV candle data for all monitored pairs, used for indicator calculation and signal generation.</li>
+    <li><strong>markPrice@1s</strong> — Per-pair mark price and funding rate, updated every second from Binance's mark price stream.</li>
+    <li><strong>depth20@500ms</strong> — Order book top-20 bids and asks per pair at 500ms granularity, used for bid/ask wall detection.</li>
+  </ul>
+
+  <h3>3.2 REST API Data</h3>
+  <ul>
+    <li><strong>Open Interest</strong> — Total open positions in USD, refreshed every 60 seconds.</li>
+    <li><strong>Long/Short Ratio</strong> — Top trader positioning data from Binance.</li>
+    <li><strong>Historical Klines</strong> — Up to 7 days of 1h OHLCV data for Volume Profile computation.</li>
+    <li><strong>Funding Rate History</strong> — 24h cumulative funding bias calculation.</li>
+  </ul>
+
+  <div class="flow">
+    <span class="node highlight">Binance Futures WS</span>
+    <span class="arrow"> → </span>
+    <span class="node">Liq Collector</span>
+    <span class="arrow"> → </span>
+    <span class="node">SQLite + In-Memory</span>
+    <span class="arrow"> → </span>
+    <span class="node highlight">Dashboard API</span>
+    <br>
+    <span class="node highlight">kline_1h WS (538 pairs)</span>
+    <span class="arrow"> → </span>
+    <span class="node">Signal Engine</span>
+    <span class="arrow"> → </span>
+    <span class="node">ML Ensemble</span>
+    <span class="arrow"> → </span>
+    <span class="node highlight">Telegram + Dashboard</span>
+  </div>
+
+  <!-- 4. Liquidation Intelligence -->
+  <h2>4. Liquidation Intelligence Engine</h2>
+  <p>
+    The liquidation engine is the most unique component of the platform. It maintains a real-time, rolling <strong>24-hour liquidation heatmap</strong> for every USDT perpetual pair, backed by a persistent SQLite database for historical windows up to 7 days.
+  </p>
+
+  <h3>4.1 How Liquidation Heatmaps Work</h3>
+  <p>
+    Every time a trader is forcibly liquidated on Binance, the exchange broadcasts a <code>forceOrder</code> event containing the price, quantity, and direction. The platform captures every such event — hundreds per minute across the market — and aggregates them into <strong>price buckets</strong> (0.25% bands).
+  </p>
+  <p>
+    Dense clusters of liquidations at a specific price level act as <strong>price magnets</strong>: market makers and algorithmic traders deliberately push price into these zones to trigger cascades, absorb liquidity, and reverse. Visualizing these clusters reveals the hidden market structure that most traders are blind to.
+  </p>
+
+  <h3>4.2 Overlays &amp; Enrichment</h3>
+  <ul>
+    <li><strong>Volume Profile (VPVR)</strong> — Point of Control (POC), Value Area High (VAH), and Value Area Low (VAL) computed from 1h–7d kline data. POC = highest volume node = strongest price magnet.</li>
+    <li><strong>Order Book Depth</strong> — Top bid/ask walls from the live order book, drawn as directional markers on the heatmap.</li>
+    <li><strong>Funding Rate &amp; Bias</strong> — Live funding rate with cumulative 24h bias (LONG_HEAVY / SHORT_HEAVY / NEUTRAL).</li>
+    <li><strong>Open Interest</strong> — Total position size in USD, indicating leverage buildup.</li>
+    <li><strong>Liquidation Velocity</strong> — Per-minute liquidation event rate with spike detection.</li>
+  </ul>
+
+  <h3>4.3 TP/SL Suggester</h3>
+  <p>
+    Using the combined liquidation cluster map, Volume Profile levels, and funding bias, the platform automatically computes suggested Take Profit and Stop Loss levels:
+  </p>
+  <ul>
+    <li><strong>LONG TP</strong> = nearest significant short-liquidation cluster above price (price will be pulled toward it)</li>
+    <li><strong>LONG SL</strong> = just below the nearest strong long-liquidation cluster below price (failed support)</li>
+    <li><strong>Risk:Reward ratio</strong> computed automatically, with VP levels (POC/VAH/VAL) as additional reference points</li>
+  </ul>
+
+  <!-- 5. Signal Engine -->
+  <h2>5. AI Signal Engine — Reverse Hunt Strategy</h2>
+  <p>
+    The signal engine is built around a proprietary strategy called <strong>Reverse Hunt</strong> — a multi-indicator confluence system originally developed as a PineScript strategy for TradingView and ported to Python for automated scanning of 538 pairs simultaneously.
+  </p>
+
+  <h3>5.1 Signal Generation Pipeline</h3>
+  <ol>
+    <li><strong>TSI Extreme Zone Detection</strong> — The True Strength Index (25/13 periods, inverted, /50 scale) enters an extreme overbought or oversold zone (adaptive thresholds at the 90th and 97th percentile of historical TSI values per pair).</li>
+    <li><strong>Zone Exit + Momentum Hook</strong> — TSI exits the zone with directional momentum — indicating exhaustion reversal is beginning.</li>
+    <li><strong>Chandelier Exit Confirmation</strong> — The CE Line layer (ATR-22, lookback-22, mult-3.0) must flip direction within 36 bars of the TSI exit. This is the mandatory trigger.</li>
+    <li><strong>ML Ensemble Validation</strong> — The signal is scored by a 4-model ensemble (BiLSTM, TFT, XGBoost, LightGBM) trained on 447,267 samples across 150 pairs × 6 months of 1h data.</li>
+    <li><strong>Risk Filters</strong> — Portfolio correlation check, circuit breaker, macro risk assessment, and Monte Carlo probability simulation must all pass before the signal is published.</li>
+  </ol>
+
+  <div class="callout info">
+    <strong>ML Ensemble Performance:</strong> F1 = 0.539 across 150 diverse pairs (vs. 0.677 on a 30-pair subset). The ensemble uses stacking meta-learning. Each signal includes a conviction score (3–8) and ML confidence percentage.
+  </div>
+
+  <h3>5.2 Signal Output</h3>
+  <p>Each published signal includes:</p>
+  <ul>
+    <li>Pair, Direction (LONG/SHORT), Timeframe (1h), Entry price</li>
+    <li>Three Take Profit levels (TP1 / TP2 / TP3) with percentage targets</li>
+    <li>Stop Loss level with percentage risk</li>
+    <li>Suggested leverage (risk-adjusted)</li>
+    <li>Conviction score, ML confidence, and Sharpe Quality Index (SQI)</li>
+    <li>Live PnL tracking from entry to current price</li>
+  </ul>
+
+  <!-- 6. Dashboard Features -->
+  <h2>6. Dashboard Features</h2>
+
+  <h3>6.1 Overview Page</h3>
+  <p>Live market statistics, scanner status, top liquidation leaders, and platform health indicators. Updates every 5 seconds.</p>
+
+  <h3>6.2 Signals Page</h3>
+  <p>All active and recent signals with real-time PnL (Plus/Pro), price ladder showing TP/SL distances, status tracking (Active / TP Hit / SL Hit), and historical performance metrics. Free users see signals with a 24-hour delay.</p>
+
+  <h3>6.3 Liquidation Heatmap</h3>
+  <p>The flagship feature. Per-pair heatmap showing:</p>
+  <ul>
+    <li>Long vs. short liquidation clusters (price magnets) in red/green bars</li>
+    <li>VPVR overlay with POC, VAH, VAL lines and volume bars</li>
+    <li>Live mark price line (Binance WebSocket, ~1s updates)</li>
+    <li>Order book bid/ask walls overlay</li>
+    <li>Liquidation velocity sparkline (10-minute window)</li>
+    <li>POC Distance &amp; Bias card (zone detection, gravitational pull verdict)</li>
+    <li>Funding rate, Open Interest, Long/Short ratio context bar</li>
+    <li>TP/SL Suggester with auto-direction detection</li>
+    <li>Time window selection: 1h / 4h / 12h / 24h / 3d / 7d</li>
+  </ul>
+
+  <h3>6.4 Charts Page (Plus/Pro)</h3>
+  <p>TradingView Lightweight Charts with Chandelier Exit overlays, TSI zones, and signal markers. Full historical 1h candle data for all monitored pairs.</p>
+
+  <h3>6.5 Analytics Page (Plus/Pro)</h3>
+  <p>Performance metrics, equity curve, win/loss breakdown by pair and direction, hourly performance heatmap, Sharpe ratio, maximum drawdown, and regime analysis.</p>
+
+  <h3>6.6 Pre-Signal Alerts (Pro)</h3>
+  <p>Pairs that are currently in extreme TSI zones and approaching the CE flip threshold — allowing Pro subscribers to position before the confirmed signal fires. Sorted by readiness: IMMINENT → HIGH → MEDIUM → LOW.</p>
+
+  <!-- 7. Tiers -->
+  <h2>7. Membership Tiers</h2>
+
+  <table class="tier-table">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th class="tier-free">Free</th>
+        <th class="tier-plus">Plus</th>
+        <th class="tier-pro">Pro</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Signals</td>
+        <td><span class="partial">24h delayed</span></td>
+        <td><span class="check">✓ Live</span></td>
+        <td><span class="check">✓ Live</span></td>
+      </tr>
+      <tr>
+        <td>Live PnL tracking</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Liquidation Heatmap</td>
+        <td><span class="partial">Limited (1h only)</span></td>
+        <td><span class="check">✓ All windows</span></td>
+        <td><span class="check">✓ All windows</span></td>
+      </tr>
+      <tr>
+        <td>VPVR + OB Depth overlay</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>TP/SL Suggester</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Interactive Charts</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Performance Analytics</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Pre-Signal Alerts</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓ Exclusive</span></td>
+      </tr>
+      <tr>
+        <td>Telegram Signal Channel</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓ Priority</span></td>
+      </tr>
+      <tr>
+        <td>Pairs monitored</td>
+        <td>Overview only</td>
+        <td>538 pairs</td>
+        <td>538 pairs</td>
+      </tr>
+      <tr>
+        <td>Dashboard refresh rate</td>
+        <td>Manual</td>
+        <td>5 seconds</td>
+        <td>5 seconds</td>
+      </tr>
+      <tr>
+        <td><strong>Monthly Price</strong></td>
+        <td><strong>Free</strong></td>
+        <td><strong>53 USDT / month</strong></td>
+        <td><strong>109 USDT / month</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 8. Tech Stack -->
+  <h2>8. Technology Stack</h2>
+
+  <div class="tech-grid">
+    <div class="tech-card">
+      <div class="icon">🐍</div>
+      <div class="name">Python 3.12</div>
+      <div class="desc">Main runtime, async event loop, signal pipeline</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">⚙️</div>
+      <div class="name">Rust + PyO3</div>
+      <div class="desc">Batch indicator computation via Rayon parallel threads</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">🤖</div>
+      <div class="name">XGBoost + LSTM</div>
+      <div class="desc">4-model ML ensemble trained on 447K samples, GPU-accelerated</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">⚡</div>
+      <div class="name">FastAPI</div>
+      <div class="desc">Async REST API with tier-based access control</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">📡</div>
+      <div class="name">Binance WS</div>
+      <div class="desc">538-pair kline + global liquidation + mark price streams</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">🗄️</div>
+      <div class="name">SQLite</div>
+      <div class="desc">Persistent liquidation history, signal tracking, user auth</div>
+    </div>
+  </div>
+
+  <!-- 9. Disclaimer -->
+  <h2>9. Risk Disclosure</h2>
+  <div class="disclaimer">
+    <strong>IMPORTANT DISCLAIMER — PLEASE READ CAREFULLY</strong><br><br>
+    The information, signals, analysis, and tools provided by Anunnaki World are for <strong>informational and educational purposes only</strong> and do not constitute financial advice, investment advice, trading advice, or any other type of advice. Past performance of signals is not indicative of future results.<br><br>
+    Cryptocurrency and futures trading involves substantial risk of loss. You can lose all of your invested capital. Leverage amplifies both gains and losses. Never trade with money you cannot afford to lose. Always conduct your own research and consult a licensed financial advisor before making trading decisions.<br><br>
+    Anunnaki World, its operators, developers, and affiliates are not responsible for any losses incurred from the use of the platform, its signals, or its analytical tools. By using this platform, you acknowledge and accept these risks in full.
+  </div>
+
+  <!-- 10. Contact -->
+  <h2>10. Contact &amp; Community</h2>
+  <ul>
+    <li><strong>Website:</strong> <a href="https://anunnakiworld.com" style="color:#50b4ff">anunnakiworld.com</a></li>
+    <li><strong>Telegram Signals Channel:</strong> Available to Plus and Pro subscribers after registration</li>
+    <li><strong>Dashboard:</strong> <a href="https://anunnakiworld.com" style="color:#50b4ff">Login at anunnakiworld.com</a></li>
+    <li><strong>Support:</strong> Contact via Telegram Ops channel (details provided upon subscription)</li>
+  </ul>
+
+  <div class="callout info" style="margin-top:32px">
+    <strong>Ready to get started?</strong> Create your free account at <a href="https://anunnakiworld.com" style="color:#50b4ff">anunnakiworld.com</a> and explore the platform. Upgrade to Plus or Pro at any time to unlock full signal access, real-time liquidation heatmaps, and pre-signal alerts.
+  </div>
+
+</div><!-- end .page -->
+
+<div class="wp-footer">
+  <p>© 2026 Anunnaki World Intelligence Platform · <a href="https://anunnakiworld.com">anunnakiworld.com</a></p>
+  <p style="margin-top:6px;font-size:11px">This whitepaper is for informational purposes only. Not financial advice.</p>
+</div>
+
+</body>
+</html>

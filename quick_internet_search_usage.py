@@ -4,6 +4,7 @@ Quick Internet Search Usage - Direct examples
 """
 
 import asyncio
+import json
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -35,7 +36,7 @@ async def quick_internet_search_examples():
     
     try:
         result = await search_internet("crypto trading", "duckduckgo", 3)
-        data = eval(result)
+        data = json.loads(result) if isinstance(result, str) else result
         if data.get("success"):
             print(f"   ✅ Резултат: {data.get('count', 0)} резултати пронајдени")
         else:
@@ -50,7 +51,7 @@ async def quick_internet_search_examples():
     
     try:
         result2 = await search_trading_news("bitcoin analysis")
-        data2 = eval(result2)
+        data2 = json.loads(result2) if isinstance(result2, str) else result2
         if data2.get("success"):
             print(f"   ✅ Резултат: {data2.get('total_queries', 0)} пребарувања извршени")
         else:
@@ -65,7 +66,7 @@ async def quick_internet_search_examples():
     
     try:
         result3 = await search_market_data("BTC")
-        data3 = eval(result3)
+        data3 = json.loads(result3) if isinstance(result3, str) else result3
         if data3.get("success"):
             print(f"   ✅ Резултат: Податоци за {data3.get('symbol', 'BTC')} пронајдени")
         else:

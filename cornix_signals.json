@@ -1,15 +1,2006 @@
 {
-  "test-signal-123": {
-    "timestamp": 1775077722.1663084,
-    "message": "#ONT/USDT Target 1 achieved \ud83d\ude80",
+  "3626033d-1242-4118-8e5d-7317a2e4d8e1": {
+    "timestamp": 1776370820.689844,
+    "message": "#API3/USDT All entries achieved\nAverage Entry Price: 0.3073 \ud83d\udcb5",
     "parsed_data": {
-      "signal_id": "ONT",
-      "pair": "ONTUSDT",
+      "signal_id": "API3",
+      "pair": "API3USDT",
+      "entry": 0.3073,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "2bf4fecc-a8c0-4b2f-8487-780e34f2e8bd": {
+    "timestamp": 1776370817.4242268,
+    "message": "#SUSHI/USDT All entries achieved\nAverage Entry Price: 0.2161 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "SUSHI",
+      "pair": "SUSHIUSDT",
+      "entry": 0.2161,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "247abc82-46aa-4bda-b582-e62a616a3b75": {
+    "timestamp": 1776369930.0879323,
+    "message": "#UMA/USDT All entries achieved\nAverage Entry Price: 0.4566 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "UMA",
+      "pair": "UMAUSDT",
+      "entry": 0.4566,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "7a534c89-75e3-4a37-8c29-ff23da025045": {
+    "timestamp": 1776369638.7479446,
+    "message": "#F/USDT All entries achieved\nAverage Entry Price: 0.005737 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "F",
+      "pair": "FUSDT",
+      "entry": 0.005737,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "81b97f67-7176-4fb3-83da-cf5680c2e395": {
+    "timestamp": 1776377185.5636,
+    "message": "#INIT/USDT Take-Profit target 2 \u2705\nProfit: 12.6386% \ud83d\udcc8\nPeriod: 18 hr 6 min \u23f0",
+    "parsed_data": {
+      "signal_id": "INIT",
+      "pair": "INITUSDT",
+      "targets": [
+        2.0
+      ],
+      "pnl": "12.6386%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 12.6386,
+      "pnl_percentage": true
+    },
+    "status": "TP2_HIT"
+  },
+  "93904ad7-5047-46c6-b3d2-fe546c8d9f1a": {
+    "timestamp": 1776457486.283486,
+    "message": "#ZRX/USDT Cancelled \u274c\nTarget achieved before entering the entry zone",
+    "parsed_data": {
+      "signal_id": "ZRX",
+      "pair": "ZRXUSDT",
+      "targets": [],
+      "status": "CANCELLED"
+    },
+    "status": "SENT"
+  },
+  "efe384b5-a333-4d03-98c6-41a4301ccfb3": {
+    "timestamp": 1776466816.9805932,
+    "message": "#CETUS/USDT Entry 1 \u2705\nAverage Entry Price: 0.02289 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "CETUS",
+      "pair": "CETUSUSDT",
+      "entry": 1.0
+    },
+    "status": "WIN"
+  },
+  "d76a2bfc-46cd-420b-b923-d07d6cf67754": {
+    "timestamp": 1776444327.3609824,
+    "message": "#MTL/USDT Take-Profit target 2 \u2705\nProfit: 14.3909% \ud83d\udcc8\nPeriod: 11 hr 45 min \u23f0",
+    "parsed_data": {
+      "signal_id": "MTL",
+      "pair": "MTLUSDT",
+      "targets": [
+        2.0
+      ],
+      "pnl": "14.3909%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 14.3909,
+      "pnl_percentage": true
+    },
+    "status": "TP2_HIT"
+  },
+  "fbb569fb-99cf-4764-a9a2-b6e3c9f91b66": {
+    "timestamp": 1776448575.0577488,
+    "message": "LONG #BIO/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 2x\nBuy: 0.0241490 - 0.0243910\n\nTarget 1: 0.0257262\nTarget 2: 0.0266970\nTarget 3: 0.0279105\n\nStop: 0.0227600\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 fbb569fb | SQI: 73/167 (C) | Size: 2%\n PARABOLIC | Corr: 0.31\n\ud83d\udcca TSI: -1.99 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.41:1 | Risk: 6.0% (capped)",
+    "parsed_data": {
+      "signal_id": "BIO",
+      "pair": "BIOUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "9f6a056d-6b6e-4b64-b938-8fa82f72c66a": {
+    "timestamp": 1776449059.4488356,
+    "message": "#CRCL/USDT Stop Target Hit \u26d4\nLoss: 5.4564% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "CRCL",
+      "pair": "CRCLUSDT",
+      "targets": [],
+      "pnl": "5.4564%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -5.4564,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "cd5ce40d-a771-44ff-90bb-f82118d078ae": {
+    "timestamp": 1776486368.8593605,
+    "message": "#TRUST/USDT Stop Target Hit \u26d4\nLoss: 5.0% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "TRUST",
+      "pair": "TRUSTUSDT",
+      "targets": [],
+      "pnl": "5.0%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -5.0,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "d8fce7ae-431a-4c1f-84d1-06b5c776fd5d": {
+    "timestamp": 1776498140.0657628,
+    "message": "#DODOX/USDT All targets achieved \ud83d\ude0e\nProfit: 11.2226% \ud83d\udcc8\nPeriod: 11 hr 59 min \u23f0",
+    "parsed_data": {
+      "signal_id": "DODOX",
+      "pair": "DODOXUSDT",
+      "pnl": "11.2226%",
+      "pnl_value": 11.2226,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "38ca3c5e-c750-466b-83cd-20740dd280cb": {
+    "timestamp": 1776449831.0494328,
+    "message": "LONG #XAG/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 7x\nBuy: 79.2203 - 79.3340\n\nTarget 1: 80.0616\nTarget 2: 80.7724\nTarget 3: 82.1940\n\nStop: 77.2200\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 38ca3c5e | SQI: 89/167 (B) | Size: 21%\n CLEAN_TREND | Corr: 0.65\n\ud83d\udcca TSI: -1.59 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.5:1 | Risk: 1.8% (capped)",
+    "parsed_data": {
+      "signal_id": "XAG",
+      "pair": "XAGUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "dd8774d2-ae62-4604-b972-84b4c5fbc864": {
+    "timestamp": 1776451947.8533416,
+    "message": "#XPT/USDT All entries achieved\nAverage Entry Price: 2127.48 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "XPT",
+      "pair": "XPTUSDT",
+      "entry": 2127.48,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "59fcb2b4-4616-4dfa-83d9-ffca0c20e194": {
+    "timestamp": 1776449831.1921942,
+    "message": "LONG #COPPER/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 4x\nBuy: 6.07910 - 6.08391\n\nTarget 1: 6.20912\nTarget 2: 6.23917\nTarget 3: 6.29929\n\nStop: 6.07429\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 59fcb2b4 | SQI: 59/167 (C) | Size: 12%\n CLEAN_TREND | Corr: 0.48\n\ud83d\udcca TSI: -2.13 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.5:1 | Risk: 1.0% (capped)",
+    "parsed_data": {
+      "signal_id": "COPPER",
+      "pair": "COPPERUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "51ee00ce-c3cb-4a7f-aaf9-57e016e4e133": {
+    "timestamp": 1776509715.6884573,
+    "message": "#GOOGL/USDT Stop Target Hit \u26d4\nLoss: 2.9102% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "GOOGL",
+      "pair": "GOOGLUSDT",
+      "targets": [],
+      "pnl": "2.9102%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -2.9102,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "2490d72d-7be2-4ae0-a629-e141b672b1c6": {
+    "timestamp": 1776472513.1254177,
+    "message": "#NVDA/USDT All entries achieved\nAverage Entry Price: 200.7 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "NVDA",
+      "pair": "NVDAUSDT",
+      "entry": 200.7,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "0bd7312c-beb5-402c-90b7-4e92aa435915": {
+    "timestamp": 1776450227.4973629,
+    "message": "#QQQ/USDT All entries achieved\nAverage Entry Price: 647.16 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "QQQ",
+      "pair": "QQQUSDT",
+      "entry": 647.16,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "e133324d-53c2-4e7f-bbf5-b3f004bf326b": {
+    "timestamp": 1776453126.8397458,
+    "message": "#SPY/USDT All entries achieved\nAverage Entry Price: 708.91 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "SPY",
+      "pair": "SPYUSDT",
+      "entry": 708.91,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "d16dee96-ceb6-4bbf-b4a4-f65b82be2769": {
+    "timestamp": 1776451781.5456145,
+    "message": "#AMZN/USDT All entries achieved\nAverage Entry Price: 252.03 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "AMZN",
+      "pair": "AMZNUSDT",
+      "entry": 252.03,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "a1b5935d-e971-411d-af67-c2b34d051546": {
+    "timestamp": 1776455020.8874853,
+    "message": "#TSLA/USDT All entries achieved\nAverage Entry Price: 402.21 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "TSLA",
+      "pair": "TSLAUSDT",
+      "entry": 402.21,
+      "status": "CLOSED"
+    },
+    "status": "CANCELLED"
+  },
+  "030c0adc-d35b-4de4-8816-e723481927dc": {
+    "timestamp": 1776510564.1728923,
+    "message": "#META/USDT Entry 1 \u2705\nAverage Entry Price: 685.55 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "META",
+      "pair": "METAUSDT",
+      "entry": 1.0
+    },
+    "status": "SENT"
+  },
+  "8aabe14c-39a5-48e4-bcb8-c8d051e1c6a0": {
+    "timestamp": 1776463221.9906125,
+    "message": "LONG #ALCH/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 2x\nBuy: 0.0784855 - 0.0788266\n\nTarget 1: 0.0834717\nTarget 2: 0.0856036\nTarget 3: 0.0898674\n\nStop: 0.0750000\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 8aabe14c | SQI: 84/167 (B) | Size: 7%\n PARABOLIC | Corr: 0.23\n\ud83d\udcca TSI: -1.29 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.53:1 | Risk: 5.4% (capped)",
+    "parsed_data": {
+      "signal_id": "ALCH",
+      "pair": "ALCHUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "df584eb8-e4a8-4f1e-85c3-94f6595922b7": {
+    "timestamp": 1776484861.385769,
+    "message": "#FLOW/USDT Stop Target Hit \u26d4\nLoss: 6.6863% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "FLOW",
+      "pair": "FLOWUSDT",
+      "targets": [],
+      "pnl": "6.6863%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -6.6863,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "32aadbbc-08bc-4ff6-88e7-c13696c84ed8": {
+    "timestamp": 1776510939.793645,
+    "message": "#INIT/USDT Take-Profit target 2 \u2705\nProfit: 8.6162% \ud83d\udcc8\nPeriod: 13 hr 15 min \u23f0",
+    "parsed_data": {
+      "signal_id": "INIT",
+      "pair": "INITUSDT",
+      "targets": [
+        2.0
+      ],
+      "pnl": "8.6162%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 8.6162,
+      "pnl_percentage": true
+    },
+    "status": "TP2_HIT"
+  },
+  "a3b0d768-2988-4f4a-9ade-4bdb496c5bdf": {
+    "timestamp": 1776511304.567977,
+    "message": "#API3/USDT Take-Profit target 2 \u2705\nProfit: 7.0388% \ud83d\udcc8\nPeriod: 13 hr 21 min \u23f0",
+    "parsed_data": {
+      "signal_id": "API3",
+      "pair": "API3USDT",
+      "targets": [
+        2.0
+      ],
+      "pnl": "7.0388%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 7.0388,
+      "pnl_percentage": true
+    },
+    "status": "TP2_HIT"
+  },
+  "e2de6aca-c73d-4430-91c8-6aee0bec89dd": {
+    "timestamp": 1776506687.275583,
+    "message": "#XRP/USDT Stop Target Hit \u26d4\nLoss: 14.0143% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "XRP",
+      "pair": "XRPUSDT",
+      "targets": [],
+      "pnl": "14.0143%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -14.0143,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "368f774a-2d5d-4b66-90cc-cfffa3ae3fc9": {
+    "timestamp": 1776506628.7728834,
+    "message": "#CRV/USDT Stop Target Hit \u26d4\nLoss: 8.2645% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "CRV",
+      "pair": "CRVUSDT",
+      "targets": [],
+      "pnl": "8.2645%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -8.2645,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "0baad0f9-ef56-4a56-be03-10182c283ceb": {
+    "timestamp": 1776470430.7280316,
+    "message": "#SPELL/USDT All entries achieved\nAverage Entry Price: 0.0001743 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "SPELL",
+      "pair": "SPELLUSDT",
+      "entry": 0.0001743,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "e78585bd-4ef6-4892-825c-0e15ea2e57e4": {
+    "timestamp": 1776508242.7257092,
+    "message": "#PROVE/USDT Stop Target Hit \u26d4\nLoss: 12.5908% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "PROVE",
+      "pair": "PROVEUSDT",
+      "targets": [],
+      "pnl": "12.5908%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -12.5908,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "afe4c328-3a72-4511-9931-54d563aeb140": {
+    "timestamp": 1776495164.3026843,
+    "message": "#CGPT/USDT Take-Profit target 1 \u2705\nProfit: 8.207% \ud83d\udcc8\nPeriod: 6 hr 52 min \u23f0",
+    "parsed_data": {
+      "signal_id": "CGPT",
+      "pair": "CGPTUSDT",
       "targets": [
         1.0
       ],
-      "status": "TARGET_ACHIEVED"
+      "pnl": "8.207%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 8.207,
+      "pnl_percentage": true
     },
-    "status": "TP_HIT"
+    "status": "TP1_HIT"
+  },
+  "d6b3a85d-94b9-4d3b-a898-a62af825cbdc": {
+    "timestamp": 1776499409.2876418,
+    "message": "#ARPA/USDT All targets achieved \ud83d\ude0e\nProfit: 18.1551% \ud83d\udcc8\nPeriod: 8 hr 3 min \u23f0",
+    "parsed_data": {
+      "signal_id": "ARPA",
+      "pair": "ARPAUSDT",
+      "pnl": "18.1551%",
+      "pnl_value": 18.1551,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "14fb463a-0f68-4782-91a3-192c0a0648bd": {
+    "timestamp": 1776491898.4047678,
+    "message": "#ALICE/USDT All targets achieved \ud83d\ude0e\nProfit: 17.393% \ud83d\udcc8\nPeriod: 4 hr 58 min \u23f0",
+    "parsed_data": {
+      "signal_id": "ALICE",
+      "pair": "ALICEUSDT",
+      "pnl": "17.393%",
+      "pnl_value": 17.393,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "974aa32a-855a-4919-9843-7642e13beb93": {
+    "timestamp": 1776498002.5622015,
+    "message": "#FOGO/USDT Take-Profit target 1 \u2705\nProfit: 6.3221% \ud83d\udcc8\nPeriod: 6 hr 39 min \u23f0",
+    "parsed_data": {
+      "signal_id": "FOGO",
+      "pair": "FOGOUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "6.3221%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 6.3221,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "b977032d-06c9-4a8f-9c3d-464c7726d4bd": {
+    "timestamp": 1776474032.2001727,
+    "message": "#ARK/USDT All entries achieved\nAverage Entry Price: 0.1781 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "ARK",
+      "pair": "ARKUSDT",
+      "entry": 0.1781,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "875b7f2a-2480-4094-816c-bb389838857d": {
+    "timestamp": 1776474031.5362594,
+    "message": "#BIRB/USDT All entries achieved\nAverage Entry Price: 0.14661 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "BIRB",
+      "pair": "BIRBUSDT",
+      "entry": 0.14661,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "a1089c33-676a-4bb3-b486-54dd70b89494": {
+    "timestamp": 1776538515.2438002,
+    "message": "#AEVO/USDT Closed at stoploss after reaching take profit \u26a0\nProfit: 7.7926% \ud83d\udcc8",
+    "parsed_data": {
+      "signal_id": "AEVO",
+      "pair": "AEVOUSDT",
+      "pnl": "7.7926%",
+      "status": "CLOSED",
+      "pnl_value": -7.7926,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "9bafc940-8a66-427f-a993-ef6b9c1d067d": {
+    "timestamp": 1776509870.8403633,
+    "message": "#AIXBT/USDT Closed at stoploss after reaching take profit \u26a0\nProfit: 6.9528% \ud83d\udcc8",
+    "parsed_data": {
+      "signal_id": "AIXBT",
+      "pair": "AIXBTUSDT",
+      "pnl": "6.9528%",
+      "status": "CLOSED",
+      "pnl_value": -6.9528,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "4d72a560-790e-46bc-8b04-da85f3b77679": {
+    "timestamp": 1776507132.7368493,
+    "message": "#1000BONK/USDT Stop Target Hit \u26d4\nLoss: 9.8353% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "1000BONK",
+      "pair": "1000BONKUSDT",
+      "targets": [],
+      "pnl": "9.8353%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -9.8353,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "615dae7c-eb13-4f52-9ea9-4d228a360783": {
+    "timestamp": 1776498889.5368738,
+    "message": "#VINE/USDT Take-Profit target 1 \u2705\nProfit: 10.0341% \ud83d\udcc8\nPeriod: 5 hr 54 min \u23f0",
+    "parsed_data": {
+      "signal_id": "VINE",
+      "pair": "VINEUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "10.0341%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 10.0341,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "14542681-a4d2-4763-9243-97c5a0c472eb": {
+    "timestamp": 1776478601.9265697,
+    "message": "#VANA/USDT Cancelled \u274c\nTarget achieved before entering the entry zone",
+    "parsed_data": {
+      "signal_id": "VANA",
+      "pair": "VANAUSDT",
+      "targets": [],
+      "status": "CANCELLED"
+    },
+    "status": "SENT"
+  },
+  "6b2fc5b0-f708-411f-b8b2-2491368d8885": {
+    "timestamp": 1776477674.912063,
+    "message": "#ZIL/USDT All entries achieved\nAverage Entry Price: 0.00415 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "ZIL",
+      "pair": "ZILUSDT",
+      "entry": 0.00415,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "74181347-f35b-4a87-b508-dcab63c7c876": {
+    "timestamp": 1776484811.8455834,
+    "message": "#BAND/USDT All entries achieved\nAverage Entry Price: 0.2330 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "BAND",
+      "pair": "BANDUSDT",
+      "entry": 0.233,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "ecef4b20-e3ea-4837-ba35-4bd67ee8dd18": {
+    "timestamp": 1776556819.5544946,
+    "message": "#2Z/USDT Closed at stoploss after reaching take profit \u26a0\nLoss: 1.0749% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "2Z",
+      "pair": "2ZUSDT",
+      "pnl": "1.0749%",
+      "status": "CLOSED",
+      "pnl_value": -1.0749,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "62c876f4-6499-4e85-91ba-9b950856bf3a": {
+    "timestamp": 1776496845.0500774,
+    "message": "#PROMPT/USDT Take-Profit target 1 \u2705\nProfit: 9.2411% \ud83d\udcc8\nPeriod: 4 hr 20 min \u23f0",
+    "parsed_data": {
+      "signal_id": "PROMPT",
+      "pair": "PROMPTUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "9.2411%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 9.2411,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "e21182d1-3f8d-4ca7-9a57-abd7b875a453": {
+    "timestamp": 1776500497.130359,
+    "message": "#VANRY/USDT All targets achieved \ud83d\ude0e\nProfit: 22.3925% \ud83d\udcc8\nPeriod: 5 hr 21 min \u23f0",
+    "parsed_data": {
+      "signal_id": "VANRY",
+      "pair": "VANRYUSDT",
+      "pnl": "22.3925%",
+      "pnl_value": 22.3925,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "98616027-ddde-4703-b086-15770fbb3353": {
+    "timestamp": 1776501425.3713102,
+    "message": "#SPX/USDT Stop Target Hit \u26d4\nLoss: 9.7535% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "SPX",
+      "pair": "SPXUSDT",
+      "targets": [],
+      "pnl": "9.7535%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -9.7535,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "1c3c790c-27bf-4fe3-a663-63b4d0decffc": {
+    "timestamp": 1776505901.3213727,
+    "message": "#PRL/USDT Stop Target Hit \u26d4\nLoss: 12.0964% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "PRL",
+      "pair": "PRLUSDT",
+      "targets": [],
+      "pnl": "12.0964%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -12.0964,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "2daed762-43e7-4591-9a9b-cbcb401a6855": {
+    "timestamp": 1776490392.5236237,
+    "message": "#DIA/USDT All targets achieved \ud83d\ude0e\nProfit: 18.5338% \ud83d\udcc8\nPeriod: 1 hr 33 min \u23f0",
+    "parsed_data": {
+      "signal_id": "DIA",
+      "pair": "DIAUSDT",
+      "pnl": "18.5338%",
+      "pnl_value": 18.5338,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "e8a0df10-86a5-4e09-899c-7768d0555955": {
+    "timestamp": 1776561777.4594514,
+    "message": "#MOCA/USDT Stop Target Hit \u26d4\nLoss: 14.9896% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "MOCA",
+      "pair": "MOCAUSDT",
+      "targets": [],
+      "pnl": "14.9896%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -14.9896,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "5d7397c2-7ce0-46f3-b6b1-04f817d72c5e": {
+    "timestamp": 1776500285.9830263,
+    "message": "#ETHFI/USDT All entries achieved\nAverage Entry Price: 0.5147 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "ETHFI",
+      "pair": "ETHFIUSDT",
+      "entry": 0.5147,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "2df62381-e048-47c2-aefe-46f8ff099d93": {
+    "timestamp": 1776558476.674979,
+    "message": "#BICO/USDT Stop Target Hit \u26d4\nLoss: 11.0762% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "BICO",
+      "pair": "BICOUSDT",
+      "targets": [],
+      "pnl": "11.0762%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -11.0762,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "061c3990-0979-4da8-9fc2-c02114ec3f85": {
+    "timestamp": 1776493822.5178134,
+    "message": "#DENT/USDT Stop Target Hit \u26d4\nLoss: 13.136% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "DENT",
+      "pair": "DENTUSDT",
+      "targets": [],
+      "pnl": "13.136%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -13.136,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "331a4848-b0c4-418d-99e1-281b396c2f30": {
+    "timestamp": 1776499297.2720485,
+    "message": "#WAXP/USDT Take-Profit target 2 \u2705\nProfit: 15.3625% \ud83d\udcc8\nPeriod: 3 hr 1 min \u23f0",
+    "parsed_data": {
+      "signal_id": "WAXP",
+      "pair": "WAXPUSDT",
+      "targets": [
+        2.0
+      ],
+      "pnl": "15.3625%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 15.3625,
+      "pnl_percentage": true
+    },
+    "status": "TP2_HIT"
+  },
+  "df9a4881-4837-4730-8e21-76ed49e6e943": {
+    "timestamp": 1776493611.4793415,
+    "message": "#SCR/USDT Take-Profit target 1 \u2705\nProfit: 11.6875% \ud83d\udcc8\nPeriod: 1 hr 26 min \u23f0",
+    "parsed_data": {
+      "signal_id": "SCR",
+      "pair": "SCRUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "11.6875%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 11.6875,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "243aa737-643a-4bab-a3dc-1e2488bd619b": {
+    "timestamp": 1776506093.668526,
+    "message": "#COTI/USDT All entries achieved\nAverage Entry Price: 0.01532 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "COTI",
+      "pair": "COTIUSDT",
+      "entry": 0.01532,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "e4abeb49-ceba-4698-8d22-d8f938b4f869": {
+    "timestamp": 1776569303.9314475,
+    "message": "#SKYAI/USDT Stop Target Hit \u26d4\nLoss: 12.5819% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "SKYAI",
+      "pair": "SKYAIUSDT",
+      "targets": [],
+      "pnl": "12.5819%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -12.5819,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "27ee0604-0f19-4d51-bde1-18d70570d779": {
+    "timestamp": 1776565814.251468,
+    "message": "#KNC/USDT Stop Target Hit \u26d4\nLoss: 15.2778% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "KNC",
+      "pair": "KNCUSDT",
+      "targets": [],
+      "pnl": "15.2778%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -15.2778,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "c17b0ef6-1235-4797-a2bd-0c6db228e601": {
+    "timestamp": 1776492219.5565946,
+    "message": "#ZKJ/USDT Cancelled \u274c\nTarget achieved before entering the entry zone",
+    "parsed_data": {
+      "signal_id": "ZKJ",
+      "pair": "ZKJUSDT",
+      "targets": [],
+      "status": "CANCELLED"
+    },
+    "status": "SENT"
+  },
+  "ca2371e6-5717-447d-880e-430e2bf3c251": {
+    "timestamp": 1776501403.8094552,
+    "message": "#ARB/USDT All entries achieved\nAverage Entry Price: 0.1307 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "ARB",
+      "pair": "ARBUSDT",
+      "entry": 0.1307,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "d6de26f0-6460-4b9c-a4ea-966776d0ac83": {
+    "timestamp": 1776501307.2991776,
+    "message": "#GALA/USDT All entries achieved\nAverage Entry Price: 0.00346 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "GALA",
+      "pair": "GALAUSDT",
+      "entry": 0.00346,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "d20bb9ff-a59c-4e82-acb9-a12c3289641f": {
+    "timestamp": 1776509521.5944252,
+    "message": "#BAT/USDT Stop Target Hit \u26d4\nLoss: 10.6972% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "BAT",
+      "pair": "BATUSDT",
+      "targets": [],
+      "pnl": "10.6972%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -10.6972,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "0a0811a8-5b54-4915-a011-cf3c643bb625": {
+    "timestamp": 1776506762.4601872,
+    "message": "#OGN/USDT Stop Target Hit \u26d4\nLoss: 5.1239% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "OGN",
+      "pair": "OGNUSDT",
+      "targets": [],
+      "pnl": "5.1239%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -5.1239,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "80084558-12d8-45b2-a6a8-117438a89a1b": {
+    "timestamp": 1776498140.8616762,
+    "message": "#OPN/USDT All entries achieved\nAverage Entry Price: 0.2034 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "OPN",
+      "pair": "OPNUSDT",
+      "entry": 0.2034,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "c6df5d8b-2629-47be-8ba8-f34c7c7aeefa": {
+    "timestamp": 1776565489.672662,
+    "message": "#POL/USDT Stop Target Hit \u26d4\nLoss: 11.6882% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "POL",
+      "pair": "POLUSDT",
+      "targets": [],
+      "pnl": "11.6882%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -11.6882,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "60906131-1d14-4bda-922c-3260f8bcd5b1": {
+    "timestamp": 1776496515.9722936,
+    "message": "#MAGIC/USDT All targets achieved \ud83d\ude0e\nProfit: 16.5712% \ud83d\udcc8\nPeriod: 7 hr 15 min \u23f0",
+    "parsed_data": {
+      "signal_id": "MAGIC",
+      "pair": "MAGICUSDT",
+      "pnl": "16.5712%",
+      "pnl_value": 16.5712,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "af3dd2d9-84c2-4a42-b7b3-9a83e653cc78": {
+    "timestamp": 1776497265.002355,
+    "message": "#CETUS/USDT All targets achieved \ud83d\ude0e\nProfit: 14.6181% \ud83d\udcc8\nPeriod: 1 day 6 hr \u23f0",
+    "parsed_data": {
+      "signal_id": "CETUS",
+      "pair": "CETUSUSDT",
+      "pnl": "14.6181%",
+      "pnl_value": 14.6181,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "765a8964-d70e-4cf7-bea2-2cd436303379": {
+    "timestamp": 1776499362.1024556,
+    "message": "#KAT/USDT All entries achieved\nAverage Entry Price: 0.00951 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "KAT",
+      "pair": "KATUSDT",
+      "entry": 0.00951,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "378fbe47-78ed-4551-bf74-17a7ef999b43": {
+    "timestamp": 1776506540.740527,
+    "message": "#MANA/USDT Stop Target Hit \u26d4\nLoss: 9.4943% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "MANA",
+      "pair": "MANAUSDT",
+      "targets": [],
+      "pnl": "9.4943%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -9.4943,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "728abf85-0c0e-48d6-ab99-cee97dc9a0f1": {
+    "timestamp": 1776502904.487258,
+    "message": "#FLUX/USDT All entries achieved\nAverage Entry Price: 0.06603 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "FLUX",
+      "pair": "FLUXUSDT",
+      "entry": 0.06603,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "8e0dd95c-80d4-4f98-adb5-2039ada96542": {
+    "timestamp": 1776503708.8947434,
+    "message": "#CLO/USDT All entries achieved\nAverage Entry Price: 0.13136 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "CLO",
+      "pair": "CLOUSDT",
+      "entry": 0.13136,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "f8ad9148-11c9-4237-a202-531928c0f09b": {
+    "timestamp": 1776506425.2217915,
+    "message": "#MITO/USDT Entered entry zone \u2705",
+    "parsed_data": {
+      "signal_id": "MITO",
+      "pair": "MITOUSDT"
+    },
+    "status": "SENT"
+  },
+  "bd1d17b4-5163-4d1d-9384-c6fc102c9af9": {
+    "timestamp": 1776565397.259432,
+    "message": "#AGLD/USDT Stop Target Hit \u26d4\nLoss: 9.4962% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "AGLD",
+      "pair": "AGLDUSDT",
+      "targets": [],
+      "pnl": "9.4962%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -9.4962,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "07d89058-4ec0-4eb0-9429-2fd81783b471": {
+    "timestamp": 1776564339.7225246,
+    "message": "#ERA/USDT Take-Profit target 1 \u2705\nProfit: 7.7259% \ud83d\udcc8\nPeriod: 7 hr 5 min \u23f0",
+    "parsed_data": {
+      "signal_id": "ERA",
+      "pair": "ERAUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "7.7259%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 7.7259,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "002990fe-9aae-4e6c-abbd-e0f1cbbd4913": {
+    "timestamp": 1776542618.1018999,
+    "message": "#VIC/USDT All entries achieved\nAverage Entry Price: 0.05608 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "VIC",
+      "pair": "VICUSDT",
+      "entry": 0.05608,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "c465fa38-fe03-476e-a8ef-b474373fd9a2": {
+    "timestamp": 1776557771.303114,
+    "message": "#TSLA/USDT All entries achieved\nAverage Entry Price: 400.61 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "TSLA",
+      "pair": "TSLAUSDT",
+      "entry": 400.61,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "b990c1d5-847f-4308-862a-ff7baa8134e5": {
+    "timestamp": 1776612336.855272,
+    "message": "#RONIN/USDT Stop Target Hit \u26d4\nLoss: 10.0691% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "RONIN",
+      "pair": "RONINUSDT",
+      "targets": [],
+      "pnl": "10.0691%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -10.0691,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "d9351584-5503-40d7-a55f-c3957d6aaa1d": {
+    "timestamp": 1776565782.1477232,
+    "message": "#UMA/USDT Stop Target Hit \u26d4\nLoss: 7.6687% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "UMA",
+      "pair": "UMAUSDT",
+      "targets": [],
+      "pnl": "7.6687%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -7.6687,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "32bb6d07-a8f7-4875-a64b-f4471f340fe3": {
+    "timestamp": 1776637267.849815,
+    "message": "#TLM/USDT Stop Target Hit \u26d4\nLoss: 9.6122% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "TLM",
+      "pair": "TLMUSDT",
+      "targets": [],
+      "pnl": "9.6122%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -9.6122,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "c2e0c454-6583-4594-b773-0de99f2c07fd": {
+    "timestamp": 1776560429.0154307,
+    "message": "#SFP/USDT All entries achieved\nAverage Entry Price: 0.3069 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "SFP",
+      "pair": "SFPUSDT",
+      "entry": 0.3069,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "820c6433-1de0-4075-8d54-cc57b30409e8": {
+    "timestamp": 1776636082.4922545,
+    "message": "#XRP/USDT Stop Target Hit \u26d4\nLoss: 8.7139% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "XRP",
+      "pair": "XRPUSDT",
+      "targets": [],
+      "pnl": "8.7139%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -8.7139,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "fe5d8600-1a1c-4ada-bd1b-170c85eec742": {
+    "timestamp": 1776636288.1438963,
+    "message": "#ACX/USDT Stop Target Hit \u26d4\nLoss: 17.6444% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "ACX",
+      "pair": "ACXUSDT",
+      "targets": [],
+      "pnl": "17.6444%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -17.6444,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "38186fc3-aeab-4712-a85f-c965a3b9bb0e": {
+    "timestamp": 1776572406.9788015,
+    "message": "#DODOX/USDT Stop Target Hit \u26d4\nLoss: 7.6128% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "DODOX",
+      "pair": "DODOXUSDT",
+      "targets": [],
+      "pnl": "7.6128%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -7.6128,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "22ee40ff-773b-44aa-96ce-d401943f21fe": {
+    "timestamp": 1776574851.4406881,
+    "message": "#RESOLV/USDT All entries achieved\nAverage Entry Price: 0.03233 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "RESOLV",
+      "pair": "RESOLVUSDT",
+      "entry": 0.03233,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "78b31262-4841-404c-ae6b-d92af107b0a4": {
+    "timestamp": 1776587631.4812427,
+    "message": "#ETHW/USDT All entries achieved\nAverage Entry Price: 0.2835 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "ETHW",
+      "pair": "ETHWUSDT",
+      "entry": 0.2835,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "99b3cec3-09ff-4b41-b7ab-26320f850635": {
+    "timestamp": 1776592352.9985816,
+    "message": "#TOWNS/USDT Entered entry zone \u2705",
+    "parsed_data": {
+      "signal_id": "TOWNS",
+      "pair": "TOWNSUSDT"
+    },
+    "status": "SENT"
+  },
+  "3ee20d00-ccd5-4ca8-b6a8-6e8c69d2430b": {
+    "timestamp": 1776632256.2790527,
+    "message": "#INIT/USDT Stop Target Hit \u26d4\nLoss: 10.2693% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "INIT",
+      "pair": "INITUSDT",
+      "targets": [],
+      "pnl": "10.2693%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -10.2693,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "1abd690a-4a2a-4272-9629-0abcb5d69abb": {
+    "timestamp": 1776639609.999274,
+    "message": "#HMSTR/USDT All entries achieved\nAverage Entry Price: 0.0001485 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "HMSTR",
+      "pair": "HMSTRUSDT",
+      "entry": 0.0001485,
+      "status": "CLOSED"
+    },
+    "status": "WIN"
+  },
+  "8eca3008-2acc-4650-b8e4-1683789f47e1": {
+    "timestamp": 1776604892.3151298,
+    "message": "#BEAMX/USDT Cancelled \u274c\nTarget achieved before entering the entry zone",
+    "parsed_data": {
+      "signal_id": "BEAMX",
+      "pair": "BEAMXUSDT",
+      "targets": [],
+      "status": "CANCELLED"
+    },
+    "status": "SENT"
+  },
+  "c427e5fc-95bf-421c-ad3e-00f3fa948f69": {
+    "timestamp": 1776596197.8367178,
+    "message": "LONG #CGPT/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 4x\nBuy: 0.0205216 - 0.0205784\n\nTarget 1: 0.0212608\nTarget 2: 0.0216162\nTarget 3: 0.0223270\n\nStop: 0.0198100\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 c427e5fc | SQI: 83/167 (B) | Size: 11%\n PARABOLIC | Corr: 0.46\n\ud83d\udcca TSI: -0.81 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.4:1 | Risk: 3.5% (capped)",
+    "parsed_data": {
+      "signal_id": "CGPT",
+      "pair": "CGPTUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "d6ec22f0-2a40-4a79-a41a-559536dbe13c": {
+    "timestamp": 1776596199.6725368,
+    "message": "LONG #LISTA/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 2x\nBuy: 0.0813802 - 0.0816598\n\nTarget 1: 0.0850159\nTarget 2: 0.0867638\nTarget 3: 0.0902596\n\nStop: 0.0779500\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 d6ec22f0 | SQI: 77/167 (C) | Size: 6%\n PARABOLIC | Corr: 0.23\n\ud83d\udcca TSI: -0.76 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.45:1 | Risk: 4.3% (capped)",
+    "parsed_data": {
+      "signal_id": "LISTA",
+      "pair": "LISTAUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "1c8a7b0c-231d-4d2d-97e5-97b78e8fd6a9": {
+    "timestamp": 1776596266.3242683,
+    "message": "LONG #HAEDAL/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 3x\nBuy: 0.0291185 - 0.0292015\n\nTarget 1: 0.0301985\nTarget 2: 0.0307178\nTarget 3: 0.0317563\n\nStop: 0.0281215\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 1c8a7b0c | SQI: 88/167 (B) | Size: 11%\n PARABOLIC | Corr: 0.39\n\ud83d\udcca TSI: -0.88 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.5:1 | Risk: 3.6% (capped)",
+    "parsed_data": {
+      "signal_id": "HAEDAL",
+      "pair": "HAEDALUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "7a916542-5951-41b0-8702-0907ba83a03d": {
+    "timestamp": 1776645962.385011,
+    "message": "#HANA/USDT Take-Profit target 1 \u2705\nProfit: 11.4444% \ud83d\udcc8\nPeriod: 13 hr 48 min \u23f0",
+    "parsed_data": {
+      "signal_id": "HANA",
+      "pair": "HANAUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "11.4444%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 11.4444,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "3faec0ee-5f4b-4d89-98e2-14ea28dd5b36": {
+    "timestamp": 1776637012.3312182,
+    "message": "#FOGO/USDT Stop Target Hit \u26d4\nLoss: 6.7862% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "FOGO",
+      "pair": "FOGOUSDT",
+      "targets": [],
+      "pnl": "6.7862%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -6.7862,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "8a3de58a-7fc7-4aba-864b-74f95a050479": {
+    "timestamp": 1776641283.914499,
+    "message": "#STBL/USDT Stop Target Hit \u26d4\nLoss: 10.8852% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "STBL",
+      "pair": "STBLUSDT",
+      "targets": [],
+      "pnl": "10.8852%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -10.8852,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "8a0d9272-2cb0-455b-a1fc-134293108999": {
+    "timestamp": 1776596372.226275,
+    "message": "LONG #OG/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 2x\nBuy: 2.851946 - 2.870330\n\nTarget 1: 3.183180\nTarget 2: 3.273270\nTarget 3: 3.453450\n\nStop: 2.814000\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 8a0d9272 | SQI: 77/167 (C) | Size: 7%\n PARABOLIC | Corr: 0.70\n\ud83d\udcca TSI: -0.85 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.38:1 | Risk: 6.0% (capped)",
+    "parsed_data": {
+      "signal_id": "OG",
+      "pair": "OGUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "9b34f1ad-168d-434a-8322-e40971b61dba": {
+    "timestamp": 1776637298.9582396,
+    "message": "#BTC/USDT Stop Target Hit \u26d4\nLoss: 8.7144% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "BTC",
+      "pair": "BTCUSDT",
+      "targets": [],
+      "pnl": "8.7144%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -8.7144,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "a39161ef-b120-4f41-8de1-b1792e4da6c5": {
+    "timestamp": 1776639668.1673715,
+    "message": "#JELLYJELLY/USDT All entries achieved\nAverage Entry Price: 0.04403 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "JELLYJELLY",
+      "pair": "JELLYJELLYUSDT",
+      "entry": 0.04403,
+      "status": "CLOSED"
+    },
+    "status": "LOSS"
+  },
+  "c25d8cb8-735b-4575-83aa-f10daa104c03": {
+    "timestamp": 1776599734.1688814,
+    "message": "#KAITO/USDT Cancelled \u274c\nTarget achieved before entering the entry zone",
+    "parsed_data": {
+      "signal_id": "KAITO",
+      "pair": "KAITOUSDT",
+      "targets": [],
+      "status": "CANCELLED"
+    },
+    "status": "SENT"
+  },
+  "22b63069-792b-4982-98b3-db245948f752": {
+    "timestamp": 1776636973.3442812,
+    "message": "#DODOX/USDT All entries achieved\nAverage Entry Price: 0.017148 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "DODOX",
+      "pair": "DODOXUSDT",
+      "entry": 0.017148,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "b1739b5e-b443-45e9-b7e8-dec4b5348f4a": {
+    "timestamp": 1776636945.9259634,
+    "message": "#F/USDT Stop Target Hit \u26d4\nLoss: 6.1516% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "F",
+      "pair": "FUSDT",
+      "targets": [],
+      "pnl": "6.1516%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -6.1516,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "215b4cbf-c81c-4aad-9042-4985fdc0108c": {
+    "timestamp": 1776676222.0812721,
+    "message": "#FLOCK/USDT Take-Profit target 1 \u2705\nProfit: 11.4692% \ud83d\udcc8\nPeriod: 12 hr 44 min \u23f0",
+    "parsed_data": {
+      "signal_id": "FLOCK",
+      "pair": "FLOCKUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "11.4692%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 11.4692,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "e292ca2e-6383-4264-9b2d-881c82b4d7e6": {
+    "timestamp": 1776646838.1545315,
+    "message": "#XAG/USDT Take-Profit target 1 \u2705\nProfit: 6.4414% \ud83d\udcc8\nPeriod: 2 days 6 hr \u23f0",
+    "parsed_data": {
+      "signal_id": "XAG",
+      "pair": "XAGUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "6.4414%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 6.4414,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "7b3148ba-e70a-4382-954f-e428e1481622": {
+    "timestamp": 1776631736.894329,
+    "message": "#ETH/USDT Stop Target Hit \u26d4\nLoss: 26.9055% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "ETH",
+      "pair": "ETHUSDT",
+      "targets": [],
+      "pnl": "26.9055%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -26.9055,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "b663993d-9282-4e85-98b2-607e0bcdec1d": {
+    "timestamp": 1776672541.2115583,
+    "message": "#XAN/USDT Stop Target Hit \u26d4\nLoss: 9.8657% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "XAN",
+      "pair": "XANUSDT",
+      "targets": [],
+      "pnl": "9.8657%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -9.8657,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "6cda89ff-fb10-4678-8466-8db8811299f3": {
+    "timestamp": 1776669474.067007,
+    "message": "#FLOW/USDT Stop Target Hit \u26d4\nLoss: 7.6831% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "FLOW",
+      "pair": "FLOWUSDT",
+      "targets": [],
+      "pnl": "7.6831%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -7.6831,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "09effde0-085c-46a7-9e79-575bab7191a9": {
+    "timestamp": 1776634540.987214,
+    "message": "#1000CHEEMS/USDT All entries achieved\nAverage Entry Price: 0.0005274 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "1000CHEEMS",
+      "pair": "1000CHEEMSUSDT",
+      "entry": 0.0005274,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "8238be8f-44f3-4e50-9c28-6e90ca3e20a0": {
+    "timestamp": 1776636120.0757565,
+    "message": "LONG #GUA/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 2x\nBuy: 0.6633893 - 0.6678107\n\nTarget 1: 0.7055360\nTarget 2: 0.7255040\nTarget 3: 0.7654400\n\nStop: 0.6256640\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 8238be8f | SQI: 82/167 (B) | Size: 23%\n CLEAN_TREND | Corr: 0.04\n\ud83d\udcca TSI: -0.97 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.5:1 | Risk: 6.0% (capped)",
+    "parsed_data": {
+      "signal_id": "GUA",
+      "pair": "GUAUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "f4818e8e-41f2-4e3b-bf90-be23843d8bcd": {
+    "timestamp": 1776636281.7862718,
+    "message": "#IDOL/USDT All entries achieved\nAverage Entry Price: 0.02142 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "IDOL",
+      "pair": "IDOLUSDT",
+      "entry": 0.02142,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "30ccc69f-9361-4a90-8a65-f1cf4ffa3ea4": {
+    "timestamp": 1776663433.4728339,
+    "message": "#AVAAI/USDT Stop Target Hit \u26d4\nLoss: 13.0243% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "AVAAI",
+      "pair": "AVAAIUSDT",
+      "targets": [],
+      "pnl": "13.0243%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -13.0243,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "e2444236-efb9-4aab-ad70-19ecb898d800": {
+    "timestamp": 1776636240.4109948,
+    "message": "LONG #NEIRO/USDT \ud83d\ude80\nExchanges: Binance Futures\nLeverage: Cross 2x\nBuy: 0.00006364 - 0.00006396\n\nTarget 1: 0.00006763\nTarget 2: 0.00006954\nTarget 3: 0.00007337\n\nStop: 0.00005954\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 e2444236 | SQI: 58/167 (C) | Size: 21%\n CLEAN_TREND | Corr: 0.42\n\ud83d\udcca TSI: -1.30 | CE: \ud83d\udfe2 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.25:1 | Risk: 6.0% (capped)",
+    "parsed_data": {
+      "signal_id": "NEIRO",
+      "pair": "NEIROUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "cd29d964-a9b9-4d0b-bf29-aa91394da867": {
+    "timestamp": 1776636918.3804014,
+    "message": "#LDO/USDT All entries achieved\nAverage Entry Price: 0.3650 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "LDO",
+      "pair": "LDOUSDT",
+      "entry": 0.365,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "9393d643-2a4f-4e6c-8ba7-50a9edbf55ea": {
+    "timestamp": 1776669864.8198104,
+    "message": "#ZRX/USDT Stop Target Hit \u26d4\nLoss: 3.6053% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "ZRX",
+      "pair": "ZRXUSDT",
+      "targets": [],
+      "pnl": "3.6053%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -3.6053,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "5b8ef1e6-59f6-4d5c-8b51-52a231915cff": {
+    "timestamp": 1776641577.5480514,
+    "message": "#ERA/USDT Closed at stoploss after reaching take profit \u26a0\nLoss: 1.0204% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "ERA",
+      "pair": "ERAUSDT",
+      "pnl": "1.0204%",
+      "status": "CLOSED",
+      "pnl_value": -1.0204,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "89ab7170-8e10-4fc9-b5e3-50d7a484fcf6": {
+    "timestamp": 1776639617.3266513,
+    "message": "#TRUST/USDT All entries achieved\nAverage Entry Price: 0.06690 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "TRUST",
+      "pair": "TRUSTUSDT",
+      "entry": 0.0669,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "54005391-1f5a-40a5-9232-52fa0b45c4c5": {
+    "timestamp": 1776643312.1148856,
+    "message": "#TSLA/USDT Stop Target Hit \u26d4\nLoss: 4.7528% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "TSLA",
+      "pair": "TSLAUSDT",
+      "targets": [],
+      "pnl": "4.7528%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -4.7528,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "9e15c4d2-e40a-4554-8308-932d647cd16a": {
+    "timestamp": 1776643208.7104383,
+    "message": "#COIN/USDT Stop Target Hit \u26d4\nLoss: 7.9166% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "COIN",
+      "pair": "COINUSDT",
+      "targets": [],
+      "pnl": "7.9166%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -7.9166,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "12765f77-2882-4eef-b41e-b6c522652f1e": {
+    "timestamp": 1776639752.866921,
+    "message": "#AGLD/USDT Entry 1 \u2705\nAverage Entry Price: 0.2591 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "AGLD",
+      "pair": "AGLDUSDT",
+      "entry": 1.0
+    },
+    "status": "SENT"
+  },
+  "97c8eefc-74ff-4184-a3a0-0bafa87c6593": {
+    "timestamp": 1776639891.3083887,
+    "message": "#MUBARAK/USDT Entry 1 \u2705\nAverage Entry Price: 0.01327 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "MUBARAK",
+      "pair": "MUBARAKUSDT",
+      "entry": 1.0
+    },
+    "status": "SENT"
+  },
+  "d6ca9415-e161-4645-b0f0-23f4ee8f1d49": {
+    "timestamp": 1776639917.2119954,
+    "message": "#XPT/USDT All entries achieved\nAverage Entry Price: 2111.21 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "XPT",
+      "pair": "XPTUSDT",
+      "entry": 2111.21,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "7d77afce-2f33-41ca-9e91-be57de2c9a5a": {
+    "timestamp": 1776643317.0467405,
+    "message": "#FIGHT/USDT All entries achieved\nAverage Entry Price: 0.002975 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "FIGHT",
+      "pair": "FIGHTUSDT",
+      "entry": 0.002975,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "d8f35073-babf-44f1-9240-3bab485a874f": {
+    "timestamp": 1776669834.506341,
+    "message": "#ANKR/USDT Stop Target Hit \u26d4\nLoss: 14.478% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "ANKR",
+      "pair": "ANKRUSDT",
+      "targets": [],
+      "pnl": "14.478%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -14.478,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "935a211e-7296-4aff-84d8-7b18a62d10bd": {
+    "timestamp": 1776669824.858634,
+    "message": "#BRETT/USDT Stop Target Hit \u26d4\nLoss: 8.7929% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "BRETT",
+      "pair": "BRETTUSDT",
+      "targets": [],
+      "pnl": "8.7929%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -8.7929,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "ea5a5246-704c-4171-8fba-e20f0930a4e6": {
+    "timestamp": 1776641780.587362,
+    "message": "#KOMA/USDT All entries achieved\nAverage Entry Price: 0.008204 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "KOMA",
+      "pair": "KOMAUSDT",
+      "entry": 0.008204,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "37ec25cf-9aea-430f-b065-eba8ac9c700d": {
+    "timestamp": 1776641768.3850474,
+    "message": "#AVNT/USDT All entries achieved\nAverage Entry Price: 0.1310 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "AVNT",
+      "pair": "AVNTUSDT",
+      "entry": 0.131,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "083ede06-269f-4696-8565-7a547d370586": {
+    "timestamp": 1776669610.0029237,
+    "message": "#AVAX/USDT Stop Target Hit \u26d4\nLoss: 4.0622% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "AVAX",
+      "pair": "AVAXUSDT",
+      "targets": [],
+      "pnl": "4.0622%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -4.0622,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "1f10217f-40e3-458d-8cc9-e1faf842ce34": {
+    "timestamp": 1776643612.574654,
+    "message": "#HOLO/USDT All entries achieved\nAverage Entry Price: 0.05641 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "HOLO",
+      "pair": "HOLOUSDT",
+      "entry": 0.05641,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "def262d7-b9fc-415e-89f4-d5559932f623": {
+    "timestamp": 1776643468.4277656,
+    "message": "#ORDER/USDT All entries achieved\nAverage Entry Price: 0.05253 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "ORDER",
+      "pair": "ORDERUSDT",
+      "entry": 0.05253,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "4d72edea-a7a3-4068-89eb-00dae023752a": {
+    "timestamp": 1776641985.8230815,
+    "message": "#TON/USDT Entered entry zone \u2705",
+    "parsed_data": {
+      "signal_id": "TON",
+      "pair": "TONUSDT"
+    },
+    "status": "SENT"
+  },
+  "8a5ecefd-0da3-4960-8ecf-ef0d5130fa35": {
+    "timestamp": 1776641987.9810116,
+    "message": "SHORT #POWR/USDT \ud83d\udcc9\nExchanges: Binance Futures\nLeverage: Cross 3x\nSell: 0.2308060 - 0.2309335\n\nTarget 1: 0.0613260\nTarget 2: 0.0605290\nTarget 3: 0.0589350\n\nStop: 0.2310610\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 8a5ecefd | SQI: 74/167 (C) | Size: 16%\n CLEAN_TREND | Corr: 0.70\n\ud83d\udcca TSI: 1.11 | CE: \ud83d\udd34 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.33:1 | Risk: 2.5% (capped)",
+    "parsed_data": {
+      "signal_id": "POWR",
+      "pair": "POWRUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "4d509013-8283-4ca2-8a2a-f0b888a63e35": {
+    "timestamp": 1776645965.4574628,
+    "message": "#GIGGLE/USDT All entries achieved\nAverage Entry Price: 32.02 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "GIGGLE",
+      "pair": "GIGGLEUSDT",
+      "entry": 32.02,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "f2c1e465-0dfb-4f0f-a4ca-1945cfc43073": {
+    "timestamp": 1776642390.9310532,
+    "message": "#LPT/USDT All entries achieved\nAverage Entry Price: 2.057 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "LPT",
+      "pair": "LPTUSDT",
+      "entry": 2.057,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "c44221c1-7e76-4918-b0a3-ea4e178da22c": {
+    "timestamp": 1776642075.0587323,
+    "message": "#RUNE/USDT All entries achieved\nAverage Entry Price: 0.4334 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "RUNE",
+      "pair": "RUNEUSDT",
+      "entry": 0.4334,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "7df0ba3e-5698-4dc7-ad8f-f54ece272b17": {
+    "timestamp": 1776669877.1149025,
+    "message": "#LINEA/USDT Stop Target Hit \u26d4\nLoss: 6.9587% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "LINEA",
+      "pair": "LINEAUSDT",
+      "targets": [],
+      "pnl": "6.9587%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -6.9587,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "87cd0f9e-7cea-41f6-a78c-c109b4b5943a": {
+    "timestamp": 1776643518.7282953,
+    "message": "#G/USDT All entries achieved\nAverage Entry Price: 0.003635 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "G",
+      "pair": "GUSDT",
+      "entry": 0.003635,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "648a7fa9-29d6-4ebf-bec7-cd212abd4f55": {
+    "timestamp": 1776669774.7600656,
+    "message": "#S/USDT Stop Target Hit \u26d4\nLoss: 5.9492% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "S",
+      "pair": "SUSDT",
+      "targets": [],
+      "pnl": "5.9492%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -5.9492,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "5a7737f5-9433-43eb-bc7f-173621ce2a66": {
+    "timestamp": 1776642624.3602712,
+    "message": "#MANTA/USDT All entries achieved\nAverage Entry Price: 0.06210 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "MANTA",
+      "pair": "MANTAUSDT",
+      "entry": 0.0621,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "097077ec-fa3c-423d-86aa-69c8ff157a60": {
+    "timestamp": 1776649974.1696448,
+    "message": "#COPPER/USDT Take-Profit target 1 \u2705\nProfit: 4.9967% \ud83d\udcc8\nPeriod: 2 hr 57 min \u23f0",
+    "parsed_data": {
+      "signal_id": "COPPER",
+      "pair": "COPPERUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "4.9967%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 4.9967,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "cbeb68d5-1773-4fad-8160-4b52c7c56b9e": {
+    "timestamp": 1776643474.887052,
+    "message": "#BARD/USDT All entries achieved\nAverage Entry Price: 0.2945 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "BARD",
+      "pair": "BARDUSDT",
+      "entry": 0.2945,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "1270b4f6-6554-41c1-87e4-72c29a9a6ef9": {
+    "timestamp": 1776654205.9409165,
+    "message": "#HYPER/USDT Stop Target Hit \u26d4\nLoss: 6.4675% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "HYPER",
+      "pair": "HYPERUSDT",
+      "targets": [],
+      "pnl": "6.4675%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -6.4675,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "649968b5-6bed-4e86-9771-b2b93224a1c5": {
+    "timestamp": 1776643333.6328912,
+    "message": "#AUCTION/USDT All entries achieved\nAverage Entry Price: 4.667 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "AUCTION",
+      "pair": "AUCTIONUSDT",
+      "entry": 4.667,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "18d5da58-adeb-49db-bf5d-4654da244094": {
+    "timestamp": 1776643471.1955323,
+    "message": "#GRASS/USDT All entries achieved\nAverage Entry Price: 0.3131 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "GRASS",
+      "pair": "GRASSUSDT",
+      "entry": 0.3131,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "005ad5ba-0f99-4f14-8c75-530a84c5ee2a": {
+    "timestamp": 1776643467.8997579,
+    "message": "#CLANKER/USDT All entries achieved\nAverage Entry Price: 24.48 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "CLANKER",
+      "pair": "CLANKERUSDT",
+      "entry": 24.48,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "ce8e4fc9-74c9-4455-915f-79aa4fa3eb2d": {
+    "timestamp": 1776644155.3370907,
+    "message": "#COAI/USDT All entries achieved\nAverage Entry Price: 0.2997 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "COAI",
+      "pair": "COAIUSDT",
+      "entry": 0.2997,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "375cb0f8-464f-4a13-94c5-f3ac471dd54a": {
+    "timestamp": 1776643214.8738754,
+    "message": "#CRCL/USDT Stop Target Hit \u26d4\nLoss: 18.3313% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "CRCL",
+      "pair": "CRCLUSDT",
+      "targets": [],
+      "pnl": "18.3313%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -18.3313,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "4b3aa696-41c0-49cd-a651-c566416b166d": {
+    "timestamp": 1776658060.006443,
+    "message": "#ALLO/USDT Stop Target Hit \u26d4\nLoss: 6.8108% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "ALLO",
+      "pair": "ALLOUSDT",
+      "targets": [],
+      "pnl": "6.8108%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -6.8108,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "f18decbe-bfae-441b-9c1c-71bab7380ebb": {
+    "timestamp": 1776669862.5568302,
+    "message": "#SOMI/USDT Stop Target Hit \u26d4\nLoss: 6.2963% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "SOMI",
+      "pair": "SOMIUSDT",
+      "targets": [],
+      "pnl": "6.2963%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -6.2963,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "b9a440e0-f5c0-43b6-b2ff-42716fdd2e02": {
+    "timestamp": 1776645126.9593103,
+    "message": "#BOB/USDT All entries achieved\nAverage Entry Price: 0.006813 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "BOB",
+      "pair": "BOBUSDT",
+      "entry": 0.006813,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "5bd32d8f-5a85-4216-980b-13e647721a0c": {
+    "timestamp": 1776671411.7322853,
+    "message": "#SKR/USDT Take-Profit target 1 \u2705\nProfit: 6.3456% \ud83d\udcc8\nPeriod: 7 hr 19 min \u23f0",
+    "parsed_data": {
+      "signal_id": "SKR",
+      "pair": "SKRUSDT",
+      "targets": [
+        1.0
+      ],
+      "pnl": "6.3456%",
+      "status": "TARGET_ACHIEVED",
+      "pnl_value": 6.3456,
+      "pnl_percentage": true
+    },
+    "status": "TP1_HIT"
+  },
+  "3933fe95-f62a-42c2-a541-7c5d84ae7ec8": {
+    "timestamp": 1776645079.5539658,
+    "message": "#AXS/USDT All entries achieved\nAverage Entry Price: 1.088 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "AXS",
+      "pair": "AXSUSDT",
+      "entry": 1.088,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "c2f58ff0-2d60-4d5a-9bf9-90688fc110fa": {
+    "timestamp": 1776645371.2242875,
+    "message": "#BIRB/USDT All entries achieved\nAverage Entry Price: 0.12676 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "BIRB",
+      "pair": "BIRBUSDT",
+      "entry": 0.12676,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "40fb7e3a-e8a5-42d1-85c2-06a3ffcded03": {
+    "timestamp": 1776650449.995917,
+    "message": "#ICP/USDT All entries achieved\nAverage Entry Price: 2.415 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "ICP",
+      "pair": "ICPUSDT",
+      "entry": 2.415,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "3c99bb7c-ee0d-442b-8ec6-45649364bb75": {
+    "timestamp": 1776654069.0243487,
+    "message": "#IOST/USDT All entries achieved\nAverage Entry Price: 0.001077 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "IOST",
+      "pair": "IOSTUSDT",
+      "entry": 0.001077,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "c33449d8-04a6-4795-89f3-7ef7cf60033d": {
+    "timestamp": 1776659194.3869016,
+    "message": "#EDEN/USDT All entries achieved\nAverage Entry Price: 0.03203 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "EDEN",
+      "pair": "EDENUSDT",
+      "entry": 0.03203,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "1c3a04d9-1836-42d3-82b2-2d5008718242": {
+    "timestamp": 1776661819.4678986,
+    "message": "#SPK/USDT Stop Target Hit \u26d4\nLoss: 12.7521% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "SPK",
+      "pair": "SPKUSDT",
+      "targets": [],
+      "pnl": "12.7521%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -12.7521,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "46624882-f23f-4571-abc9-6bf08a2f2057": {
+    "timestamp": 1776666394.5434754,
+    "message": "#AWE/USDT All entries achieved\nAverage Entry Price: 0.04967 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "AWE",
+      "pair": "AWEUSDT",
+      "entry": 0.04967,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "53d821f9-d2d5-46c6-9efb-024ba02363f4": {
+    "timestamp": 1776669819.8475537,
+    "message": "#SPX/USDT Stop Target Hit \u26d4\nLoss: 10.5332% \ud83d\udcc9",
+    "parsed_data": {
+      "signal_id": "SPX",
+      "pair": "SPXUSDT",
+      "targets": [],
+      "pnl": "10.5332%",
+      "status": "STOP_LOSS_ACHIEVED",
+      "pnl_value": -10.5332,
+      "pnl_percentage": true
+    },
+    "status": "CLOSED"
+  },
+  "289966e1-7525-400b-90b8-6a17c4107b31": {
+    "timestamp": 1776668409.9510846,
+    "message": "SHORT #HYPE/USDT \ud83d\udcc9\nExchanges: Binance Futures\nLeverage: Cross 2x\nSell: 41.88406 - 41.97994\n\nTarget 1: 39.94245\nTarget 2: 39.34318\nTarget 3: 38.14463\n\nStop: 42.33955\n\n\u2014 ALADDIN INSIGHTS \u2014\n\ud83c\udd94 289966e1 | SQI: 69/167 (C) | Size: 14%\n CLEAN_TREND | Corr: 0.70\n\ud83d\udcca TSI: 1.14 | CE: \ud83d\udd34 | OI: NEUTRAL\n\u2696\ufe0f R:R 2.5:1 | Risk: 2.9% (capped)",
+    "parsed_data": {
+      "signal_id": "HYPE",
+      "pair": "HYPEUSDT",
+      "targets": [
+        1.0
+      ]
+    },
+    "status": "SENT"
+  },
+  "0750db1d-68aa-4f37-8294-8340e310671d": {
+    "timestamp": 1776669863.1008337,
+    "message": "#PIPPIN/USDT All entries achieved\nAverage Entry Price: 0.02398 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "PIPPIN",
+      "pair": "PIPPINUSDT",
+      "entry": 0.02398,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
+  },
+  "a2e8e688-8883-41e4-8ac6-8c7a76e993f7": {
+    "timestamp": 1776675967.0197058,
+    "message": "#ZKC/USDT All entries achieved\nAverage Entry Price: 0.07106 \ud83d\udcb5",
+    "parsed_data": {
+      "signal_id": "ZKC",
+      "pair": "ZKCUSDT",
+      "entry": 0.07106,
+      "status": "CLOSED"
+    },
+    "status": "SENT"
   }
 }

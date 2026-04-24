@@ -328,8 +328,8 @@ class TelegramChatInterface:
             recent_messages = self.chat_memory[chat_id][-10:]  # Last 10 messages
             
             # Generate AI response
-            from openrouter_intelligence import FREE_AI_INSTANCE
-            OPENROUTER_INTEL = FREE_AI_INSTANCE
+            from openrouter_intelligence import OpenRouterIntelligence
+            OPENROUTER_INTEL = OpenRouterIntelligence()
             
             context = "\n".join([
                 f"{'AI' if msg['type'] == 'ai_message' else 'User'}: {msg['text']}"

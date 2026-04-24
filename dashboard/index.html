@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <!-- ═══ PRIMARY SEO ═══ -->
+    <title>Anunnaki World Signals — We do the math. You make the move.</title>
+    <meta name="description" content="We do the math. You make the move. Institutional-grade AI scanning 200+ Binance USDT perpetual pairs in real time — we crunch the indicators, filter the noise, and deliver high-probability signals. You just trade. Start free today.">
+    <meta name="keywords" content="crypto trading signals, binance futures signals, AI trading bot, liquidation heatmap, copy trading, USDT perpetual, crypto alerts, reverse hunt strategy">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="Anunnaki World">
+    <link rel="canonical" href="https://anunnakiworld.com/">
+
+    <!-- ═══ OPEN GRAPH (Facebook, Discord, Telegram previews) ═══ -->
+    <meta property="og:type"        content="website">
+    <meta property="og:url"         content="https://anunnakiworld.com/">
+    <meta property="og:site_name"   content="Anunnaki World Signals">
+    <meta property="og:title"       content="Anunnaki World Signals — We do the math. You make the move.">
+    <meta property="og:description" content="Institutional-grade AI scanning 200+ Binance USDT perp pairs in real time. Liquidation heatmap, copy-trading, market screener & AI signals. We crunch the math — you make the move. Free to start.">
+    <meta property="og:image"       content="https://anunnakiworld.com/static/og-banner.png">
+    <meta property="og:image:width"  content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:locale"      content="en_US">
+
+    <!-- ═══ TWITTER / X CARDS ═══ -->
+    <meta name="twitter:card"        content="summary_large_image">
+    <meta name="twitter:site"        content="@AnunnakiSignals">
+    <meta name="twitter:title"       content="Anunnaki World Signals — We do the math. You make the move.">
+    <meta name="twitter:description" content="Institutional-grade AI scanning 200+ Binance USDT perp pairs in real time. We crunch the math — you make the move. Start free.">
+    <meta name="twitter:image"       content="https://anunnakiworld.com/static/og-banner.png">
+
+    <!-- ═══ ICONS & PWA ═══ -->
+    <link rel="icon" type="image/jpeg" href="/static/logo.jpeg">
+    <link rel="apple-touch-icon" href="/static/logo.jpeg">
+    <meta name="theme-color" content="#0a0e17">
+    <meta name="application-name" content="Anunnaki World Signals">
+    <meta name="apple-mobile-web-app-title" content="Anunnaki Signals">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- ═══ JSON-LD STRUCTURED DATA ═══ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Anunnaki World Signals",
+      "url": "https://anunnakiworld.com",
+      "description": "Anunnaki World Signals is a powerful, institutional-grade AI platform designed to simplify the complexities of crypto trading. Our advanced artificial intelligence scans over 200 Binance USDT perpetual pairs in real time, delivering high-probability trading signals directly to you. Features include a real-time liquidation heatmap, copy-trading, and market screener.",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web, iOS, Android",
+      "offers": [
+        { "@type": "Offer", "name": "Free",  "price": "0",  "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "Plus",  "price": "49", "priceCurrency": "USD", "billingDuration": "P1M" },
+        { "@type": "Offer", "name": "Pro",   "price": "99", "priceCurrency": "USD", "billingDuration": "P1M" }
+      ],
+      "featureList": [
+        "AI-powered crypto trading signals",
+        "200+ USDT perpetual futures pairs",
+        "Real-time liquidation heatmap",
+        "Copy-trading (Binance Futures)",
+        "Market screener",
+        "XGBoost + Transformer ML validation",
+        "Monte Carlo probability simulation",
+        "Telegram signal alerts"
+      ],
+      "publisher": {
+        "@type": "Organization",
+        "name": "Anunnaki World",
+        "url": "https://anunnakiworld.com"
+      }
+    }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lightweight-charts@5.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="/static/css/main.css?v=20260422-zonefilter">
+    <link rel="stylesheet" href="/static/css/premium.css?v=20260421d">
+    <link rel="stylesheet" href="/static/css/admin.css?v=20260419">
+    <link rel="stylesheet" href="/static/css/mobile.css?v=3">
+</head>
+<body>
+    <!-- ═══ HEADER ═══ -->
+    <header style="height:auto;flex-direction:column;align-items:stretch;padding:0;gap:0">
+        <!-- Main header row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px">
+            <div class="logo aw-brand-lockup">
+                <div class="aw-brand-mark">
+                    <img src="/static/logo.jpeg" alt="Anunnaki World" class="logo-img">
+                    <span class="aw-brand-mark-ring"></span>
+                </div>
+                <div class="aw-brand-divider"></div>
+                <div class="aw-brand-text">
+                    <span class="logo-text">Anunnaki World Signals</span>
+                    <span class="aw-brand-tagline">
+                        <span class="aw-brand-live"></span>
+                        Institutional · AI · Crypto Derivatives
+                    </span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div id="user-section-loggedout">
+                    <button class="btn btn-ghost btn-sm" onclick="openModal('login')">Login</button>
+                    <button class="btn btn-gold btn-sm" onclick="openModal('register')">Register</button>
+                </div>
+                <div id="user-section-loggedin" style="display:none">
+                    <span class="sub-timer" id="sub-timer"></span>
+                    <span class="tier-badge" id="header-tier-badge">FREE</span>
+                    <span class="user-info" id="header-user-email"></span>
+                    <button id="awd-theme-btn" class="awd-theme-btn" onclick="toggleTheme()" title="Toggle theme">
+                        <span id="awd-theme-icon">🌙</span>
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+        <!-- ═══ DEV TICKER BANNER ═══ -->
+        <div id="dev-ticker" style="
+            background: linear-gradient(90deg, rgba(168,85,247,0.15) 0%, rgba(0,200,83,0.08) 50%, rgba(244,162,54,0.1) 100%);
+            border-top: 1px solid rgba(168,85,247,0.15);
+            overflow: hidden;
+            cursor: default;
+            user-select: none;
+            display:flex;align-items:center;height:32px;
+        ">
+            <!-- Badge -->
+            <div style="
+                flex-shrink:0;z-index:2;
+                background:var(--purple);
+                color:#fff;
+                font-size:10px;
+                font-weight:800;
+                letter-spacing:.08em;
+                padding:0 20px 0 12px;
+                height:100%;display:flex;align-items:center;
+                clip-path:polygon(0 0,100% 0,calc(100% - 8px) 100%,0 100%);
+                position:relative;
+            ">⚡ LIVE DEV</div>
+            <!-- Scrolling marquee track -->
+            <div style="flex:1;overflow:hidden;height:100%;position:relative">
+                <div id="ticker-track" style="
+                    display:flex;align-items:center;height:100%;
+                    white-space:nowrap;
+                    position:absolute;top:0;left:0;
+                    animation: ticker-scroll 280s linear infinite;
+                "></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ NAVIGATION ═══ -->
+    <nav class="nav-tabs" id="nav-tabs">
+        <div class="nav-tab active" data-page="overview" onclick="switchPage('overview')">
+            <div class="live-dot"></div> Overview
+        </div>
+        <div class="nav-tab" data-page="signals" onclick="switchPage('signals')">📡 Signals</div>
+        <div class="nav-tab" data-page="charts" onclick="switchPage('charts')">
+            📊 Charts <span class="lock" id="lock-charts">🔒</span>
+        </div>
+        <div class="nav-tab" data-page="analytics" onclick="switchPage('analytics')">
+            📈 Analytics <span class="lock" id="lock-analytics">🔒</span>
+        </div>
+        <div class="nav-tab" data-page="presignals" onclick="switchPage('presignals')" id="nav-presignals" style="display:none">
+            🎯 Pre-Signals <span style="font-size:10px;color:var(--purple);font-weight:700">PRO</span>
+        </div>
+        <div class="nav-tab" data-page="screener" onclick="switchPage('screener')" id="nav-screener" style="display:none">
+            📺 Screener <span style="font-size:10px;color:var(--accent);font-weight:700">PLUS</span>
+        </div>
+        <div class="nav-tab" data-page="heatmap" onclick="switchPage('heatmap')" id="nav-heatmap" style="display:none">
+            🔥 Liq Heatmap <span style="font-size:10px;color:var(--purple);font-weight:700">PLUS</span>
+        </div>
+        <div class="nav-tab" data-page="market-analytics" onclick="switchPage('market-analytics')" id="nav-market-analytics" style="display:none">
+            📊 Market Analytics <span style="font-size:10px;color:var(--accent);font-weight:700">PRO</span>
+        </div>
+        <div class="nav-tab" data-page="copytrading" onclick="switchPage('copytrading')" id="nav-copytrading" style="display:none">
+            🤖 Copy-Trade <span style="font-size:10px;color:var(--purple);font-weight:700">PRO</span>
+        </div>
+        <a class="nav-tab" href="/admin" target="_blank" rel="noopener" id="nav-admin" style="display:none;text-decoration:none">⚙️ Admin</a>
+        <div class="nav-tab" data-page="account" onclick="switchPage('account')" id="nav-account" style="display:none">
+            👤 Account
+        </div>
+        <div class="nav-tab" data-page="manual" onclick="switchPage('manual')">
+            📖 Manual <span class="lock" id="lock-manual">🔒</span>
+        </div>
+        <div class="nav-tab" data-page="pricing" onclick="switchPage('pricing')">💎 Pricing</div>
+        <div class="nav-tab" data-page="refer" onclick="switchPage('refer')">🔗 Refer &amp; Earn</div>
+        <div class="nav-tab" data-page="support" onclick="switchPage('support')">💬 Support</div>
+        <a class="nav-tab" href="/static/whitepaper.html" target="_blank" rel="noopener" style="text-decoration:none">📄 Whitepaper</a>
+    </nav>
+
+    <div class="main-content">
+        <!-- ═══ OVERVIEW PAGE ═══ -->
+        <div class="page active" id="page-overview">
+            <div class="pro-banner" id="pro-telegram-banner">
+                <div class="pro-banner-text">
+                    <span class="icon">✈️</span>
+                    <div>
+                        <div class="title">Pro Signals Channel</div>
+                        <div class="desc">Join the exclusive Telegram channel for real-time signal alerts with entry, targets & SL</div>
+                    </div>
+                </div>
+                <a class="btn-telegram" id="telegram-invite-link" href="#" target="_blank" rel="noopener">Join Telegram Channel</a>
+            </div>
+            <div class="summary-row" id="summary-cards"></div>
+
+            <!-- ═══ MACRO INDICATORS PANEL (USDT.D + per-pair REV HUNT) ═══ -->
+            <div id="macro-panel" class="macro-panel">
+                <div class="macro-header">
+                    <h3>🌐 Macro Indicators <span class="macro-tf-badge" id="macro-tf-badge">1H</span></h3>
+                    <div class="macro-tf-switch">
+                        <button class="macro-tf-btn" data-tf="15m" onclick="setMacroTF('15m')">15m</button>
+                        <button class="macro-tf-btn active" data-tf="1h" onclick="setMacroTF('1h')">1h</button>
+                        <button class="macro-tf-btn" data-tf="4h" onclick="setMacroTF('4h')">4h</button>
+                        <span class="macro-updated" id="macro-updated">—</span>
+                    </div>
+                </div>
+                <div id="macro-content">
+                    <div class="loading"><div class="spinner"></div>Loading macro state...</div>
+                </div>
+            </div>
+
+            <div id="pairs-filter-bar"></div>
+            <div class="pairs-grid" id="pairs-grid">
+                <div class="loading"><div class="spinner"></div>Loading monitored pairs...</div>
+            </div>
+        </div>
+
+        <!-- ═══ SIGNALS PAGE ═══ -->
+        <div class="page" id="page-signals">
+            <div class="section-header">
+                <h2>📡 Trading Signals <span class="signal-count" id="signal-count"></span></h2>
+                <div>
+                    <span class="delayed-badge" id="delay-badge" style="display:none">24H DELAYED</span>
+                </div>
+            </div>
+            <div id="signals-container">
+                <div class="loading"><div class="spinner"></div>Loading signals...</div>
+            </div>
+        </div>
+
+        <!-- ═══ CHARTS PAGE ═══ -->
+        <div class="page" id="page-charts">
+            <div id="charts-content"></div>
+        </div>
+
+        <!-- ═══ ANALYTICS PAGE ═══ -->
+        <div class="page" id="page-analytics">
+            <div id="analytics-content"></div>
+        </div>
+
+        <!-- Admin page removed — Admin nav tab links directly to /admin -->
+
+        <!-- ═══ ACCOUNT & DEVICES PAGE ═══ -->
+        <div class="page" id="page-account">
+            <div class="section-header"><h2>👤 Account & Security</h2></div>
+            <div id="awd-account-root">
+                <div class="loading"><div class="spinner"></div>Loading…</div>
+            </div>
+        </div>
+
+        <!-- ═══ LIQUIDATION HEATMAP PAGE (Plus/Pro) ═══ -->
+        <div class="page" id="page-heatmap">
+            <div class="section-header" style="display:flex;justify-content:space-between;align-items:center">
+                <h2>🔥 Liquidation Heatmap <span style="font-size:12px;color:var(--purple);font-weight:600">PLUS/PRO</span></h2>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span id="liq-conn-badge" style="font-size:11px;padding:3px 10px;border-radius:20px;background:var(--surface3);color:var(--text-dim);border:1px solid var(--border)">⏳ Connecting</span>
+                    <span id="liq-stats-badge" style="font-size:11px;color:var(--text-dim)"></span>
+                </div>
+            </div>
+            <p style="color:var(--text-dim);font-size:12px;margin-bottom:18px;line-height:1.6">
+                Real liquidation events from Binance forceOrder stream. Red = longs liquidated, Green = shorts liquidated.
+                Dense clusters act as <strong style="color:var(--gold)">price magnets</strong>. VPVR POC = highest volume node. VAH/VAL = 70% value area.
+            </p>
+
+            <!-- Summary bar -->
+            <div id="liq-summary-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px"></div>
+
+            <!-- Controls — responsive: single row on desktop, stacked rows on mobile -->
+            <div id="liq-controls" class="liq-card" style="margin-bottom:12px;padding:10px 14px;display:flex;flex-direction:column;gap:10px">
+
+                <!-- Row 1: Pair input + Load -->
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;flex-shrink:0;width:36px">Pair</span>
+                    <datalist id="liq-pairs-list"></datalist>
+                    <input id="liq-pair-input" type="text" placeholder="BTCUSDT" value="BTCUSDT"
+                        list="liq-pairs-list"
+                        style="background:var(--surface3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;font-weight:700;flex:1;min-width:0;text-transform:uppercase;outline:none"
+                        oninput="this.value=this.value.toUpperCase()"
+                        onkeydown="if(event.key==='Enter')loadLiqHeatmap()">
+                    <button class="btn btn-gold" onclick="loadLiqHeatmap()" style="padding:8px 20px;font-size:13px;font-weight:700;flex-shrink:0;border-radius:8px">Load</button>
+                </div>
+
+                <!-- Row 2: Window buttons — horizontally scrollable -->
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;flex-shrink:0;width:36px">Win</span>
+                    <div style="display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;padding-bottom:2px">
+                        <button class="liq-win-btn"        data-w="4"   onclick="setLiqWindow(4)"   style="flex-shrink:0">4h</button>
+                        <button class="liq-win-btn"        data-w="12"  onclick="setLiqWindow(12)"  style="flex-shrink:0">12h</button>
+                        <button class="liq-win-btn active" data-w="24"  onclick="setLiqWindow(24)"  style="flex-shrink:0">24h</button>
+                        <button class="liq-win-btn"        data-w="72"  onclick="setLiqWindow(72)"  style="flex-shrink:0">3d</button>
+                        <button class="liq-win-btn"        data-w="168" onclick="setLiqWindow(168)" style="flex-shrink:0">7d</button>
+                    </div>
+                </div>
+
+                <!-- Row 3: Noise filter slider -->
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;flex-shrink:0;width:36px">Min</span>
+                    <div style="display:flex;align-items:center;gap:8px;flex:1">
+                        <input type="range" id="liq-noise-slider" min="0" max="9" step="1" value="0"
+                               oninput="setLiqNoiseFilter(this.value)"
+                               style="flex:1;cursor:pointer;accent-color:var(--aw-gold,#d4a84b)">
+                        <span id="liq-noise-label" style="font-size:11px;font-weight:700;color:var(--aw-gold,#d4a84b);min-width:52px;text-align:right">All</span>
+                    </div>
+                </div>
+
+                <!-- Row 4: Quick pairs — horizontally scrollable -->
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;flex-shrink:0;width:36px">Top</span>
+                    <div id="liq-quick-pairs" style="display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;flex-wrap:nowrap;padding-bottom:2px"></div>
+                </div>
+
+            </div>
+
+            <!-- Market context bar -->
+            <div id="liq-context-bar">
+                <div class="liq-ctx-pill"><span class="liq-ctx-pill-label">📡 Status</span><span class="liq-ctx-pill-val" style="color:var(--text-dim)">Loading…</span></div>
+            </div>
+
+            <!-- Velocity + POC bias row -->
+            <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                <div id="liq-velocity-card" class="liq-card liq-card-accent-gold" style="flex:1;min-width:260px">
+                    <div class="liq-label">⚡ Liq Velocity <span style="font-weight:400;opacity:.6">(10 min)</span></div>
+                    <div class="liq-metric-row">
+                        <span id="liq-vel-rate" class="liq-metric-val">—</span>
+                        <span id="liq-vel-label" class="liq-metric-unit">liqs/min</span>
+                        <span id="liq-vel-spike" style="display:none;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;background:rgba(255,77,106,0.15);color:var(--red);border:1px solid rgba(255,77,106,0.4);margin-left:4px">● SPIKE</span>
+                    </div>
+                    <canvas id="liq-vel-canvas" width="220" height="36" style="width:100%;height:36px;margin-top:8px;display:block;opacity:.85"></canvas>
+                </div>
+                <div id="liq-bias-card" class="liq-card liq-card-accent-blue" style="flex:1;min-width:260px">
+                    <div class="liq-label">📐 POC Distance &amp; Bias</div>
+                    <div id="liq-bias-content" style="font-size:13px;color:var(--text-dim);margin-top:4px">Load a pair to see bias</div>
+                </div>
+            </div>
+
+            <!-- Chart container -->
+            <div style="position:relative;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px">
+                <!-- Disclaimer banner -->
+                <div style="display:flex;align-items:center;gap:7px;padding:6px 10px;margin-bottom:10px;background:rgba(240,185,11,0.07);border:1px solid rgba(240,185,11,0.22);border-radius:7px;font-size:10px;color:rgba(240,185,11,0.85);font-weight:600;letter-spacing:.02em">
+                    <span style="font-size:13px">⚠️</span>
+                    <span>Showing <strong>already-executed</strong> liquidations from Binance&nbsp;<code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px;font-size:9px">!forceOrder@arr</code>&nbsp;stream &mdash; historical data only, <strong>not future predictions</strong>.</span>
+                </div>
+
+                <div id="liq-chart-header" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+                    <div>
+                        <span id="liq-chart-title" style="font-weight:700;font-size:16px">Select a pair</span>
+                        <div id="liq-chart-sub" style="font-size:11px;color:var(--text-dim);margin-top:3px"></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        <!-- Zoom controls -->
+                        <div style="display:flex;align-items:center;gap:4px">
+                            <button class="liq-win-btn" onclick="liqZoomIn()"  title="Zoom in price range (scroll up)" style="padding:3px 9px;font-size:13px;line-height:1">−</button>
+                            <span id="liq-zoom-label" style="font-size:10px;font-weight:700;color:var(--text-dim);min-width:38px;text-align:center">&plusmn;35%</span>
+                            <button class="liq-win-btn" onclick="liqZoomOut()" title="Zoom out price range (scroll down)" style="padding:3px 9px;font-size:13px;line-height:1">+</button>
+                            <button class="liq-win-btn" onclick="liqZoomReset()" title="Reset zoom" style="padding:3px 8px;font-size:10px">⊙</button>
+                        </div>
+                        <div id="liq-legend" style="display:flex;gap:10px;font-size:11px;font-weight:600;letter-spacing:.04em;flex-wrap:wrap">
+                            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--red);display:inline-block"></span>Longs liq</span>
+                            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--green);display:inline-block"></span>Shorts liq</span>
+                            <span style="display:flex;align-items:center;gap:4px"><span style="width:3px;height:12px;background:rgba(240,185,11,0.9);display:inline-block;border-radius:1px"></span>Mark</span>
+                            <span style="display:flex;align-items:center;gap:4px"><span style="width:3px;height:12px;background:rgba(160,120,255,0.9);display:inline-block;border-radius:1px"></span>POC</span>
+                            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(80,180,255,0.2);border:1px solid rgba(80,180,255,0.5);display:inline-block"></span>VA</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="position:relative">
+                    <canvas id="liq-canvas" width="900" height="560" style="width:100%;display:block"></canvas>
+                    <canvas id="liq-price-canvas" width="900" height="560"
+                        style="position:absolute;top:0;left:0;width:100%;pointer-events:none"></canvas>
+                </div>
+                <div id="liq-no-data" style="display:none;text-align:center;padding:60px;color:var(--text-dim);font-size:14px">
+                    ⏳ Accumulating liquidation data... Check back in a few minutes.
+                </div>
+            </div>
+
+            <!-- Detail table -->
+            <div id="liq-table-container" style="margin-top:16px"></div>
+
+            <!-- TP/SL Suggest card -->
+            <div style="margin-top:14px">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+                    <span style="font-size:13px;font-weight:700;letter-spacing:.02em">🎯 Suggested TP / SL</span>
+                    <button class="liq-win-btn" onclick="loadLiqSuggest()" style="padding:3px 10px;font-size:11px">↻ Refresh</button>
+                    <div style="display:flex;gap:4px;margin-left:4px">
+                        <button class="liq-dir-btn active" data-d="auto" onclick="setLiqDirection('auto')">AUTO</button>
+                        <button class="liq-dir-btn" data-d="LONG" onclick="setLiqDirection('LONG')">LONG</button>
+                        <button class="liq-dir-btn" data-d="SHORT" onclick="setLiqDirection('SHORT')">SHORT</button>
+                    </div>
+                </div>
+                <div id="liq-suggest-card" class="liq-card" style="font-size:13px;color:var(--text-dim)">
+                    Select a pair and click Refresh
+                </div>
+            </div>
+
+            <!-- 🔔 Watchlist & Alert Panel -->
+            <div class="liq-card" style="margin-top:16px;border-top:2px solid rgba(240,185,11,0.35)">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+                    <span style="font-size:13px;font-weight:700;letter-spacing:.02em">🔔 Liq Alert Watchlist</span>
+                    <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-dim)">
+                        <span id="liq-wl-sse-dot" style="width:7px;height:7px;border-radius:50%;background:#ff4d6a;display:inline-block;flex-shrink:0"></span>
+                        <span id="liq-wl-sse-label">stream offline</span>
+                    </span>
+                    <button id="liq-notif-perm-btn" onclick="liqRequestNotifPermission()" style="display:none;margin-left:auto;background:rgba(240,185,11,0.15);border:1px solid rgba(240,185,11,0.35);color:var(--aw-gold,#d4a84b);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer">🔔 Enable Desktop Alerts</button>
+                </div>
+
+                <!-- Add symbol row -->
+                <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+                    <input id="liq-wl-input" type="text" placeholder="e.g. BTC" maxlength="20"
+                           style="flex:1;min-width:80px;background:var(--surface3);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-size:13px;font-weight:700;text-transform:uppercase;outline:none"
+                           oninput="this.value=this.value.toUpperCase()"
+                           onkeydown="if(event.key==='Enter')liqWatchlistAdd()">
+                    <select id="liq-wl-threshold"
+                            style="background:var(--surface3);border:1px solid var(--border);border-radius:7px;padding:6px 8px;color:var(--aw-gold,#d4a84b);font-size:12px;font-weight:700;outline:none;cursor:pointer">
+                        <option value="10000">≥ $10K</option>
+                        <option value="50000">≥ $50K</option>
+                        <option value="100000" selected>≥ $100K</option>
+                        <option value="250000">≥ $250K</option>
+                        <option value="500000">≥ $500K</option>
+                        <option value="1000000">≥ $1M</option>
+                        <option value="5000000">≥ $5M</option>
+                    </select>
+                    <button onclick="liqWatchlistAdd()" class="btn btn-gold" style="padding:6px 14px;font-size:12px;border-radius:7px">+ Watch</button>
+                </div>
+
+                <!-- Watchlist items -->
+                <div id="liq-watchlist-list" style="margin-bottom:12px">
+                    <div style="color:var(--text-dim);font-size:12px">Loading watchlist…</div>
+                </div>
+
+                <!-- Alert history -->
+                <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px">Recent Alerts</div>
+                <div id="liq-alert-history">
+                    <div style="color:var(--text-dim);font-size:11px">No alerts yet.</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ═══ SCREENER PAGE (Plus/Pro) ═══ -->
+        <div class="page" id="page-screener">
+            <div class="section-header">
+                <h2>📺 TradingView Screener <span style="font-size:12px;color:var(--accent);font-weight:600">PLUS</span></h2>
+            </div>
+            <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px">
+                Live crypto perpetuals ranked by signal strength — RSI extremes, relative volume spike, and MACD alignment. Pairs at the top are prioritised in the bot's scan cycle.
+            </p>
+            <div class="screener-toolbar">
+                <div class="tv-badge">📺 TradingView Data</div>
+                <button class="refresh-btn" onclick="loadScreener(true)">⟳ Refresh</button>
+                <span class="cache-info" id="screener-cache-info">—</span>
+            </div>
+            <div class="screener-filters">
+                <button class="filter-btn active" data-filter="all" onclick="screenerFilter('all',this)">All</button>
+                <button class="filter-btn" data-filter="LONG" onclick="screenerFilter('LONG',this)">🟢 Long bias</button>
+                <button class="filter-btn" data-filter="SHORT" onclick="screenerFilter('SHORT',this)">🔴 Short bias</button>
+                <button class="filter-btn" data-filter="NEUTRAL" onclick="screenerFilter('NEUTRAL',this)">⬜ Neutral</button>
+            </div>
+            <div id="screener-container">
+                <div class="loading"><div class="spinner"></div>Loading screener data...</div>
+            </div>
+        </div>
+
+        <!-- ═══ PRE-SIGNALS PAGE (Pro) ═══ -->
+        <div class="page" id="page-presignals">
+            <div class="section-header">
+                <h2>🎯 Pre-Signal Alerts <span style="font-size:12px;color:var(--purple);font-weight:600">PRO EXCLUSIVE</span></h2>
+            </div>
+            <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px">
+                Pairs in extreme zones with hooked TSI momentum. Sorted by readiness: <span style="color:#ff4444">IMMINENT</span> (L2+CE aligned) → <span style="color:var(--gold)">HIGH</span> (L2) → <span style="color:#66ccff">MEDIUM</span> (L1+CE) → <span style="color:var(--text-dim)">LOW</span> (L1).
+            </p>
+            <div id="presignals-container">
+                <div class="loading"><div class="spinner"></div>Loading pre-signals...</div>
+            </div>
+        </div>
+
+        <!-- ═══ MARKET ANALYTICS PAGE (Pro) ═══ -->
+        <div class="page" id="page-market-analytics">
+            <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                <h2>📊 Market Analytics <span style="font-size:12px;color:var(--accent);font-weight:600">PRO</span></h2>
+                <div style="font-size:12px;color:var(--text-dim)">Real-time order flow, money flow &amp; market positioning</div>
+            </div>
+            <p style="color:var(--text-dim);font-size:13px;margin-bottom:18px">
+                Live aggregated order flow data from Binance aggTrade streams (CVD), money flow index from OHLCV, and long/short positioning from CoinGlass.
+                Data refreshes every 30 seconds automatically.
+            </p>
+
+            <!-- Pair selector -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+                <label style="font-size:13px;font-weight:700;color:var(--text-dim)">Pair:</label>
+                <input id="flow-pair-input" type="text" value="BTCUSDT" maxlength="20"
+                    list="liq-pairs-list"
+                    style="background:var(--surface3);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-size:14px;font-weight:700;width:160px;text-transform:uppercase;outline:none"
+                    oninput="this.value=this.value.toUpperCase()"
+                    onkeydown="if(event.key==='Enter')loadFlowSnapshot()">
+                <button class="btn btn-gold" onclick="loadFlowSnapshot()" style="padding:8px 20px;font-size:13px;font-weight:700;border-radius:8px">Load</button>
+                <span id="flow-last-update" style="font-size:11px;color:var(--text-dim);margin-left:6px"></span>
+            </div>
+
+            <!-- ── Row 1: CVD + MFI gauge ── -->
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+
+                <!-- CVD card -->
+                <div style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px">⚡ Cumulative Volume Delta</div>
+                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px;opacity:.7">Binance aggTrade stream (real-time)</div>
+                    <div id="flow-cvd-1m"  style="font-size:13px;color:var(--text-dim);padding:5px 0;border-bottom:1px solid var(--border)">1m: <span style="font-weight:700">—</span></div>
+                    <div id="flow-cvd-5m"  style="font-size:13px;color:var(--text-dim);padding:5px 0;border-bottom:1px solid var(--border)">5m: <span style="font-weight:700">—</span></div>
+                    <div id="flow-cvd-15m" style="font-size:13px;color:var(--text-dim);padding:5px 0;border-bottom:1px solid var(--border)">15m: <span style="font-weight:700">—</span></div>
+                    <div id="flow-cvd-1h"  style="font-size:13px;color:var(--text-dim);padding:5px 0">1h: <span style="font-weight:700">—</span></div>
+                    <div id="flow-cvd-bias" style="margin-top:14px;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;display:inline-block;background:var(--surface3);border:1px solid var(--border);transition:all .3s">—</div>
+                </div>
+
+                <!-- MFI gauge card -->
+                <div style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;text-align:center">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px">💹 Money Flow Index (MFI-14)</div>
+                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;opacity:.7">Binance OHLCV · 1h candles</div>
+                    <canvas id="flow-mfi-gauge" width="200" height="110" style="width:180px;height:99px;display:block;margin:0 auto"></canvas>
+                    <div id="flow-mfi-state" style="font-size:13px;font-weight:700;margin:4px 0 10px">—</div>
+                    <div style="display:flex;justify-content:space-around;text-align:left">
+                        <div>
+                            <div id="flow-mfi-obv" style="font-size:11px;color:var(--text-dim)">OBV: <span>—</span></div>
+                            <div id="flow-mfi-ad"  style="font-size:11px;color:var(--text-dim);margin-top:3px">A/D: <span>—</span></div>
+                        </div>
+                        <div>
+                            <div style="font-size:9px;color:var(--text-dim);margin-bottom:3px;letter-spacing:.04em">LAST 10 BARS</div>
+                            <canvas id="flow-mfi-chart" width="100" height="32" style="width:100px;height:32px;display:block;border-radius:3px;background:var(--surface3)"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Row 2: L/S + OI + Funding + Taker ── -->
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px">
+
+                <!-- L/S + Funding card -->
+                <div style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px">📈 Long / Short Positioning</div>
+                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px;opacity:.7">Binance futures data</div>
+                    <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:5px">
+                        <span id="flow-ls-long"  style="color:var(--green)">Long —</span>
+                        <span id="flow-ls-short" style="color:var(--red)">Short —</span>
+                    </div>
+                    <div style="height:10px;border-radius:5px;overflow:hidden;background:rgba(255,77,106,.25);margin-bottom:8px">
+                        <div id="flow-ls-fill" style="height:100%;background:rgba(0,210,100,.8);border-radius:5px;width:50%;transition:width .5s"></div>
+                    </div>
+                    <div id="flow-ls-top" style="font-size:11px;color:var(--text-dim);margin-bottom:14px"></div>
+                    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px">💸 Funding Rate</div>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div id="flow-funding-val" style="font-size:22px;font-weight:800">—</div>
+                            <div id="flow-funding-label" style="font-size:11px;color:var(--text-dim);line-height:1.4"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OI card -->
+                <div style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px">📦 Open Interest (24h)</div>
+                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px;opacity:.7">Binance futures OI history</div>
+                    <div id="flow-oi-value"  style="font-size:13px;color:var(--text-dim);margin-bottom:4px">OI: <span style="font-weight:700">—</span></div>
+                    <div id="flow-oi-change" style="font-size:13px;color:var(--text-dim);margin-bottom:10px">OI Δ 24h: <span style="font-weight:700">—</span></div>
+                    <canvas id="flow-oi-chart" width="300" height="60" style="width:100%;height:60px;display:block;border-radius:4px;background:var(--surface3)"></canvas>
+                    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-dim);margin-top:3px;opacity:.6">
+                        <span>24h ago</span><span>now</span>
+                    </div>
+                </div>
+
+                <!-- Taker Ratio card -->
+                <div style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px">⚖️ Taker Buy/Sell Ratio</div>
+                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px;opacity:.7">Binance 5m taker volume</div>
+                    <div id="flow-taker-ratio" style="font-size:18px;margin-bottom:10px">—</div>
+                    <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;margin-bottom:4px">
+                        <span style="color:var(--green)">BUY</span>
+                        <span style="color:var(--red)">SELL</span>
+                    </div>
+                    <div style="height:12px;border-radius:6px;overflow:hidden;background:rgba(255,77,106,.25)">
+                        <div id="flow-taker-fill" style="height:100%;background:rgba(0,210,100,.8);border-radius:6px;width:50%;transition:width .5s"></div>
+                    </div>
+                    <div style="margin-top:14px;font-size:11px;color:var(--text-dim);padding:8px 10px;background:var(--surface3);border-radius:8px;border:1px solid var(--border)">
+                        ℹ️ Ratio &gt; 1.1 = takers buying more → bullish pressure<br>
+                        Ratio &lt; 0.9 = takers selling more → bearish pressure
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Interpretation note ── -->
+            <div style="background:rgba(80,180,255,0.06);border:1px solid rgba(80,180,255,0.2);border-radius:10px;padding:14px;font-size:12px;color:var(--text-dim);line-height:1.7">
+                <strong style="color:var(--text)">How to read these signals:</strong><br>
+                • <strong>CVD rising</strong> while price falls = hidden bullish absorption → reversal candidate<br>
+                • <strong>MFI &lt; 20</strong> = oversold (green zone): reversal potential &nbsp;|&nbsp; <strong>MFI &gt; 80</strong> = overbought (red zone): fading zone<br>
+                • <strong>OBV ↑ + A/D accumulation</strong> = institutional volume confirming trend<br>
+                • <strong>L/S &gt; 65% long</strong> = crowded longs → fade risk &nbsp;|&nbsp; <strong>&gt; 65% short</strong> = squeeze potential<br>
+                • <strong>Funding rate</strong>: positive → longs pay shorts (overbought) &nbsp;|&nbsp; negative → shorts pay longs (oversold)<br>
+                • <strong>Taker ratio &gt; 1.1</strong> = aggressive buyers dominating → bullish short-term
+            </div>
+
+            <div id="flow-unavail-note" style="display:none;margin-top:12px;padding:12px;background:rgba(255,77,106,.07);border:1px solid rgba(255,77,106,.2);border-radius:8px;font-size:12px;color:var(--red)"></div>
+        </div>
+
+        <!-- ═══ COPY-TRADING PAGE (Pro) ═══ -->
+        <div class="page" id="page-copytrading">
+            <div id="copytrading-content"></div>
+        </div>
+
+        <!-- ═══ REFERRAL PAGE ═══ -->
+        <div class="page" id="page-refer">
+            <div class="section-header"><h2>🔗 Refer &amp; Earn</h2></div>
+            <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.7;max-width:640px">
+                Share your unique referral link. When someone subscribes using your link,
+                <strong style="color:var(--text)">you earn 20% of their first payment</strong> as bonus subscription days,
+                and <strong style="color:var(--text)">they get 7 free days</strong> on top of their plan.
+            </p>
+
+            <!-- How it works -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:860px;margin-bottom:32px">
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+                    <div style="font-size:28px;margin-bottom:10px">🔗</div>
+                    <div style="font-weight:700;margin-bottom:6px">Share Your Link</div>
+                    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">Copy your unique link below and share it with friends, on social media or trading communities.</div>
+                </div>
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+                    <div style="font-size:28px;margin-bottom:10px">💳</div>
+                    <div style="font-weight:700;margin-bottom:6px">They Subscribe</div>
+                    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">When they register &amp; purchase any paid plan, your referral is automatically tracked.</div>
+                </div>
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+                    <div style="font-size:28px;margin-bottom:10px">🎁</div>
+                    <div style="font-weight:700;margin-bottom:6px">Both Earn Days</div>
+                    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">You earn 20% commission as bonus days. They get 7 free days added automatically.</div>
+                </div>
+            </div>
+
+            <!-- Referral link card -->
+            <div style="background:var(--surface);border:1px solid rgba(0,200,83,0.25);border-radius:14px;padding:24px 28px;max-width:680px;margin-bottom:24px">
+                <div style="font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Your Referral Link</div>
+                <div style="display:flex;gap:10px;align-items:center">
+                    <input id="ref-link-input" readonly
+                        style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;
+                               font-size:13px;color:var(--text);font-family:monospace;outline:none"
+                        value="Loading..." />
+                    <button onclick="copyReferralLink(this)" style="background:var(--green);color:#000;border:none;border-radius:8px;
+                        padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap"
+                        onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Copy Link</button>
+                    <button onclick="shareAnunnaki(this, true)" title="Share via your device (mobile) or copy link (desktop)"
+                        style="background:var(--accent);color:#fff;border:none;border-radius:8px;
+                        padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px"
+                        onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                        Share
+                    </button>
+                </div>
+                <div id="ref-code-display" style="margin-top:10px;font-size:12px;color:var(--text-dim)">Code: <span id="ref-code-value" style="color:var(--gold);font-weight:700;font-family:monospace">—</span> · Link opens our homepage — not the dashboard.</div>
+            </div>
+
+            <!-- Stats grid -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:680px;margin-bottom:28px">
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+                    <div id="ref-stat-total" style="font-size:22px;font-weight:800;color:var(--accent)">—</div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Total Referred</div>
+                </div>
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+                    <div id="ref-stat-credited" style="font-size:22px;font-weight:800;color:var(--green)">—</div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Converted</div>
+                </div>
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+                    <div id="ref-stat-days" style="font-size:22px;font-weight:800;color:var(--gold)">—</div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Bonus Days Earned</div>
+                </div>
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+                    <div id="ref-stat-pending" style="font-size:22px;font-weight:800;color:var(--text-dim)">—</div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Pending</div>
+                </div>
+            </div>
+
+            <!-- Event history -->
+            <div style="max-width:680px">
+                <div style="font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Referral History</div>
+                <div id="ref-events-list">
+                    <div style="color:var(--text-dim);font-size:13px;padding:20px 0">No referrals yet — share your link to get started!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ SUPPORT PAGE ═══ -->
+        <div class="page" id="page-support">
+            <div class="section-header"><h2>💬 Support &amp; Contact</h2></div>
+            <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.7">
+                Need help? Reach out through any of the channels below. We typically respond within a few hours.
+            </p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;max-width:900px">
+
+                <a href="https://wa.me/41779586845" target="_blank" rel="noopener"
+                   style="text-decoration:none;display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='#25D366';this.style.background='rgba(37,211,102,0.06)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
+                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(37,211,102,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📱</div>
+                    <div>
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#25D366;text-transform:uppercase;margin-bottom:3px">WhatsApp</div>
+                        <div style="font-size:15px;font-weight:600;color:var(--text)">+41 77 958 6845</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Tap to open chat</div>
+                    </div>
+                </a>
+
+                <a href="viber://chat?number=41779586845" target="_blank" rel="noopener"
+                   style="text-decoration:none;display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='#7360F2';this.style.background='rgba(115,96,242,0.06)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
+                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(115,96,242,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📲</div>
+                    <div>
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#7360F2;text-transform:uppercase;margin-bottom:3px">Viber</div>
+                        <div style="font-size:15px;font-weight:600;color:var(--text)">+41 77 958 6845</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Tap to open Viber</div>
+                    </div>
+                </a>
+
+                <a href="https://t.me/s53ctr3" target="_blank" rel="noopener"
+                   style="text-decoration:none;display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='#29A8E8';this.style.background='rgba(41,168,232,0.06)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
+                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(41,168,232,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">✈️</div>
+                    <div>
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#29A8E8;text-transform:uppercase;margin-bottom:3px">Telegram</div>
+                        <div style="font-size:15px;font-weight:600;color:var(--text)">@s53ctr3</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Direct message</div>
+                    </div>
+                </a>
+
+                <a href="tel:+38973760761"
+                   style="text-decoration:none;display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='var(--gold)';this.style.background='rgba(244,162,54,0.06)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
+                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(244,162,54,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📞</div>
+                    <div>
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--gold);text-transform:uppercase;margin-bottom:3px">Phone</div>
+                        <div style="font-size:15px;font-weight:600;color:var(--text)">+389 73 760 761</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Call or SMS</div>
+                    </div>
+                </a>
+
+                <a href="mailto:nikola@skytech.mk"
+                   style="text-decoration:none;display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='var(--accent)';this.style.background='rgba(80,180,255,0.06)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
+                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(80,180,255,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">✉️</div>
+                    <div>
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;margin-bottom:3px">Email</div>
+                        <div style="font-size:15px;font-weight:600;color:var(--text)">nikola@skytech.mk</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">We reply within a few hours</div>
+                    </div>
+                </a>
+
+            </div>
+            <div style="margin-top:32px;padding:20px 24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;max-width:900px">
+                <div style="font-size:12px;font-weight:700;letter-spacing:.07em;color:var(--text-dim);text-transform:uppercase;margin-bottom:10px">Response Times</div>
+                <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:var(--text-dim)">
+                    <span>🟢 <strong style="color:var(--text)">Telegram / WhatsApp</strong> — Usually within 1–2 hours</span>
+                    <span>🟡 <strong style="color:var(--text)">Email</strong> — Within same business day</span>
+                    <span>🔵 <strong style="color:var(--text)">Viber / Phone</strong> — Business hours (CET)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ USER MANUAL PAGE ═══ -->
+        <div class="page" id="page-manual" style="position:relative">
+            <!-- Lock overlay for free tier -->
+            <div id="manual-lock-overlay" style="display:none;position:absolute;inset:0;z-index:10;background:rgba(13,13,15,0.75);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+                <div style="text-align:center;max-width:400px;padding:40px">
+                    <div style="font-size:48px;margin-bottom:16px">🔒</div>
+                    <h2 style="font-size:22px;margin-bottom:8px">User Manual — Plus & Pro</h2>
+                    <p style="color:var(--text-dim);font-size:13px;line-height:1.6;margin-bottom:24px">
+                        The full user manual is available for paid subscribers.<br>Upgrade to unlock all guides, tutorials, and trading tips.
+                    </p>
+                    <button class="form-submit" onclick="switchPage('pricing')" style="max-width:220px;margin:0 auto">Upgrade Now</button>
+                </div>
+            </div>
+            <!-- Manual content -->
+            <div id="manual-content" style="position:relative;max-width:900px">
+                <div class="section-header"><h2>📖 User Manual</h2></div>
+                <p style="color:var(--text-dim);font-size:13px;margin-bottom:32px;line-height:1.7">
+                    Complete guide to Anunnaki World Signals — everything you need to get the most out of the platform.
+                </p>
+
+                <!-- Table of Contents -->
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin-bottom:32px">
+                    <div style="font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px">Table of Contents</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;font-size:13px">
+                        <a href="#" onclick="document.getElementById('m-getting-started').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">1. Getting Started</a>
+                        <a href="#" onclick="document.getElementById('m-overview').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">2. Overview Dashboard</a>
+                        <a href="#" onclick="document.getElementById('m-signals').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">3. Signals — How to Read</a>
+                        <a href="#" onclick="document.getElementById('m-charts').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">4. Charts <span style="color:var(--accent);font-size:10px">PLUS</span></a>
+                        <a href="#" onclick="document.getElementById('m-analytics').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">5. Analytics <span style="color:var(--accent);font-size:10px">PLUS</span></a>
+                        <a href="#" onclick="document.getElementById('m-presignals').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">6. Pre-Signals <span style="color:var(--purple);font-size:10px">PRO</span></a>
+                        <a href="#" onclick="document.getElementById('m-screener').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">7. Screener <span style="color:var(--accent);font-size:10px">PLUS</span></a>
+                        <a href="#" onclick="document.getElementById('m-heatmap').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">8. Liquidation Heatmap <span style="color:var(--accent);font-size:10px">PLUS</span></a>
+                        <a href="#" onclick="document.getElementById('m-copytrading').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">9. Copy-Trading <span style="color:var(--purple);font-size:10px">PRO</span></a>
+                        <a href="#" onclick="document.getElementById('m-account').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">10. Account & Security</a>
+                        <a href="#" onclick="document.getElementById('m-faq').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">11. FAQ</a>
+                        <a href="#" onclick="document.getElementById('m-tiers').scrollIntoView({behavior:'smooth'});return false" style="color:var(--text);text-decoration:none;padding:4px 0">12. Tier Comparison</a>
+                    </div>
+                </div>
+
+                <!-- 1. Getting Started -->
+                <div id="m-getting-started" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">1. Getting Started</h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p><strong style="color:var(--text)">Registration:</strong> Click <em>Register</em>, enter a valid email address, choose a strong password (min 8 characters, including uppercase, lowercase, number, and special character), and pick a username.</p>
+                        <p style="margin-top:8px"><strong style="color:var(--text)">Welcome Email:</strong> After registering, you'll receive a welcome email with your credentials. <strong style="color:#ff6b85">Save your password immediately</strong> — we store only a hashed version and cannot recover it.</p>
+                        <p style="margin-top:8px"><strong style="color:var(--text)">Login:</strong> You can log in using either your email or username. If you forget your password, use the <em>Forgot your password?</em> link on the login screen.</p>
+                        <p style="margin-top:8px"><strong style="color:var(--text)">Tiers:</strong> Start on Free, then upgrade to <strong style="color:var(--accent)">Plus (53 USDT/mo)</strong> or <strong style="color:var(--purple)">Pro (109 USDT/mo)</strong> via the Pricing tab. Payments accepted in USDT, BTC, ETH, SOL, and BNB.</p>
+                    </div>
+                </div>
+
+                <!-- 2. Overview Dashboard -->
+                <div id="m-overview" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">2. Overview Dashboard</h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p>The <strong style="color:var(--text)">Overview</strong> page is your main hub. It shows:</p>
+                        <div style="margin:10px 0 10px 16px">
+                            <p>- <strong style="color:var(--text)">Live Dot Indicator</strong> — green pulsing dot means the bot is actively scanning the market.</p>
+                            <p>- <strong style="color:var(--text)">Monitored Pairs</strong> — pairs currently approaching signal zones. Real-time price tickers show live Binance prices.</p>
+                            <p>- <strong style="color:var(--text)">Signal Feed</strong> — latest signals with entry, targets (TP1–TP3), stop-loss, leverage, and SQI quality grade.</p>
+                            <p>- <strong style="color:var(--text)">Live PnL</strong> — (Pro+) real-time leveraged P&L for each open signal based on current market price.</p>
+                        </div>
+                        <p><strong style="color:var(--text)">Free tier delay:</strong> Signals are delayed by 15 minutes on the free tier. Upgrade to Plus or Pro for real-time delivery.</p>
+                    </div>
+                </div>
+
+                <!-- 3. Signals -->
+                <div id="m-signals" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">3. Signals — How to Read Them</h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p>Each signal contains:</p>
+                        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:12px 0;font-family:monospace;font-size:12px;line-height:1.9;color:var(--text)">
+                            <div><span style="color:var(--green)">LONG</span> <strong>BTCUSDT</strong> @ $64,500</div>
+                            <div style="color:var(--text-dim)">TP1: $65,200 · TP2: $66,000 · TP3: $67,800</div>
+                            <div style="color:#ff6b85">SL: $63,100</div>
+                            <div>Leverage: 7x · SQI: <span style="color:var(--green)">A (78)</span></div>
+                        </div>
+                        <p style="margin-top:10px"><strong style="color:var(--text)">Direction:</strong> LONG (buy) or SHORT (sell). Follow the direction indicated.</p>
+                        <p style="margin-top:6px"><strong style="color:var(--text)">Entry Price:</strong> The recommended entry price. Enter at or near this level.</p>
+                        <p style="margin-top:6px"><strong style="color:var(--text)">Targets (TP1–TP3):</strong> Take-profit levels. TP1 is the most conservative, TP3 is the stretch target. We recommend closing 50% at TP1, 30% at TP2, and letting 20% ride to TP3.</p>
+                        <p style="margin-top:6px"><strong style="color:var(--text)">Stop-Loss (SL):</strong> The price at which to close the position to limit losses. <strong style="color:#ff6b85">Always use the SL. Never remove it.</strong></p>
+                        <p style="margin-top:6px"><strong style="color:var(--text)">Leverage:</strong> The recommended leverage. Higher-quality signals (SQI A/S) get higher leverage. Never exceed the recommended leverage.</p>
+                        <p style="margin-top:6px"><strong style="color:var(--text)">SQI Grade:</strong> Signal Quality Index from S (best) to D (lowest). Grades A and S are high-conviction trades. Grade D signals are informational only.</p>
+                        <div style="background:rgba(244,162,54,0.08);border:1px solid rgba(244,162,54,0.2);border-radius:8px;padding:12px 16px;margin-top:14px">
+                            <strong style="color:var(--gold);font-size:12px">SQI GRADES</strong>
+                            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px;font-size:12px;text-align:center">
+                                <div><span style="color:var(--green);font-weight:700;font-size:14px">S</span><br>85+ pts<br>Max conviction</div>
+                                <div><span style="color:var(--green);font-weight:700;font-size:14px">A</span><br>70–84<br>High quality</div>
+                                <div><span style="color:var(--gold);font-weight:700;font-size:14px">B</span><br>55–69<br>Good setup</div>
+                                <div><span style="color:var(--text-dim);font-weight:700;font-size:14px">C</span><br>40–54<br>Moderate</div>
+                                <div><span style="color:#ff6b85;font-weight:700;font-size:14px">D</span><br>&lt;40<br>Low quality</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Charts -->
+                <div id="m-charts" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">4. Charts <span style="font-size:11px;color:var(--accent);font-weight:600">PRO+</span></h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p>Interactive candlestick charts powered by TradingView Lightweight Charts. Available for Plus and Pro tiers.</p>
+                        <p style="margin-top:8px"><strong style="color:var(--text)">Features:</strong></p>
+                        <div style="margin:6px 0 6px 16px">
+                            <p>- <strong style="color:var(--text)">Candlestick + Volume</strong> — 1-hour OHLCV data with color-coded volume bars.</p>
+                            <p>- <strong style="color:var(--text)">Chandelier Exit Lines</strong> — the CE Line (signal layer) and CE Cloud (trend layer) overlaid on the chart.</p>
+                            <p>- <strong style="color:var(--text)">Signal Markers</strong> — entry, TP, and SL levels drawn directly on the chart for active signals.</p>
+                            <p>- <strong style="color:var(--text)">TSI Indicator</strong> — True Strength Index sub-chart showing momentum zones.</p>
+                            <p>- <strong style="color:var(--text)">LinReg</strong> — Linear Regression normalized indicator for mean-reversion timing.</p>
+                        </div>
+                        <p style="margin-top:8px"><strong style="color:var(--text)">Usage:</strong> Select a pair from the Overview or Signals tab. The chart auto-loads with the latest data and signal overlays.</p>
+                    </div>
+                </div>
+
+                <!-- 5. Analytics -->
+                <div id="m-analytics" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">5. Analytics <span style="font-size:11px;color:var(--accent);font-weight:600">PRO+</span></h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p>Full performance breakdown of the bot's signal history. Available for Plus and Pro tiers.</p>
+                        <div style="margin:10px 0 6px 16px">
+                            <p>- <strong style="color:var(--text)">Win Rate & ROI</strong> — overall win percentage, average return, and profit factor.</p>
+                            <p>- <strong style="color:var(--text)">Equity Curve</strong> — historical equity growth chart showing cumulative P&L.</p>
+                            <p>- <strong style="color:var(--text)">Pair Performance</strong> — breakdown of wins/losses per trading pair.</p>
+                            <p>- <strong style="color:var(--text)">Hourly Heatmap</strong> — shows which hours of the day produce the best signals.</p>
+                            <p>- <strong style="color:var(--text)">Daily P&L</strong> — day-by-day profit and loss breakdown.</p>
+                            <p>- <strong style="color:var(--text)">Signal Breakdown</strong> — distribution by direction, SQI grade, and outcome.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Pre-Signals -->
+                <div id="m-presignals" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">6. Pre-Signals <span style="font-size:11px;color:var(--purple);font-weight:600">PRO</span></h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p>Pro-only feature. Pre-signals show pairs that are <strong style="color:var(--text)">approaching a signal zone</strong> but haven't confirmed yet.</p>
+                        <p style="margin-top:8px">This gives you an early heads-up to watch specific pairs before the bot fires a full signal. Use pre-signals to:</p>
+                        <div style="margin:6px 0 6px 16px">
+                            <p>- Set price alerts on your exchange for the pair.</p>
+                            <p>- Prepare your position size and leverage in advance.</p>
+                            <p>- Get context on what the bot is watching next.</p>
+                        </div>
+                        <p style="margin-top:8px">Pre-signals show: pair, direction bias, TSI zone level, and estimated time to confirmation.</p>
+                    </div>
+                </div>
+
+                <!-- 7. Screener -->
+                <div id="m-screener" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">7. Screener <span style="font-size:11px;color:var(--accent);font-weight:600">PRO+</span></h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p>A real-time market screener scanning 200+ USDT perpetual futures pairs. Shows key indicator readings for every pair at a glance.</p>
+                        <div style="margin:10px 0 6px 16px">
+                            <p>- <strong style="color:var(--text)">RSI</strong> — oversold (&lt;30) and overbought (&gt;70) highlighted.</p>
+                            <p>- <strong style="color:var(--text)">MACD</strong> — trend direction and momentum strength.</p>
+                            <p>- <strong style="color:var(--text)">Bollinger Bands</strong> — volatility squeeze and expansion detection.</p>
+                            <p>- <strong style="color:var(--text)">Volume Profile</strong> — relative volume vs 20-period average.</p>
+                            <p>- <strong style="color:var(--text)">ATR%</strong> — normalized volatility for position sizing.</p>
+                        </div>
+                        <p style="margin-top:8px">Click any row to jump directly to that pair's chart.</p>
+                    </div>
+                </div>
+
+                <!-- 8. Liquidation Heatmap -->
+                <div id="m-heatmap" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">8. Liquidation Heatmap <span style="font-size:11px;color:var(--accent);font-weight:600">PRO+</span></h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p>Visualizes real-time Binance Futures liquidation events. Helps identify high-liquidity zones where large stop-losses or liquidations cluster.</p>
+                        <div style="margin:10px 0 6px 16px">
+                            <p>- <strong style="color:var(--text)">Live Liquidation Feed</strong> — streams liquidation events via WebSocket in real-time.</p>
+                            <p>- <strong style="color:var(--text)">Heatmap View</strong> — color-coded by liquidation volume. Brighter = more liquidations.</p>
+                            <p>- <strong style="color:var(--text)">Pair Filter</strong> — focus on specific pairs or view all.</p>
+                        </div>
+                        <p style="margin-top:8px"><strong style="color:var(--text)">Trading Use:</strong> Liquidation clusters act as magnets. Price tends to hunt these zones for liquidity before reversing. Use this to time entries near high-liquidation zones.</p>
+                    </div>
+                </div>
+
+                <!-- 9. Copy-Trading -->
+                <div id="m-copytrading" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">9. Copy-Trading <span style="font-size:11px;color:var(--purple);font-weight:600">PRO</span></h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <p>Fully automated trading. When the bot generates a signal, it automatically opens the position on <strong style="color:var(--text)">your Binance Futures account</strong>.</p>
+
+                        <div style="background:rgba(255,77,106,0.08);border:1px solid rgba(255,77,106,0.25);border-radius:8px;padding:14px 16px;margin:14px 0">
+                            <strong style="color:#ff6b85;font-size:12px">IMPORTANT SECURITY RULES</strong>
+                            <div style="margin-top:6px;font-size:12px;line-height:1.7">
+                                <p>- Create a <strong>dedicated API key</strong> with <strong>only Futures Trading</strong> permission enabled.</p>
+                                <p>- <strong style="color:#ff6b85">NEVER enable Withdrawals or Internal Transfer</strong> on the API key. The system will reject such keys.</p>
+                                <p>- Restrict the API key by IP if possible (your Binance settings).</p>
+                                <p>- Your keys are encrypted with AES-256 and stored separately from your account.</p>
+                            </div>
+                        </div>
+
+                        <p style="margin-top:14px"><strong style="color:var(--text)">Setup Steps:</strong></p>
+                        <div style="margin:6px 0 6px 16px">
+                            <p>1. Go to Binance → API Management → Create new API key.</p>
+                            <p>2. Enable <strong>only "Enable Futures"</strong>. Leave everything else OFF.</p>
+                            <p>3. Copy the API Key and Secret.</p>
+                            <p>4. Paste them in the Copy-Trade tab → click "Save Settings".</p>
+                            <p>5. Fund your Binance Futures wallet with USDT.</p>
+                            <p>6. Toggle the "Active" switch to start copying signals.</p>
+                        </div>
+
+                        <p style="margin-top:14px"><strong style="color:var(--text)">Settings Explained:</strong></p>
+                        <div style="margin:6px 0 6px 16px">
+                            <p>- <strong style="color:var(--text)">Position Size Mode:</strong> Choose "% of Balance" or "Fixed USDT". Fixed USDT uses the exact amount you set per trade.</p>
+                            <p>- <strong style="color:var(--text)">Leverage Mode:</strong>
+                                <em>Automatic</em> = uses signal's recommended leverage (capped at your max).
+                                <em>Fixed</em> = always uses your set value.
+                                <em>Pair Max</em> = uses the maximum leverage Binance allows for that pair.</p>
+                            <p>- <strong style="color:var(--text)">SQI Scaling:</strong> When enabled, position size scales with signal quality (higher SQI = bigger size, lower = smaller). Recommended ON.</p>
+                            <p>- <strong style="color:var(--text)">TP Mode:</strong>
+                                <em>Pyramid</em> (recommended) = 50% at TP1, 30% at TP2, 20% at TP3.
+                                <em>TP1 Only</em> = closes entire position at TP1.
+                                <em>TP1+TP2</em> = 65% at TP1, 35% at TP2.</p>
+                            <p>- <strong style="color:var(--text)">Daily Loss Limit:</strong> Stops opening new positions if daily losses exceed this percentage. Default: -5%.</p>
+                        </div>
+
+                        <p style="margin-top:14px"><strong style="color:var(--text)">How Execution Works:</strong></p>
+                        <div style="margin:6px 0 6px 16px">
+                            <p>- Market order opens the position instantly when a signal fires.</p>
+                            <p>- Stop-loss is placed automatically as a STOP_MARKET order (mark price based).</p>
+                            <p>- Take-profit orders are placed as TAKE_PROFIT_MARKET orders split according to your TP mode.</p>
+                            <p>- All orders use ISOLATED margin mode.</p>
+                            <p>- Position monitor checks every 60 seconds if a position was closed (SL/TP hit) and updates your P&L.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 10. Account & Security -->
+                <div id="m-account" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">10. Account & Security</h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <div style="margin:6px 0 6px 16px">
+                            <p>- <strong style="color:var(--text)">Password:</strong> Must be 8+ characters with uppercase, lowercase, number, and special character. No repeating (aaa) or sequential (1234) characters.</p>
+                            <p>- <strong style="color:var(--text)">Password Storage:</strong> We store only a bcrypt hash. We <strong>cannot</strong> recover your password. Use the reset link if forgotten.</p>
+                            <p>- <strong style="color:var(--text)">API Keys (Copy-Trading):</strong> Encrypted with AES-256 (Fernet). Keys are stored encrypted and decrypted only at order execution time. Each user's keys are completely isolated.</p>
+                            <p>- <strong style="color:var(--text)">Subscription:</strong> Managed via crypto payments. Your tier and expiration are shown in the header. You'll receive reminders before expiry.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 11. FAQ -->
+                <div id="m-faq" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">11. Frequently Asked Questions</h3>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+                        <div style="margin-bottom:14px">
+                            <p><strong style="color:var(--text)">Q: How often do signals fire?</strong></p>
+                            <p>A: The bot scans 200+ pairs every 10 minutes on the 1-hour timeframe. Typically 1–3 signals per day, depending on market conditions. Quality over quantity.</p>
+                        </div>
+                        <div style="margin-bottom:14px">
+                            <p><strong style="color:var(--text)">Q: Can I use the bot on Bybit / OKX / other exchanges?</strong></p>
+                            <p>A: Currently only Binance Futures is supported for copy-trading. You can manually trade the signals on any exchange.</p>
+                        </div>
+                        <div style="margin-bottom:14px">
+                            <p><strong style="color:var(--text)">Q: What is the recommended starting capital?</strong></p>
+                            <p>A: Minimum $10 USDT for copy-trading. Recommended $50–$500 for meaningful results. The bot works with any size — positions are scaled to your balance.</p>
+                        </div>
+                        <div style="margin-bottom:14px">
+                            <p><strong style="color:var(--text)">Q: Is the bot profitable?</strong></p>
+                            <p>A: Check the Analytics tab for live performance data. Past performance doesn't guarantee future results. Always use proper risk management and never invest more than you can afford to lose.</p>
+                        </div>
+                        <div style="margin-bottom:14px">
+                            <p><strong style="color:var(--text)">Q: Can I cancel my subscription?</strong></p>
+                            <p>A: Subscriptions are non-recurring. You pay once for 30 days. Simply don't renew if you want to stop. No auto-charges.</p>
+                        </div>
+                        <div style="margin-bottom:14px">
+                            <p><strong style="color:var(--text)">Q: Do you have access to my Binance account?</strong></p>
+                            <p>A: No. The API key you provide has <strong>only Futures Trading</strong> permission. We cannot withdraw, transfer, or access your funds. Each user's keys are encrypted separately and completely isolated.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 12. Tier Comparison -->
+                <div id="m-tiers" style="margin-bottom:36px">
+                    <h3 style="font-size:16px;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">12. Tier Comparison</h3>
+                    <div style="overflow-x:auto">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
+                            <thead>
+                                <tr style="border-bottom:2px solid var(--border)">
+                                    <th style="text-align:left;padding:10px 12px;color:var(--text)">Feature</th>
+                                    <th style="text-align:center;padding:10px 12px;color:var(--text-dim)">Free</th>
+                                    <th style="text-align:center;padding:10px 12px;color:var(--accent)">Plus 53 USDT/mo</th>
+                                    <th style="text-align:center;padding:10px 12px;color:var(--purple)">Pro 109 USDT/mo</th>
+                                </tr>
+                            </thead>
+                            <tbody style="color:var(--text-dim)">
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Signal Delivery</td><td style="text-align:center">15 min delay</td><td style="text-align:center;color:var(--green)">Real-time</td><td style="text-align:center;color:var(--green)">Real-time</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Overview Dashboard</td><td style="text-align:center;color:var(--green)">✓</td><td style="text-align:center;color:var(--green)">✓</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Interactive Charts</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Analytics & Performance</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Market Screener</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Liquidation Heatmap</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Pre-Signals</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Copy-Trading</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Telegram Signals Channel</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">User Manual</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                                <tr><td style="padding:8px 12px">Priority Support</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:#ff6b85">✗</td><td style="text-align:center;color:var(--green)">✓</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Need help? -->
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;text-align:center">
+                    <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Still have questions?</div>
+                    <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px">Visit the Support tab or contact us directly.</p>
+                    <button class="form-submit" onclick="switchPage('support')" style="max-width:180px;margin:0 auto;background:var(--surface3);color:var(--text);border:1px solid var(--border)">Go to Support</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ PRICING PAGE ═══ -->
+        <div class="page" id="page-pricing">
+            <div class="landing">
+                <div class="landing-hero">
+                    <div class="aw-hero-eyebrow">
+                        <span class="dot"></span>
+                        Institutional&nbsp;Intelligence · Crypto&nbsp;Derivatives
+                    </div>
+                    <h1>Where Smart Money<br>Meets Smart Signals</h1>
+                    <p>A powerful AI platform scanning <strong>200+ Binance USDT perpetual pairs</strong> in real time. Deep-learning ensembles, liquidation heatmaps, and institutional risk engines — now in your pocket. <em>Start for free today.</em></p>
+                    <a href="/static/whitepaper.html" target="_blank" rel="noopener"
+                       style="display:inline-flex;align-items:center;gap:8px;margin-top:-8px;margin-bottom:8px;
+                              padding:11px 22px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);
+                              border-radius:10px;color:var(--text-dim);font-size:13px;font-weight:500;
+                              letter-spacing:0.02em;text-decoration:none;transition:all 0.25s;backdrop-filter:blur(10px)"
+                       onmouseover="this.style.borderColor='rgba(212,168,74,0.45)';this.style.color='#E4C375'"
+                       onmouseout="this.style.borderColor='rgba(255,255,255,0.12)';this.style.color='var(--text-dim)'">
+                        📄 Read the Whitepaper <span style="font-size:11px;opacity:0.6">→</span>
+                    </a>
+                </div>
+
+                <div class="stats-bar" id="stats-bar">
+                    <div class="stat-item"><div class="stat-value" id="stat-pairs">200+</div><div class="stat-label">Pairs Monitored</div></div>
+                    <div class="stat-item"><div class="stat-value" id="stat-signals">—</div><div class="stat-label">Signals Sent</div></div>
+                    <div class="stat-item"><div class="stat-value" id="stat-winrate">—</div><div class="stat-label">Win Rate</div></div>
+                </div>
+
+                <!-- Trust / credibility strip -->
+                <div class="aw-trust-strip">
+                    <div class="aw-trust-item"><span class="icon">🔒</span><span>Bank-Grade <strong>Encryption</strong></span></div>
+                    <div class="aw-trust-item"><span class="icon">⚡</span><span>Sub-Second <strong>Latency</strong></span></div>
+                    <div class="aw-trust-item"><span class="icon">🧠</span><span>XGBoost + <strong>Transformer AI</strong></span></div>
+                    <div class="aw-trust-item"><span class="icon">🛡️</span><span>Read-Only <strong>API Keys</strong></span></div>
+                    <div class="aw-trust-item"><span class="icon">✨</span><span>No Custody, <strong>Ever</strong></span></div>
+                </div>
+
+                <div class="pricing-grid">
+                    <div class="price-card">
+                        <div class="price-tier free-t">Free</div>
+                        <div class="price-amount">$0</div>
+                        <ul class="price-features">
+                            <li><span class="check">✓</span> TSI Zone Overview</li>
+                            <li><span class="check">✓</span> 24h Delayed Signals</li>
+                            <li><span class="check">✓</span> Basic Pair Info</li>
+                            <li><span class="cross">✗</span> Entry / Targets / SL</li>
+                            <li><span class="cross">✗</span> Interactive Charts</li>
+                            <li><span class="cross">✗</span> Performance Analytics</li>
+                        </ul>
+                        <button class="price-cta free-btn" onclick="openModal('register')">Get Started Free</button>
+                    </div>
+                    <div class="price-card featured">
+                        <div class="price-tier plus-t">Plus</div>
+                        <div class="price-amount">53<span> USDT/mo</span></div>
+                        <ul class="price-features">
+                            <li><span class="check">✓</span> Everything in Free</li>
+                            <li><span class="check">✓</span> <strong>Real-Time Signals</strong></li>
+                            <li><span class="check">✓</span> <strong>Full Entry/Targets/SL</strong></li>
+                            <li><span class="check">✓</span> <strong>Interactive Charts</strong></li>
+                            <li><span class="check">✓</span> <strong>Performance Analytics</strong></li>
+                            <li><span class="cross">✗</span> Pre-Signal Alerts</li>
+                        </ul>
+                        <button class="price-cta plus-btn" onclick="startPayment('plus')">Subscribe — 53 USDT/mo</button>
+                    </div>
+                    <div class="price-card">
+                        <div class="price-tier pro-t">Pro</div>
+                        <div class="price-amount">109<span> USDT/mo</span></div>
+                        <ul class="price-features">
+                            <li><span class="check">✓</span> Everything in Plus</li>
+                            <li><span class="check">✓</span> <strong>Pre-Signal Alerts</strong></li>
+                            <li><span class="check">✓</span> <strong>API Access + Webhooks</strong></li>
+                            <li><span class="check">✓</span> <strong>Signal Data Export</strong></li>
+                            <li><span class="check">✓</span> <strong>Telegram Signals Channel</strong></li>
+                            <li><span class="check">✓</span> <strong>Priority Support</strong></li>
+                        </ul>
+                        <button class="price-cta pro-btn" onclick="startPayment('pro')">Subscribe — 109 USDT/mo</button>
+                    </div>
+                    <div class="price-card premium-card">
+                        <div class="dev-badge">🔧 In Development</div>
+                        <div class="price-tier premium-t">Ultra</div>
+                        <div class="price-amount" style="color:#06b6d4">200<span> USDT/mo</span></div>
+                        <ul class="price-features">
+                            <li><span class="check">✓</span> Everything in Pro</li>
+                            <li><span style="color:#06b6d4;font-weight:700;min-width:18px">◈</span> <strong style="color:var(--text-dim)">Dedicated Account Manager</strong></li>
+                            <li><span style="color:#06b6d4;font-weight:700;min-width:18px">◈</span> <strong style="color:var(--text-dim)">Custom Signal Strategies</strong></li>
+                            <li><span style="color:#06b6d4;font-weight:700;min-width:18px">◈</span> <strong style="color:var(--text-dim)">Portfolio Auto-Rebalancing</strong></li>
+                            <li><span style="color:#06b6d4;font-weight:700;min-width:18px">◈</span> <strong style="color:var(--text-dim)">Multi-Exchange Support</strong></li>
+                            <li><span style="color:#06b6d4;font-weight:700;min-width:18px">◈</span> <strong style="color:var(--text-dim)">White-Label Reports</strong></li>
+                        </ul>
+                        <button class="price-cta premium-btn" disabled title="Coming soon — currently in development">🔧 Coming Soon</button>
+                    </div>
+                </div>
+
+                <div class="crypto-badges">
+                    <div class="crypto-badge">₿ Bitcoin</div>
+                    <div class="crypto-badge">₮ USDT</div>
+                    <div class="crypto-badge">⟠ Ethereum</div>
+                    <div class="crypto-badge">Ł Litecoin</div>
+                </div>
+
+                <!-- ═══ ROADMAP ═══ -->
+                <div style="max-width:900px;margin:48px auto 0;padding:0 16px">
+                    <h2 style="text-align:center;font-size:26px;margin-bottom:6px">Roadmap</h2>
+                    <p style="text-align:center;color:var(--text-dim);font-size:13px;margin-bottom:36px">Where we've been, where we're going.</p>
+
+                    <!-- Timeline -->
+                    <div style="position:relative;padding-left:32px">
+                        <!-- Vertical line -->
+                        <div style="position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:linear-gradient(to bottom,var(--green),var(--accent),var(--gold),var(--purple),rgba(255,255,255,0.08))"></div>
+
+                        <!-- Q1 2026 — COMPLETED -->
+                        <div style="position:relative;margin-bottom:36px">
+                            <div style="position:absolute;left:-27px;top:4px;width:14px;height:14px;border-radius:50%;background:var(--green);border:2px solid var(--bg)"></div>
+                            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--green);text-transform:uppercase;margin-bottom:8px">Q1 2026 — Completed</div>
+                            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 22px">
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-dim)">
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Reverse Hunt signal engine (200+ pairs, 1H)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> ML Ensemble validation (XGBoost + Transformer)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> SQI scoring system (S/A/B/C/D grades)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Dashboard with real-time signal feed</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Tiered access (Free / Plus / Pro)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Crypto payment gateway</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Q2 2026 — IN PROGRESS -->
+                        <div style="position:relative;margin-bottom:36px">
+                            <div style="position:absolute;left:-27px;top:4px;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 8px rgba(80,180,255,0.4)"></div>
+                            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;margin-bottom:8px">Q2 2026 — In Progress</div>
+                            <div style="background:var(--surface);border:1px solid rgba(80,180,255,0.25);border-radius:12px;padding:18px 22px">
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-dim)">
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Copy-Trading — Binance Futures (Pro)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Interactive charts with CE / TSI overlays</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Liquidation heatmap (real-time WebSocket)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Market screener (200+ pairs)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> PREDATOR 3-layer regime engine (regime / positioning / stop-hunt)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> USDT.D macro gate &amp; regime-aware sizing</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Equity-perp market-hours filter (NYSE + holidays)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Device-fingerprint security (tier-based device limits)</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Email verification + new-device geo-IP alerts</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Light / dark theme with IP-timezone auto-detection</div>
+                                    <div><span style="color:var(--green);font-weight:700">&#10003;</span> Global maintenance mode (banner + copy-trading auto-pause)</div>
+                                    <div><span style="color:var(--gold);font-weight:700">&#9679;</span> Performance analytics &amp; equity curve</div>
+                                    <div><span style="color:var(--gold);font-weight:700">&#9679;</span> Telegram signals channel (Pro)</div>
+                                    <div><span style="color:var(--gold);font-weight:700">&#9679;</span> Mobile-responsive dashboard redesign</div>
+                                    <div><span style="color:var(--gold);font-weight:700">&#9679;</span> Advanced risk management dashboard</div>
+                                    <div style="display:flex;align-items:center;gap:6px"><span style="color:#f7931a;font-weight:700">&#9679;</span> <strong style="color:#f7931a">Bybit</strong> copy-trading — final testing, launching this week <span style="font-size:9px;color:#06b6d4;font-weight:700;background:rgba(6,182,212,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em;white-space:nowrap">◈ ULTRA</span></div>
+                                    <div style="display:flex;align-items:center;gap:6px"><span style="color:#00c853;font-weight:700">&#9679;</span> <strong style="color:#00c853">KuCoin</strong> copy-trading — final testing, launching this week <span style="font-size:9px;color:#06b6d4;font-weight:700;background:rgba(6,182,212,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em;white-space:nowrap">◈ ULTRA</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Q3 2026 — PLANNED -->
+                        <div style="position:relative;margin-bottom:36px">
+                            <div style="position:absolute;left:-27px;top:4px;width:14px;height:14px;border-radius:50%;background:var(--gold);border:2px solid var(--bg)"></div>
+                            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--gold);text-transform:uppercase;margin-bottom:8px">Q3 2026 — Planned</div>
+                            <div style="background:var(--surface);border:1px solid rgba(244,162,54,0.2);border-radius:12px;padding:18px 22px">
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-dim)">
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span><strong style="color:var(--text)">OKX</strong> copy-trading integration</span>
+                                        <span style="font-size:9px;color:#06b6d4;font-weight:700;background:rgba(6,182,212,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em;white-space:nowrap">◈ ULTRA</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span><strong style="color:var(--text)">Gate.io</strong> copy-trading integration</span>
+                                        <span style="font-size:9px;color:#06b6d4;font-weight:700;background:rgba(6,182,212,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em;white-space:nowrap">◈ ULTRA</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>Multi-timeframe signal engine (15m, 4H, 1D)</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>Webhook API for external bots &amp; alerts</span>
+                                        <span style="font-size:9px;color:#06b6d4;font-weight:700;background:rgba(6,182,212,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em;white-space:nowrap">◈ ULTRA</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>Portfolio tracker &amp; position management</span>
+                                        <span style="font-size:9px;color:#06b6d4;font-weight:700;background:rgba(6,182,212,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em;white-space:nowrap">◈ ULTRA</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>Custom alert rules &amp; notification preferences</span>
+                                        <span style="font-size:9px;color:#06b6d4;font-weight:700;background:rgba(6,182,212,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em;white-space:nowrap">◈ ULTRA</span>
+                                    </div>
+                                </div>
+
+                                <!-- DEX Pre-development callout -->
+                                <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
+                                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--orange,#f4a236)">
+                                        <span style="width:6px;height:6px;border-radius:50%;background:var(--orange,#f4a236);box-shadow:0 0 8px rgba(244,162,54,.5)"></span>
+                                        DEX Research — Pre-Development
+                                    </div>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-dim)">
+                                        <div style="display:flex;align-items:center;gap:8px">
+                                            <span style="color:var(--orange,#f4a236);font-weight:700">&#9672;</span>
+                                            <span><strong style="color:var(--text)">Hyperliquid</strong> DEX — on-chain perps execution</span>
+                                            <span style="font-size:9px;color:var(--orange,#f4a236);font-weight:700;background:rgba(244,162,54,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em">PRE-DEV</span>
+                                        </div>
+                                        <div style="display:flex;align-items:center;gap:8px">
+                                            <span style="color:var(--orange,#f4a236);font-weight:700">&#9672;</span>
+                                            <span><strong style="color:var(--text)">Aster</strong> DEX — multi-chain perp routing</span>
+                                            <span style="font-size:9px;color:var(--orange,#f4a236);font-weight:700;background:rgba(244,162,54,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.05em">PRE-DEV</span>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:8px;font-size:11px;color:var(--text-muted);font-style:italic">
+                                        Feasibility scoping: RPC latency, signing model, liquidation risk vs CEX parity. No commit date yet.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Q4 2026 — VISION -->
+                        <div style="position:relative;margin-bottom:12px">
+                            <div style="position:absolute;left:-27px;top:4px;width:14px;height:14px;border-radius:50%;background:var(--purple);border:2px solid var(--bg)"></div>
+                            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--purple);text-transform:uppercase;margin-bottom:8px">Q4 2026 — Vision</div>
+                            <div style="background:var(--surface);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:18px 22px">
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-dim)">
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span><strong style="color:var(--text)">Kraken</strong> Futures copy-trading</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>Spot trading signals &amp; execution</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>Social trading — follow top performers</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>AI trade journal &amp; pattern recognition</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>Mobile app (iOS &amp; Android)</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="color:var(--text-dim);font-weight:700">&#9675;</span>
+                                        <span>DeFi integration &amp; on-chain signals</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Exchange badges -->
+                    <div style="margin-top:40px;text-align:center">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:14px">Supported &amp; Upcoming Exchanges</div>
+                        <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+                            <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(240,185,11,0.3);border-radius:8px;padding:10px 18px;font-size:13px">
+                                <span style="font-weight:900;color:#F0B90B;font-size:15px">B</span>
+                                <span style="color:var(--text);font-weight:600">Binance</span>
+                                <span style="font-size:10px;color:var(--green);font-weight:700;background:rgba(0,200,83,0.12);padding:2px 6px;border-radius:4px">LIVE</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(246,169,0,0.2);border-radius:8px;padding:10px 18px;font-size:13px">
+                                <span style="font-weight:900;color:#F6A900;font-size:15px">By</span>
+                                <span style="color:var(--text);font-weight:600">Bybit</span>
+                                <span style="font-size:10px;color:var(--gold);font-weight:700;background:rgba(244,162,54,0.12);padding:2px 6px;border-radius:4px">Q3</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(35,195,163,0.2);border-radius:8px;padding:10px 18px;font-size:13px">
+                                <span style="font-weight:900;color:#23C3A3;font-size:15px">KC</span>
+                                <span style="color:var(--text);font-weight:600">KuCoin</span>
+                                <span style="font-size:10px;color:var(--gold);font-weight:700;background:rgba(244,162,54,0.12);padding:2px 6px;border-radius:4px">Q3</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(0,180,216,0.25);border-radius:8px;padding:10px 18px;font-size:13px">
+                                <span style="font-weight:900;color:#00B4D8;font-size:15px">OK</span>
+                                <span style="color:var(--text);font-weight:600">OKX</span>
+                                <span style="font-size:10px;color:#00B4D8;font-weight:700;background:rgba(0,180,216,0.12);padding:2px 6px;border-radius:4px">Q3</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(113,102,255,0.2);border-radius:8px;padding:10px 18px;font-size:13px">
+                                <span style="font-weight:900;color:#7166FF;font-size:15px">Kr</span>
+                                <span style="color:var(--text);font-weight:600">Kraken</span>
+                                <span style="font-size:10px;color:var(--purple);font-weight:700;background:rgba(168,85,247,0.12);padding:2px 6px;border-radius:4px">Q4</span>
+                            </div>
+                            <!-- DEX pre-development -->
+                            <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px dashed rgba(244,162,54,0.3);border-radius:8px;padding:10px 18px;font-size:13px">
+                                <span style="font-weight:900;color:#50D2C2;font-size:15px">HL</span>
+                                <span style="color:var(--text);font-weight:600">Hyperliquid</span>
+                                <span style="font-size:10px;color:#f4a236;font-weight:700;background:rgba(244,162,54,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.04em">PRE-DEV</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px dashed rgba(244,162,54,0.3);border-radius:8px;padding:10px 18px;font-size:13px">
+                                <span style="font-weight:900;color:#EAEAEA;font-size:15px">As</span>
+                                <span style="color:var(--text);font-weight:600">Aster</span>
+                                <span style="font-size:10px;color:#f4a236;font-weight:700;background:rgba(244,162,54,0.12);padding:2px 6px;border-radius:4px;letter-spacing:.04em">PRE-DEV</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ AUTH MODAL ═══ -->
+    <div class="modal-bg" id="modal-auth">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModals()">✕</button>
+            <div style="text-align:center;margin-bottom:16px">
+                <img src="/static/logo.jpeg" alt="Anunnaki World" style="height:52px;width:52px;border-radius:10px;object-fit:cover">
+            </div>
+            <h2 id="auth-modal-title" style="text-align:center">Login</h2>
+            <div id="auth-error" class="form-error"></div>
+            <!-- Referral discount banner — shown when ?ref= is detected -->
+            <div id="ref-discount-banner" style="display:none;background:rgba(0,200,83,0.1);border:1px solid rgba(0,200,83,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;text-align:center;font-size:13px">
+                🎁 <strong style="color:var(--green)">Referral code applied!</strong> You'll receive <strong>7 free bonus days</strong> on your first subscription.
+            </div>
+            <div class="form-group" id="group-username" style="display:none">
+                <label>Username</label>
+                <input class="form-input" id="input-username" placeholder="Your name" onkeydown="if(event.key==='Enter')submitAuth()">
+            </div>
+            <div class="form-group">
+                <label id="label-email">Email / Username</label>
+                <input class="form-input" id="input-email" type="text" placeholder="Email or Username" onkeydown="if(event.key==='Enter')submitAuth()">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input class="form-input" id="input-password" type="password" placeholder="Min 8 chars, A-Z, 0-9, special char" onkeydown="if(event.key==='Enter')submitAuth()">
+            </div>
+            <div class="form-group" id="group-promo" style="display:none">
+                <label style="display:flex;justify-content:space-between">Promo / Referral Code <span style="color:var(--text-dim);font-weight:400">(optional)</span></label>
+                <input class="form-input" id="input-promo" placeholder="e.g. EMMHN6IR" style="font-family:monospace;letter-spacing:.05em" onkeydown="if(event.key==='Enter')submitAuth()">
+            </div>
+            <button class="form-submit" id="auth-submit" onclick="submitAuth()">Login</button>
+            <div class="form-switch">
+                <span id="auth-switch-text">Don't have an account?</span>
+                <a id="auth-switch-link" onclick="toggleAuthMode()">Register</a>
+            </div>
+            <div id="forgot-pw-link" style="text-align:center;margin-top:10px;font-size:12px">
+                <a href="/reset-password" style="color:#888;text-decoration:none"
+                   onmouseover="this.style.color='#f4a236'" onmouseout="this.style.color='#888'">
+                    Forgot your password?
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ REFERRAL MODAL (shown once per session after login) ═══ -->
+    <div class="modal-bg" id="modal-referral">
+        <div class="modal" style="max-width:500px">
+            <button class="modal-close" onclick="closeModals()">✕</button>
+            <div style="text-align:center;margin-bottom:6px;font-size:36px">🎁</div>
+            <h2 style="text-align:center;margin-bottom:6px">Exclusive Bonuses</h2>
+            <p style="text-align:center;color:var(--text-dim);font-size:13px;margin-bottom:22px;line-height:1.6">
+                Register on these exchanges via our referral links to unlock<br>fee discounts &amp; exclusive bonuses.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:10px">
+
+                <a href="https://www.binance.com/referral/earn-together/refer2earn-usdc/claim?hl=en&ref=GRO_28502_XVBXS&utm_source=referral_entrance"
+                   target="_blank" rel="noopener"
+                   style="display:flex;align-items:center;gap:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-decoration:none;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='#F0B90B';this.style.background='rgba(240,185,11,0.08)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface2)'">
+                    <div style="width:40px;height:40px;border-radius:8px;background:#F0B90B;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#000;flex-shrink:0">B</div>
+                    <div style="flex:1">
+                        <div style="font-size:14px;font-weight:700;color:var(--text)">Binance — Earn Together</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Refer &amp; Earn USDC rewards together</div>
+                    </div>
+                    <span style="font-size:11px;font-weight:700;color:#F0B90B;flex-shrink:0">JOIN →</span>
+                </a>
+
+                <a href="https://www.binance.com/activity/trading-competition/apr-referral-ranking?ref=81037812"
+                   target="_blank" rel="noopener"
+                   style="display:flex;align-items:center;gap:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-decoration:none;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='#F0B90B';this.style.background='rgba(240,185,11,0.08)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface2)'">
+                    <div style="width:40px;height:40px;border-radius:8px;background:#F0B90B;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#000;flex-shrink:0">B</div>
+                    <div style="flex:1">
+                        <div style="font-size:14px;font-weight:700;color:var(--text)">Binance — April Referral Ranking</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Join the trading competition &amp; leaderboard</div>
+                    </div>
+                    <span style="font-size:11px;font-weight:700;color:#F0B90B;flex-shrink:0">JOIN →</span>
+                </a>
+
+                <a href="https://promote.mexc.com/r/d1anXCKai3"
+                   target="_blank" rel="noopener"
+                   style="display:flex;align-items:center;gap:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-decoration:none;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='#1DAFCA';this.style.background='rgba(29,175,202,0.08)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface2)'">
+                    <div style="width:40px;height:40px;border-radius:8px;background:#1DAFCA;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex-shrink:0">MX</div>
+                    <div style="flex:1">
+                        <div style="font-size:14px;font-weight:700;color:var(--text)">MEXC — Referral Bonus</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Register &amp; get fee discounts + bonuses</div>
+                    </div>
+                    <span style="font-size:11px;font-weight:700;color:#1DAFCA;flex-shrink:0">JOIN →</span>
+                </a>
+
+                <a href="https://www.kucoin.com/r/af/J8Q2ya"
+                   target="_blank" rel="noopener"
+                   style="display:flex;align-items:center;gap:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-decoration:none;transition:all 0.2s"
+                   onmouseover="this.style.borderColor='#23AF91';this.style.background='rgba(35,175,145,0.08)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface2)'">
+                    <div style="width:40px;height:40px;border-radius:8px;background:#23AF91;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex-shrink:0">KC</div>
+                    <div style="flex:1">
+                        <div style="font-size:14px;font-weight:700;color:var(--text)">KuCoin — Referral Bonus</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Register &amp; get fee discounts + exclusive bonuses</div>
+                    </div>
+                    <span style="font-size:11px;font-weight:700;color:#23AF91;flex-shrink:0">JOIN →</span>
+                </a>
+
+            </div>
+            <button class="form-submit" style="margin-top:18px;background:var(--surface3);color:var(--text);border:1px solid var(--border)" onclick="closeModals()">
+                Continue to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══ PAYMENT MODAL ═══ -->
+    <div class="modal-bg" id="modal-payment">
+        <div class="modal" style="max-width:480px">
+            <button class="modal-close" onclick="closeModals()">✕</button>
+            <h2>🔐 Subscribe</h2>
+            <div id="payment-step1">
+                <label style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;display:block">SELECT PLAN</label>
+                <div class="plan-select" id="plan-select"></div>
+
+                <!-- Hosted crypto checkout (300+ coins) — auto-hidden if not configured -->
+                <button class="form-submit crypto-checkout-btn" onclick="payWithCrypto()"
+                        style="display:none;margin-top:16px;background:linear-gradient(135deg,#E4C375,#D4A84A 50%,#9B7A2F);color:#1a0f00;font-weight:700;letter-spacing:.02em;box-shadow:0 6px 18px rgba(212,168,74,.35),inset 0 1px 0 rgba(255,255,255,.3);align-items:center;justify-content:center;gap:8px">
+                    <span style="font-size:15px">💎</span>
+                    <span>Pay with Crypto — 300+ coins</span>
+                    <span style="font-size:10px;background:rgba(0,0,0,.2);padding:2px 8px;border-radius:999px;letter-spacing:.1em">RECOMMENDED</span>
+                </button>
+
+                <!-- Fallback message if crypto checkout not configured -->
+                <div id="crypto-checkout-fallback" style="display:none;text-align:center;font-size:13px;color:var(--text-dim);margin-top:12px">
+                    Crypto checkout is temporarily unavailable. Please contact support.
+                </div>
+            </div>
+            <div id="payment-step2" style="display:none">
+                <div style="text-align:center;margin-bottom:16px">
+                    <div style="font-size:14px;color:var(--text-dim)">Send exactly</div>
+                    <div style="font-size:28px;font-weight:800;color:var(--gold);margin:8px 0" id="pay-amount">—</div>
+                    <div style="font-size:13px;color:var(--text-dim)" id="pay-currency">USDT (TRC20)</div>
+                </div>
+                <div style="font-size:12px;color:var(--text-dim);text-align:center;margin-bottom:8px">TO THIS ADDRESS</div>
+                <div class="payment-address" id="pay-address" onclick="copyAddress()">—</div>
+                <div style="text-align:center;font-size:12px;color:var(--text-dim);margin-bottom:8px">Click address to copy</div>
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
+                    <div style="font-size:11px;font-weight:600;color:var(--gold);text-align:center;margin-bottom:6px">⚠️ IMPORTANT: Include this memo/note</div>
+                    <div style="font-family:monospace;font-size:16px;color:var(--gold);text-align:center;font-weight:700;padding:8px;background:var(--bg);border-radius:6px;cursor:pointer" id="pay-memo" onclick="copyMemo()">—</div>
+                </div>
+                <div id="pay-instructions" style="font-size:12px;color:var(--text-dim);margin-bottom:16px;padding:0 8px"></div>
+                <div id="payment-step2a">
+                    <button class="form-submit" style="background:var(--green);color:#000" onclick="showTxInput()">✅ I Have Paid</button>
+                </div>
+                <div id="payment-step2b" style="display:none">
+                    <div class="form-group">
+                        <label>Transaction Hash (optional)</label>
+                        <input class="form-input" id="input-tx-hash" placeholder="Paste your TX hash here...">
+                    </div>
+                    <button class="form-submit" onclick="submitPaymentProof()">Submit Payment Proof</button>
+                </div>
+                <div id="payment-step3" style="display:none;text-align:center;padding:20px">
+                    <div style="font-size:48px;margin-bottom:12px">🎉</div>
+                    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--green)">Payment Submitted!</div>
+                    <div style="font-size:13px;color:var(--text-dim)">Your subscription will be activated after verification (usually within 1 hour).</div>
+                    <div style="font-size:13px;color:var(--text-dim);margin-top:8px" id="pay-final-status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══ TRADING LOUNGE (floating radio player) ═══ -->
+    <div class="aw-lounge" id="aw-lounge" data-state="collapsed" aria-live="polite">
+        <!-- Collapsed pill -->
+        <button class="aw-lounge-pill" id="aw-lounge-open" aria-label="Open Trading Lounge">
+            <span class="aw-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="aw-lounge-pill-label">Trading Lounge</span>
+            <span class="aw-lounge-pill-dot"></span>
+        </button>
+
+        <!-- Expanded panel -->
+        <div class="aw-lounge-panel" id="aw-lounge-panel" role="dialog" aria-label="Trading Lounge">
+            <div class="aw-lounge-header">
+                <div class="aw-lounge-brand">
+                    <span class="aw-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                    <span>Trading Lounge</span>
+                </div>
+                <button class="aw-lounge-close" id="aw-lounge-close" aria-label="Minimize player">—</button>
+            </div>
+
+            <div class="aw-lounge-now">
+                <div class="aw-lounge-channel" id="aw-lounge-channel-name">House</div>
+                <div class="aw-lounge-status" id="aw-lounge-status">Press play to start</div>
+            </div>
+
+            <div class="aw-lounge-controls">
+                <button class="aw-lounge-ctl" id="aw-lounge-prev" aria-label="Previous channel">‹</button>
+                <button class="aw-lounge-play" id="aw-lounge-play" aria-label="Play">
+                    <span class="play-icon">▶</span>
+                    <span class="pause-icon">❚❚</span>
+                    <span class="loading-icon"></span>
+                </button>
+                <button class="aw-lounge-ctl" id="aw-lounge-next" aria-label="Next channel">›</button>
+            </div>
+
+            <div class="aw-lounge-volume">
+                <span class="vol-icon" aria-hidden="true">🔊</span>
+                <input type="range" min="0" max="100" value="55" id="aw-lounge-vol" aria-label="Volume">
+                <span class="vol-value" id="aw-lounge-vol-value">55</span>
+            </div>
+
+            <div class="aw-lounge-channels" id="aw-lounge-channels"></div>
+
+            <div class="aw-lounge-footer">
+                Powered by <a href="https://www.naxi.rs" target="_blank" rel="noopener">Naxi Radio</a>
+            </div>
+        </div>
+
+        <audio id="aw-lounge-audio" preload="none"></audio>
+    </div>
+
+
+    <!-- ═══ MOBILE — BOTTOM NAV BAR ═══ -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <button class="mbn-item active" data-page="overview">
+            <span class="mbn-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </span>
+            <span class="mbn-label">Home</span>
+        </button>
+        <button class="mbn-item" data-page="signals">
+            <span class="mbn-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 7.76a6 6 0 0 0 0 8.49"/><path d="M20.07 4.93a10 10 0 0 1 0 14.14M3.93 4.93a10 10 0 0 0 0 14.14"/>
+                </svg>
+            </span>
+            <span class="mbn-label">Signals</span>
+            <span class="mbn-badge" id="mbn-badge-signals"></span>
+        </button>
+        <button class="mbn-item" data-page="charts">
+            <span class="mbn-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+            </span>
+            <span class="mbn-label">Charts</span>
+        </button>
+        <button class="mbn-item" data-page="heatmap">
+            <span class="mbn-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                </svg>
+            </span>
+            <span class="mbn-label">Heatmap</span>
+        </button>
+        <button class="mbn-item" data-page="more">
+            <span class="mbn-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/>
+                    <circle cx="19" cy="5" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="19" r="1" fill="currentColor"/>
+                    <circle cx="5" cy="5" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="19" r="1" fill="currentColor"/>
+                </svg>
+            </span>
+            <span class="mbn-label">More</span>
+        </button>
+    </nav>
+
+    <!-- ═══ MOBILE — DRAWER OVERLAY ═══ -->
+    <div class="mobile-drawer-overlay" id="mobile-drawer-overlay"></div>
+
+    <!-- ═══ MOBILE — SLIDE-UP DRAWER ═══ -->
+    <div class="mobile-drawer" id="mobile-drawer">
+        <div class="drawer-handle"></div>
+        <div class="drawer-header">
+            <span class="drawer-title">Menu</span>
+            <button class="drawer-close" id="drawer-close-btn">✕</button>
+        </div>
+
+        <!-- User card (logged in) -->
+        <div class="drawer-user-card" id="drawer-user-card" style="display:none">
+            <div class="duc-avatar" id="duc-avatar">A</div>
+            <div class="duc-info">
+                <div class="duc-email" id="duc-email">—</div>
+                <div class="duc-tier"  id="duc-tier">FREE</div>
+            </div>
+        </div>
+
+        <!-- Login/Register (logged out) -->
+        <div class="drawer-action-row" id="drawer-login-action" style="display:flex">
+            <button class="drawer-action-btn gold" onclick="closeDrawer();openModal('login');">🔑 Login</button>
+            <button class="drawer-action-btn gold" onclick="closeDrawer();openModal('register');">✨ Register</button>
+        </div>
+
+        <!-- Quick stats strip -->
+        <div id="drawer-quickstats" style="display:none;gap:8px;padding:4px 16px 8px;margin:0">
+            <div class="dqs-card" id="dqs-signals">
+                <div class="dqs-val" id="dqs-signals-val">—</div>
+                <div class="dqs-label">Active Signals</div>
+            </div>
+            <div class="dqs-card" id="dqs-pnl">
+                <div class="dqs-val" id="dqs-pnl-val">—</div>
+                <div class="dqs-label">Unrealized PnL</div>
+            </div>
+            <div class="dqs-card" id="dqs-balance">
+                <div class="dqs-val" id="dqs-balance-val">—</div>
+                <div class="dqs-label">Futures Balance</div>
+            </div>
+        </div>
+
+        <!-- Nav tiles -->
+        <div class="drawer-section-label">Pages</div>
+        <div class="drawer-grid" id="drawer-nav-grid"></div>
+
+        <!-- Logout / theme actions -->
+        <div class="drawer-action-row" id="drawer-action-row" style="display:none">
+            <button class="drawer-action-btn" onclick="toggleTheme()">🌙 Theme</button>
+            <button class="drawer-action-btn danger" onclick="closeDrawer();logout();">🚪 Logout</button>
+        </div>
+    </div>
+
+    <!-- ═══ MOBILE — PULL-TO-REFRESH INDICATOR ═══ -->
+    <div class="ptr-indicator" id="ptr-indicator">↓ Pull to refresh</div>
+
+    <div class="skytech-credit">Developed &amp; hosted by <a href="https://skytech.mk" target="_blank" rel="noopener">skytech.mk</a></div>
+
+    <!-- ═══ JS MODULES ═══ -->
+    <script src="/static/js/client-security.js?v=20260421g"></script>
+    <script src="/static/js/app-r7.js?v=20260423-motto"></script>
+    <script src="/static/js/lounge.js?v=3"></script>
+    <script src="/static/js/signals.js?v=20260422-zonefilter2"></script>
+    <script src="/static/js/charts.js?v=20260422-multi2"></script>
+    <script src="/static/js/analytics.js?v=4"></script>
+    <script src="/static/js/screener.js?v=7"></script>
+    <script src="/static/js/admin.js?v=20260419d"></script>
+    <script src="/static/js/payments.js?v=2"></script>
+    <script src="/static/js/heatmap.js?v=12"></script>
+    <script src="/static/js/order-flow.js?v=3"></script>
+    <script src="/static/js/copytrading.js?v=16"></script>
+    <script src="/static/js/macro.js?v=20260423-tvcal4"></script>
+    <script src="/static/js/init.js?v=2"></script>
+    <script src="/static/js/mobile.js?v=20260422a"></script>
+</body>
+</html>

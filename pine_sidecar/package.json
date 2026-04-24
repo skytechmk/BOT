@@ -1,0 +1,13 @@
+{
+  "name": "pine-sidecar",
+  "version": "1.0.0",
+  "description": "PineTS sidecar — runs native Pine Script v5 on Binance data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pinets": "latest"
+  }
+}

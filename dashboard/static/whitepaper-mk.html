@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="mk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anunnaki World — Бела Книга на Платформата</title>
+<style>
+  :root {
+    --gold: #f0b90b;
+    --dark: #0a0e17;
+    --surface: #131a27;
+    --border: #2a3444;
+    --text: #e1e7ef;
+    --text-dim: #8899aa;
+    --green: #00d68f;
+    --red: #ff4d6a;
+    --purple: #a78bfa;
+    --blue: #50b4ff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: #fff;
+    color: #1a1a2e;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .cover {
+    background: linear-gradient(160deg, #0a0e17 0%, #131a27 60%, #0d1117 100%);
+    color: #e1e7ef;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    text-align: center;
+    page-break-after: always;
+  }
+  .cover .logo-wrap { margin-bottom: 32px; }
+  .cover .logo-wrap img {
+    height: 110px; width: 110px; border-radius: 20px; object-fit: cover;
+    border: 3px solid rgba(240,185,11,0.4);
+    box-shadow: 0 0 40px rgba(240,185,11,0.2);
+  }
+  .cover h1 {
+    font-size: 38px; font-weight: 800; letter-spacing: -0.5px;
+    color: #f0b90b; margin-bottom: 8px; font-family: 'Georgia', serif;
+  }
+  .cover .tagline {
+    font-size: 16px; color: #8899aa; margin-bottom: 40px;
+    max-width: 480px; font-style: italic;
+  }
+  .cover .cover-divider {
+    width: 80px; height: 2px;
+    background: linear-gradient(90deg, transparent, #f0b90b, transparent);
+    margin: 32px auto;
+  }
+  .cover .cover-meta { font-size: 12px; color: #5a6a7a; letter-spacing: 1px; text-transform: uppercase; }
+  .cover .cover-domain { font-size: 18px; color: #50b4ff; margin-top: 12px; font-weight: 600; }
+
+  .lang-switcher {
+    position: fixed; top: 16px; right: 16px; z-index: 999;
+    display: flex; gap: 8px;
+  }
+  .lang-btn {
+    background: rgba(240,185,11,0.15); border: 1px solid rgba(240,185,11,0.4);
+    color: #f0b90b; padding: 5px 12px; border-radius: 6px; font-size: 12px;
+    font-weight: 700; cursor: pointer; text-decoration: none; font-family: sans-serif;
+  }
+  .lang-btn:hover { background: rgba(240,185,11,0.3); }
+
+  .page { max-width: 820px; margin: 0 auto; padding: 60px 48px; }
+
+  @media (max-width: 640px) {
+    .page { padding: 32px 20px; }
+    .cover h1 { font-size: 26px; }
+  }
+
+  h2 {
+    font-size: 24px; color: #0a0e17; margin: 48px 0 16px;
+    padding-bottom: 8px; border-bottom: 2px solid #f0b90b;
+    font-family: 'Georgia', serif;
+  }
+  h3 { font-size: 17px; color: #1a1a2e; margin: 28px 0 10px; font-family: 'Georgia', serif; }
+  p { margin-bottom: 14px; color: #2a2a3e; }
+  ul, ol { margin: 10px 0 16px 24px; }
+  li { margin-bottom: 6px; color: #2a2a3e; }
+  strong { color: #1a1a2e; }
+
+  .toc { background: #f9f9fc; border: 1px solid #e0e0f0; border-radius: 10px; padding: 28px 32px; margin: 32px 0; }
+  .toc h3 { margin-top: 0; margin-bottom: 16px; color: #0a0e17; }
+  .toc-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ccc; font-size: 13px; }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-num { color: #f0b90b; font-weight: 700; margin-right: 12px; }
+  .toc-page { color: #888; }
+
+  .callout {
+    background: #f8f4e8; border-left: 4px solid #f0b90b;
+    padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 20px 0; font-size: 13px;
+  }
+  .callout.info { background: #eef4ff; border-color: #50b4ff; }
+  .callout.success { background: #eefaf4; border-color: #00d68f; }
+
+  .tier-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+  .tier-table th {
+    padding: 10px 14px; text-align: left; background: #0a0e17; color: #f0b90b;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tier-table th:first-child { border-radius: 8px 0 0 0; }
+  .tier-table th:last-child { border-radius: 0 8px 0 0; }
+  .tier-table td { padding: 10px 14px; border-bottom: 1px solid #e8e8f0; vertical-align: middle; }
+  .tier-table tr:last-child td { border-bottom: none; }
+  .tier-table tr:nth-child(even) td { background: #f9f9fc; }
+  .check { color: #00d68f; font-weight: 700; }
+  .cross { color: #ccc; }
+  .partial { color: #f0b90b; font-weight: 600; }
+  .tier-free { color: #888; font-weight: 700; }
+  .tier-plus { color: #f0b90b; font-weight: 700; }
+  .tier-pro { color: #a78bfa; font-weight: 700; }
+
+  .tech-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 20px 0; }
+  .tech-card { background: #f9f9fc; border: 1px solid #e0e0f0; border-radius: 8px; padding: 14px; text-align: center; }
+  .tech-card .icon { font-size: 22px; margin-bottom: 6px; }
+  .tech-card .name { font-weight: 700; font-size: 13px; color: #1a1a2e; }
+  .tech-card .desc { font-size: 11px; color: #888; margin-top: 4px; }
+
+  .flow {
+    background: #0a0e17; border-radius: 10px; padding: 24px; margin: 20px 0;
+    color: #e1e7ef; font-size: 12px; font-family: monospace; text-align: center; line-height: 2;
+  }
+  .flow .arrow { color: #f0b90b; }
+  .flow .node {
+    display: inline-block; background: #1e2a3a; border: 1px solid #2a3444;
+    border-radius: 6px; padding: 4px 12px; margin: 2px 4px; color: #e1e7ef;
+  }
+  .flow .node.highlight { border-color: #f0b90b; color: #f0b90b; }
+
+  .disclaimer {
+    background: #fff8f8; border: 1px solid #ffcccc; border-radius: 8px;
+    padding: 18px; margin: 32px 0; font-size: 12px; color: #666; line-height: 1.6;
+  }
+
+  .wp-footer {
+    background: #0a0e17; color: #5a6a7a; text-align: center;
+    padding: 32px; font-size: 12px; margin-top: 60px;
+  }
+  .wp-footer a { color: #50b4ff; text-decoration: none; }
+
+  @media print {
+    body { font-size: 12px; }
+    .cover { min-height: auto; padding: 80px 60px; page-break-after: always; }
+    .lang-switcher { display: none; }
+    h2 { page-break-before: auto; }
+    .callout, .tier-table, .tech-grid { page-break-inside: avoid; }
+    @page { margin: 15mm 20mm; size: A4; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-switcher">
+  <a href="/whitepaper" class="lang-btn">🇬🇧 English</a>
+</div>
+
+<!-- ══════════════════ КОРИЦА ══════════════════ -->
+<div class="cover">
+  <div class="logo-wrap">
+    <img src="/static/logo.jpeg" alt="Anunnaki World">
+  </div>
+  <h1>Anunnaki World</h1>
+  <p class="tagline">Платформа за Крипто Интелигенција од Институционален Квалитет — Анализа на Ликвидации во Реално Време, АИ Двигател за Сигнали и Алатки за Пазарна Структура</p>
+  <div class="cover-divider"></div>
+  <p style="color:#8899aa;font-size:13px;max-width:520px">
+    Овој документ ја опишува архитектурата, изворите на податоци, методологијата за сигнали и членските нивоа на платформата Anunnaki World Intelligence — премиум аналитичка услуга и услуга за трговски сигнали за пазарите на крипто фјучерс.
+  </p>
+  <div class="cover-divider"></div>
+  <p class="cover-meta">Бела Книга на Платформата · Верзија 1.0 · Април 2026</p>
+  <p class="cover-domain">anunnakiworld.com</p>
+</div>
+
+<!-- ══════════════════ СОДРЖИНА ══════════════════ -->
+<div class="page">
+
+  <div class="toc">
+    <h3>Содржина</h3>
+    <div class="toc-item"><span><span class="toc-num">1.</span>Извршен преглед</span><span class="toc-page">2</span></div>
+    <div class="toc-item"><span><span class="toc-num">2.</span>Проблемот кој го решаваме</span><span class="toc-page">2</span></div>
+    <div class="toc-item"><span><span class="toc-num">3.</span>Слој на податоци и пазарни извори</span><span class="toc-page">3</span></div>
+    <div class="toc-item"><span><span class="toc-num">4.</span>Двигател за ликвидациска интелигенција</span><span class="toc-page">4</span></div>
+    <div class="toc-item"><span><span class="toc-num">5.</span>АИ двигател за сигнали — Reverse Hunt стратегија</span><span class="toc-page">5</span></div>
+    <div class="toc-item"><span><span class="toc-num">6.</span>Функции на контролната табла</span><span class="toc-page">6</span></div>
+    <div class="toc-item"><span><span class="toc-num">7.</span>Членски нивоа</span><span class="toc-page">8</span></div>
+    <div class="toc-item"><span><span class="toc-num">8.</span>Технолошки стек</span><span class="toc-page">9</span></div>
+    <div class="toc-item"><span><span class="toc-num">9.</span>Откривање на ризик</span><span class="toc-page">10</span></div>
+    <div class="toc-item"><span><span class="toc-num">10.</span>Контакт и заедница</span><span class="toc-page">10</span></div>
+  </div>
+
+  <!-- 1. Извршен преглед -->
+  <h2>1. Извршен преглед</h2>
+  <p>
+    Anunnaki World е крипто платформа за интелигенција од институционален квалитет која обезбедува податоци за микроструктурата на пазарот во реално време, АИ-базирани трговски сигнали и напредни алатки за анализа на ризик за трговци на фјучерс. Платформата симултано ги следи повеќе од <strong>538 USDT перпетуален фјучерс пара</strong> на Binance, обработувајќи милиони точки на податоци секоја минута.
+  </p>
+  <p>
+    За разлика од конвенционалните услуги за сигнали кои се потпираат само на задоцнети технички индикатори, Anunnaki World слои <strong>реални податоци за ликвидациски каскади</strong>, <strong>длабочина на книгата на нарачки</strong>, <strong>волуменски профил (VPVR)</strong> и <strong>интелигенција за стапка на финансирање</strong> врз основа на својствениот двигател за сигнали — давајќи им на претплатниците поглед на пазарот кој типично е резервиран за квантитативни хеџ фондови.
+  </p>
+  <div class="callout success">
+    <strong>Основна вредносна понуда:</strong> Знајте каде се заробени „паметните пари", каде е веројатно дека каскадите ќе се забрзаат и каде магнетски се привлекува цената — пред тоа да се случи.
+  </div>
+
+  <!-- 2. Проблемот -->
+  <h2>2. Проблемот кој го решаваме</h2>
+  <p>Трговците со крипто фјучерс се соочуваат со три структурни недостатоци на пазарите на перпетуален фјучерс:</p>
+  <ol>
+    <li><strong>Асиметрични информации</strong> — Берзите и маркет мејкерите ги гледаат ликвидациските редици во реално време. Трговците на мало не знаат каде ќе настане принудна продажба и купување.</li>
+    <li><strong>Шум од индикатори</strong> — Стандардните сигнали RSI/MACD/Bollinger Bands задоцнуваат, се преоптимизирани и широко се играат од страна на институционални учесници кои ги гледаат истите сигнали.</li>
+    <li><strong>Стапици со лост</strong> — Без разбирање на структурата на ликвидноста, трговците поставуваат стоп-загуби и земаат-профит на произволни нивоа — честопати токму таму каде маркет мејкерите ловат ликвидност.</li>
+  </ol>
+  <div class="callout">
+    <strong>Anunnaki World го решава ова</strong> давајќи им на трговците на мало пристап до истите карти за ликвидациски каскади, податоци за протокот на нарачки и алатки за волуменски профил што ги користат институционалните учесници — испорачани во реално време преку премиум веб контролна табла и Telegram канал за сигнали.
+  </div>
+
+  <!-- 3. Слој на податоци -->
+  <h2>3. Слој на податоци и пазарни извори</h2>
+  <p>Платформата истовремено внесува податоци од повеќе Binance Futures API и WebSocket текови:</p>
+
+  <h3>3.1 Текови во реално време (WebSocket)</h3>
+  <ul>
+    <li><strong>forceOrder@arr</strong> — Глобален тек на ликвидации кој опфаќа сите USDT перпетуални парови. Го зафаќа секој настан на принудна ликвидација со цена, количина и насока (долга/кратка позиција).</li>
+    <li><strong>kline_1h текови</strong> — Живи OHLCV свеќи за сите следени парови, кои се користат за пресметување на индикатори и генерирање на сигнали.</li>
+    <li><strong>markPrice@1s</strong> — Цена на означување и стапка на финансирање по пар, ажурирани секунда по секунда.</li>
+    <li><strong>depth20@500ms</strong> — Топ-20 понуди и барања на книгата на нарачки по пар на секои 500ms, за откривање на bid/ask ѕидови.</li>
+  </ul>
+
+  <h3>3.2 REST API податоци</h3>
+  <ul>
+    <li><strong>Отворен интерес</strong> — Вкупни отворени позиции во USD, освежени секои 60 секунди.</li>
+    <li><strong>Сооднос долго/кратко</strong> — Позициски податоци на топ трговци од Binance.</li>
+    <li><strong>Историски свеќи</strong> — До 7 дена 1h OHLCV за пресметување на волуменскиот профил.</li>
+    <li><strong>Историја на стапка на финансирање</strong> — Пресметка на кумулативна 24h пристрасност на финансирање.</li>
+  </ul>
+
+  <div class="flow">
+    <span class="node highlight">Binance Futures WS</span>
+    <span class="arrow"> → </span>
+    <span class="node">Собирач на ликвидации</span>
+    <span class="arrow"> → </span>
+    <span class="node">SQLite + Меморија</span>
+    <span class="arrow"> → </span>
+    <span class="node highlight">API на контролна табла</span>
+    <br>
+    <span class="node highlight">kline_1h WS (538 парови)</span>
+    <span class="arrow"> → </span>
+    <span class="node">Двигател за сигнали</span>
+    <span class="arrow"> → </span>
+    <span class="node">ML Ансамбл</span>
+    <span class="arrow"> → </span>
+    <span class="node highlight">Telegram + Контролна табла</span>
+  </div>
+
+  <!-- 4. Ликвидациска интелигенција -->
+  <h2>4. Двигател за ликвидациска интелигенција</h2>
+  <p>
+    Двигателот за ликвидации е најуникатната компонента на платформата. Одржува <strong>живa 24-часовна топлинска карта на ликвидации</strong> за секој USDT перпетуален пар, поддржана со постојана SQLite база на податоци за историски прозорци до 7 дена.
+  </p>
+
+  <h3>4.1 Како функционираат топлинските карти на ликвидации</h3>
+  <p>
+    Секогаш кога трговец е принудно ликвидиран на Binance, берзата емитува настан <code>forceOrder</code> кој ги содржи цената, количината и насоката. Платформата го зафаќа секој таков настан — стотици секоја минута низ пазарот — и ги агрегира во <strong>ценовни кошнички</strong> (ленти од 0,25%).
+  </p>
+  <p>
+    Густите кластери на ликвидации на одредено ценовно ниво дејствуваат како <strong>ценовни магнети</strong>: маркет мејкерите и алгоритамските трговци намерно ја туркаат цената во овие зони за да предизвикаат каскади, да апсорбираат ликвидност и да сменат насока. Визуализацијата на овие кластери ја открива скриената пазарна структура за која повеќето трговци се слепи.
+  </p>
+
+  <h3>4.2 Преклопувања и збогатување</h3>
+  <ul>
+    <li><strong>Волуменски профил (VPVR)</strong> — Точка на контрола (POC), Висока вредносна зона (VAH) и Ниска вредносна зона (VAL) пресметани од 1h–7d свеќи. POC = јазол со највисок волумен = најсилен ценовен магнет.</li>
+    <li><strong>Длабочина на книга на нарачки</strong> — Топ bid/ask ѕидови од живата книга на нарачки, нацртани како насочени маркери на топлинската карта.</li>
+    <li><strong>Стапка на финансирање и пристрасност</strong> — Живата стапка на финансирање со кумулативна 24h пристрасност (ДОЛГА_ТЕШКА / КРАТКА_ТЕШКА / НЕУТРАЛНА).</li>
+    <li><strong>Отворен интерес</strong> — Вкупна вредност на позицијата во USD, која укажува на натрупување на лост.</li>
+    <li><strong>Брзина на ликвидации</strong> — Брзина на настани на ликвидации по минута со откривање на скокови.</li>
+  </ul>
+
+  <h3>4.3 Предлагач на TP/SL</h3>
+  <p>
+    Користејќи ги комбинираната карта на ликвидациски кластери, нивоата на волуменскиот профил и пристрасноста на финансирањето, платформата автоматски пресметува предложени нивоа за земање-профит и стоп-загуба:
+  </p>
+  <ul>
+    <li><strong>ДОЛГА TP</strong> = најблискиот значаен кластер на кратка-ликвидација над цената (цената ќе биде привлечена кон него)</li>
+    <li><strong>ДОЛГА SL</strong> = веднаш под најблискиот силен кластер на долга-ликвидација под цената (неуспешна поддршка)</li>
+    <li><strong>Сооднос ризик:награда</strong> автоматски пресметан, со VP нивоа (POC/VAH/VAL) како дополнителни референтни точки</li>
+  </ul>
+
+  <!-- 5. АИ двигател -->
+  <h2>5. АИ двигател за сигнали — Reverse Hunt стратегија</h2>
+  <p>
+    Двигателот за сигнали е изграден околу сопствена стратегија наречена <strong>Reverse Hunt</strong> — систем за повеќе-индикаторска конфлуенција, оригинално развиен како PineScript стратегија за TradingView и пренесен во Python за автоматизирано скенирање на 538 парови истовремено.
+  </p>
+
+  <h3>5.1 Процесен ланец за генерирање сигнали</h3>
+  <ol>
+    <li><strong>Откривање на екстремна зона на TSI</strong> — Индексот на вистинска сила (25/13 периоди, инвертиран, /50 скала) влегува во екстремна пребогата или препродадена зона (адаптивни прагови на 90-тиот и 97-миот перцентил на историски TSI вредности по пар).</li>
+    <li><strong>Излез од зона + кука на моментум</strong> — TSI излегува од зоната со насочен моментум — укажувајќи дека почнува заморна реверзија.</li>
+    <li><strong>Потврда на Chandelier Exit</strong> — CE Line слојот (ATR-22, lookback-22, mult-3.0) мора да ја смени насоката во рок од 36 свеќи по TSI излезот. Ова е задолжителниот активатор.</li>
+    <li><strong>Валидација на ML ансамбл</strong> — Сигналот е оценет од ансамбл од 4 модели (BiLSTM, TFT, XGBoost, LightGBM) обучени на 447.267 примероци низ 150 парови × 6 месеци 1h податоци.</li>
+    <li><strong>Филтри за ризик</strong> — Проверка на корелација на портфолио, прекинувач, проценка на макро ризик и Монте Карло симулација на веројатност мора да поминат пред сигналот да биде објавен.</li>
+  </ol>
+
+  <div class="callout info">
+    <strong>Перформанси на ML ансамблот:</strong> F1 = 0,539 низ 150 разновидни парови (наспроти 0,677 на подгрупа од 30 парови). Ансамблот користи мета-учење со слоење. Секој сигнал вклучува оценка за убеденост (3–8) и процент на доверба на ML.
+  </div>
+
+  <h3>5.2 Излез на сигнал</h3>
+  <p>Секој објавен сигнал вклучува:</p>
+  <ul>
+    <li>Пар, насока (ДОЛГА/КРАТКА), временска рамка (1h), влезна цена</li>
+    <li>Три нивоа за земање-профит (TP1 / TP2 / TP3) со процентуални цели</li>
+    <li>Ниво на стоп-загуба со процентуален ризик</li>
+    <li>Предложен лост (прилагоден на ризик)</li>
+    <li>Оценка за убеденост, доверба на ML и индекс на квалитет на Шарп (SQI)</li>
+    <li>Следење на живи PnL од влез до тековна цена</li>
+  </ul>
+
+  <!-- 6. Функции на контролна табла -->
+  <h2>6. Функции на контролната табла</h2>
+
+  <h3>6.1 Страница за преглед</h3>
+  <p>Живи пазарни статистики, статус на скенер, топ водачи на ликвидации и индикатори за здравјето на платформата. Се ажурира секои 5 секунди.</p>
+
+  <h3>6.2 Страница за сигнали</h3>
+  <p>Сите активни и скорешни сигнали со живи PnL (Plus/Pro), ценовна лествица со TP/SL растојанија, следење на статус (Активен / TP Постигнат / SL Постигнат) и историски метрики за перформанси. Бесплатните корисници ги гледаат сигналите со 24-часовно задоцнување.</p>
+
+  <h3>6.3 Топлинска карта на ликвидации</h3>
+  <p>Главната карактеристика. Топлинска карта по пар која прикажува:</p>
+  <ul>
+    <li>Кластери на долги наспроти кратки ликвидации (ценовни магнети) во црвено/зелени ленти</li>
+    <li>VPVR преклопување со POC, VAH, VAL линии и ленти за волумен</li>
+    <li>Лива линија за означувачка цена (Binance WebSocket, ~1s ажурирања)</li>
+    <li>Преклопување на bid/ask ѕидови на книгата на нарачки</li>
+    <li>Sparkline за брзина на ликвидации (прозорец од 10 минути)</li>
+    <li>Картичка за растојание и пристрасност на POC (откривање зона, пресуда за гравитациска привлечност)</li>
+    <li>Контекстна лента за стапка на финансирање, отворен интерес, сооднос долго/кратко</li>
+    <li>Предлагач на TP/SL со автоматско откривање на насока</li>
+    <li>Избор на временски прозорец: 1h / 4h / 12h / 24h / 3d / 7d</li>
+  </ul>
+
+  <h3>6.4 Страница со графикони (Plus/Pro)</h3>
+  <p>TradingView Lightweight Charts со преклопувања на Chandelier Exit, TSI зони и маркери за сигнали. Целосни историски 1h свеќи за сите следени парови.</p>
+
+  <h3>6.5 Страница за аналитика (Plus/Pro)</h3>
+  <p>Метрики за перформанси, крива на капитал, разбивање на победи/загуби по пар и насока, временска топлинска карта на перформанси, Шарпов сооднос, максимален просек и анализа на режим.</p>
+
+  <h3>6.6 Предупредувања за пред-сигнали (Само Pro)</h3>
+  <p>Парови кои моментално се во екстремни TSI зони и се приближуваат до прагот за CE флип — дозволувајќи им на Pro претплатниците да се позиционираат пред потврдениот сигнал. Подредени по подготвеност: НЕМИНОВНО → ВИСОКО → СРЕДНО → НИСКО.</p>
+
+  <!-- 7. Членски нивоа -->
+  <h2>7. Членски нивоа</h2>
+
+  <table class="tier-table">
+    <thead>
+      <tr>
+        <th>Карактеристика</th>
+        <th class="tier-free">Бесплатно</th>
+        <th class="tier-plus">Plus</th>
+        <th class="tier-pro">Pro</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Сигнали</td>
+        <td><span class="partial">24h задоцнување</span></td>
+        <td><span class="check">✓ Живо</span></td>
+        <td><span class="check">✓ Живо</span></td>
+      </tr>
+      <tr>
+        <td>Следење на живи PnL</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Топлинска карта на ликвидации</td>
+        <td><span class="partial">Ограничено (само 1h)</span></td>
+        <td><span class="check">✓ Сите прозорци</span></td>
+        <td><span class="check">✓ Сите прозорци</span></td>
+      </tr>
+      <tr>
+        <td>VPVR + преклопување на книгата на нарачки</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Предлагач на TP/SL</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Интерактивни графикони</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Аналитика на перформанси</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Предупредувања за пред-сигнали</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓ Ексклузивно</span></td>
+      </tr>
+      <tr>
+        <td>Telegram канал за сигнали</td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓ Приоритет</span></td>
+      </tr>
+      <tr>
+        <td>Следени парови</td>
+        <td>Само преглед</td>
+        <td>538 парови</td>
+        <td>538 парови</td>
+      </tr>
+      <tr>
+        <td>Брзина на освежување на контролната табла</td>
+        <td>Рачно</td>
+        <td>5 секунди</td>
+        <td>5 секунди</td>
+      </tr>
+      <tr>
+        <td><strong>Месечна цена</strong></td>
+        <td><strong>Бесплатно</strong></td>
+        <td><strong>53 USDT / месец</strong></td>
+        <td><strong>109 USDT / месец</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 8. Технолошки стек -->
+  <h2>8. Технолошки стек</h2>
+
+  <div class="tech-grid">
+    <div class="tech-card">
+      <div class="icon">🐍</div>
+      <div class="name">Python 3.12</div>
+      <div class="desc">Главна средина за извршување, асинхрона јамка на настани, процесен ланец на сигнали</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">⚙️</div>
+      <div class="name">Rust + PyO3</div>
+      <div class="desc">Паралелно пресметување на индикатори преку Rayon нишки</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">🤖</div>
+      <div class="name">XGBoost + LSTM</div>
+      <div class="desc">ML ансамбл со 4 модели обучени на 447К примероци, GPU-забрзан</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">⚡</div>
+      <div class="name">FastAPI</div>
+      <div class="desc">Асинхрон REST API со контрола на пристап базирана на ниво</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">📡</div>
+      <div class="name">Binance WS</div>
+      <div class="desc">538-пар kline + глобален ликвидации + текови за означувачка цена</div>
+    </div>
+    <div class="tech-card">
+      <div class="icon">🗄️</div>
+      <div class="name">SQLite</div>
+      <div class="desc">Постојана историја на ликвидации, следење на сигнали, автентикација на корисници</div>
+    </div>
+  </div>
+
+  <!-- 9. Откривање на ризик -->
+  <h2>9. Откривање на ризик</h2>
+  <div class="disclaimer">
+    <strong>ВАЖНА ОДРЕКНУВАЊЕ — ПРОЧИТАЈТЕ ВНИМАТЕЛНО</strong><br><br>
+    Информациите, сигналите, анализите и алатките обезбедени од Anunnaki World се наменети само за <strong>информативни и едукативни цели</strong> и не претставуваат финансиски совет, инвестициски совет, трговски совет или кој било друг вид совет. Минатите перформанси на сигналите не се показател за идни резултати.<br><br>
+    Трговијата со криптовалути и фјучерс вклучува значителен ризик од загуба. Можете да го изгубите целиот вложен капитал. Лостот ги засилува и добивките и загубите. Никогаш не тргувајте со пари кои не можете да си дозволите да ги изгубите. Секогаш спроведувајте сопствено истражување и консултирајте се со лиценциран финансиски советник пред да донесете трговски одлуки.<br><br>
+    Anunnaki World, неговите оператори, програмери и соработници не се одговорни за никакви загуби настанати од користењето на платформата, нејзините сигнали или аналитичките алатки. Со користење на оваа платформа, ги признавате и во целост ги прифаќате овие ризици.
+  </div>
+
+  <!-- 10. Контакт -->
+  <h2>10. Контакт и заедница</h2>
+  <ul>
+    <li><strong>Веб-страница:</strong> <a href="https://anunnakiworld.com" style="color:#50b4ff">anunnakiworld.com</a></li>
+    <li><strong>Telegram канал за сигнали:</strong> Достапен за Plus и Pro претплатници по регистрацијата</li>
+    <li><strong>Контролна табла:</strong> <a href="https://anunnakiworld.com" style="color:#50b4ff">Најавете се на anunnakiworld.com</a></li>
+    <li><strong>Поддршка:</strong> Контактирајте преку Telegram Ops канал (детали дадени по претплатата)</li>
+  </ul>
+
+  <div class="callout info" style="margin-top:32px">
+    <strong>Подготвени да започнете?</strong> Создадете бесплатна сметка на <a href="https://anunnakiworld.com" style="color:#50b4ff">anunnakiworld.com</a> и истражете ја платформата. Надградете на Plus или Pro во секое време за да отклучите целосен пристап до сигнали, топлински карти на ликвидации во реално време и предупредувања за пред-сигнали.
+  </div>
+
+</div>
+
+<div class="wp-footer">
+  <p>© 2026 Anunnaki World Intelligence Platform · <a href="https://anunnakiworld.com">anunnakiworld.com</a></p>
+  <p style="margin-top:6px;font-size:11px">Оваа бела книга е само за информативни цели. Не претставува финансиски совет.</p>
+</div>
+
+</body>
+</html>

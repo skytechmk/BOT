@@ -172,8 +172,7 @@ def export_cache_data(filename=None):
         return None
 
 # Signal ID tracking and Cornix integration (canonical instances in shared_state.py)
-SIGNAL_REGISTRY_FILE = "signal_registry.json"
-CORNIX_SIGNALS_FILE = "cornix_signals.json"
+# SIGNAL_REGISTRY_FILE and CORNIX_SIGNALS_FILE are imported from constants.py
 
 def load_cache_from_file():
     """Load cache from persistent storage (optional)"""

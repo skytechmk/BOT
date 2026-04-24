@@ -1,18 +1,1224 @@
 {
-  "ONTUSDT": [
+  "CRCLUSDT": [
     {
-      "signal_id": "test-signal-123",
-      "pair": "ONTUSDT",
-      "signal": "SHORT",
-      "entry_price": 0.1256,
-      "confidence": 0.25,
+      "signal_id": "9f6a056d-6b6e-4b64-b938-8fa82f72c66a",
+      "pair": "CRCLUSDT",
+      "signal": "LONG",
+      "entry_price": 108.07,
+      "confidence": 0.6666666666666666,
       "pnl_percentage": 0.0,
-      "success": true,
-      "timestamp": 1775077722.1640337,
-      "closed_timestamp": 1775077722.1663103,
+      "success": false,
+      "timestamp": 1776448576.762322,
+      "closed_timestamp": 1776449059.5003154,
       "source": "CORNIX",
       "targets_hit": 0,
-      "time_held": 0.0022766590118408203
+      "time_held": 482.737993478775
+    },
+    {
+      "signal_id": "375cb0f8-464f-4a13-94c5-f3ac471dd54a",
+      "pair": "CRCLUSDT",
+      "signal": "LONG",
+      "entry_price": 102.60034422,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776638393.2269328,
+      "closed_timestamp": 1776643213.637783,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 4820.410850286484
+    },
+    {
+      "signal_id": "375cb0f8-464f-4a13-94c5-f3ac471dd54a",
+      "pair": "CRCLUSDT",
+      "signal": "LONG",
+      "entry_price": 102.60034422,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776638393.2269328,
+      "closed_timestamp": 1776643214.9379992,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 4821.711066484451
+    }
+  ],
+  "FLOWUSDT": [
+    {
+      "signal_id": "df584eb8-e4a8-4f1e-85c3-94f6595922b7",
+      "pair": "FLOWUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03733521,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776463222.1821573,
+      "closed_timestamp": 1776484861.438249,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 21639.256091833115
+    },
+    {
+      "signal_id": "6cda89ff-fb10-4678-8466-8db8811299f3",
+      "pair": "FLOWUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03403303,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776634520.5311155,
+      "closed_timestamp": 1776642048.9889965,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 7528.457880973816
+    },
+    {
+      "signal_id": "6cda89ff-fb10-4678-8466-8db8811299f3",
+      "pair": "FLOWUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03403303,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776634520.5311155,
+      "closed_timestamp": 1776642049.0809023,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 7528.549786806107
+    },
+    {
+      "signal_id": "6cda89ff-fb10-4678-8466-8db8811299f3",
+      "pair": "FLOWUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03403303,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776634520.5311155,
+      "closed_timestamp": 1776642052.2329297,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 7531.701814174652
+    },
+    {
+      "signal_id": "6cda89ff-fb10-4678-8466-8db8811299f3",
+      "pair": "FLOWUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03403303,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776634520.5311155,
+      "closed_timestamp": 1776642064.113337,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 7543.582221508026
+    },
+    {
+      "signal_id": "6cda89ff-fb10-4678-8466-8db8811299f3",
+      "pair": "FLOWUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03403303,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776634520.5311155,
+      "closed_timestamp": 1776669474.1039941,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 34953.57287859917
+    }
+  ],
+  "DODOXUSDT": [
+    {
+      "signal_id": "d8fce7ae-431a-4c1f-84d1-06b5c776fd5d",
+      "pair": "DODOXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.016851,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 15.7382,
+      "success": true,
+      "timestamp": 1776448587.2879763,
+      "closed_timestamp": 1776484973.020016,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 36385.73203969002
+    },
+    {
+      "signal_id": "d8fce7ae-431a-4c1f-84d1-06b5c776fd5d",
+      "pair": "DODOXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.016851,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 11.2226,
+      "success": true,
+      "timestamp": 1776448587.2879763,
+      "closed_timestamp": 1776498140.1047637,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 49552.81678748131
+    },
+    {
+      "signal_id": "38186fc3-aeab-4712-a85f-c965a3b9bb0e",
+      "pair": "DODOXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.018835,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776537187.1502538,
+      "closed_timestamp": 1776572407.0099678,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 35219.85971403122
+    }
+  ],
+  "TRUSTUSDT": [
+    {
+      "signal_id": "cd5ce40d-a771-44ff-90bb-f82118d078ae",
+      "pair": "TRUSTUSDT",
+      "signal": "LONG",
+      "entry_price": 0.07918,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776448586.57348,
+      "closed_timestamp": 1776486368.8980002,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 37782.3245203495
+    }
+  ],
+  "DIAUSDT": [
+    {
+      "signal_id": "2daed762-43e7-4591-9a9b-cbcb401a6855",
+      "pair": "DIAUSDT",
+      "signal": "LONG",
+      "entry_price": 0.1935,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 18.5338,
+      "success": true,
+      "timestamp": 1776484808.7596452,
+      "closed_timestamp": 1776490392.5731168,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 5583.81347155571
+    }
+  ],
+  "ALICEUSDT": [
+    {
+      "signal_id": "14fb463a-0f68-4782-91a3-192c0a0648bd",
+      "pair": "ALICEUSDT",
+      "signal": "LONG",
+      "entry_price": 0.12583507,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 17.393,
+      "success": true,
+      "timestamp": 1776474012.941311,
+      "closed_timestamp": 1776491898.4489622,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 17885.50765132904
+    }
+  ],
+  "DENTUSDT": [
+    {
+      "signal_id": "061c3990-0979-4da8-9fc2-c02114ec3f85",
+      "pair": "DENTUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.0001087,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776488412.3470986,
+      "closed_timestamp": 1776493822.562405,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 5410.215306520462
+    }
+  ],
+  "MAGICUSDT": [
+    {
+      "signal_id": "60906131-1d14-4bda-922c-3260f8bcd5b1",
+      "pair": "MAGICUSDT",
+      "signal": "LONG",
+      "entry_price": 0.07142,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 16.5712,
+      "success": true,
+      "timestamp": 1776470410.4063766,
+      "closed_timestamp": 1776496516.0211492,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 26105.614772558212
+    }
+  ],
+  "CETUSUSDT": [
+    {
+      "signal_id": "af3dd2d9-84c2-4a42-b7b3-9a83e653cc78",
+      "pair": "CETUSUSDT",
+      "signal": "LONG",
+      "entry_price": 0.02285,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 14.6181,
+      "success": true,
+      "timestamp": 1776466813.920655,
+      "closed_timestamp": 1776497265.0327737,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 30451.11211872101
+    }
+  ],
+  "ARPAUSDT": [
+    {
+      "signal_id": "d6b3a85d-94b9-4d3b-a898-a62af825cbdc",
+      "pair": "ARPAUSDT",
+      "signal": "LONG",
+      "entry_price": 0.0101964,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 18.1551,
+      "success": true,
+      "timestamp": 1776470413.8240788,
+      "closed_timestamp": 1776499409.3243968,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 28995.500318050385
+    }
+  ],
+  "VANRYUSDT": [
+    {
+      "signal_id": "e21182d1-3f8d-4ca7-9a57-abd7b875a453",
+      "pair": "VANRYUSDT",
+      "signal": "LONG",
+      "entry_price": 0.005839,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 22.3925,
+      "success": true,
+      "timestamp": 1776481214.575428,
+      "closed_timestamp": 1776500497.182198,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 19282.606770038605
+    }
+  ],
+  "SPXUSDT": [
+    {
+      "signal_id": "98616027-ddde-4703-b086-15770fbb3353",
+      "pair": "SPXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.37690971,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776481214.7273953,
+      "closed_timestamp": 1776501425.4212775,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 20210.693882226944
+    },
+    {
+      "signal_id": "53d821f9-d2d5-46c6-9efb-024ba02363f4",
+      "pair": "SPXUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.308,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776664809.5752366,
+      "closed_timestamp": 1776669819.8897045,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 5010.314467906952
+    }
+  ],
+  "PRLUSDT": [
+    {
+      "signal_id": "1c3c790c-27bf-4fe3-a663-63b4d0decffc",
+      "pair": "PRLUSDT",
+      "signal": "LONG",
+      "entry_price": 0.2446,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776484808.8667636,
+      "closed_timestamp": 1776505901.3596454,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 21092.492881774902
+    }
+  ],
+  "MANAUSDT": [
+    {
+      "signal_id": "378fbe47-78ed-4551-bf74-17a7ef999b43",
+      "pair": "MANAUSDT",
+      "signal": "LONG",
+      "entry_price": 0.0975,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776499212.681526,
+      "closed_timestamp": 1776506540.785757,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 7328.104231119156
+    }
+  ],
+  "CRVUSDT": [
+    {
+      "signal_id": "368f774a-2d5d-4b66-90cc-cfffa3ae3fc9",
+      "pair": "CRVUSDT",
+      "signal": "LONG",
+      "entry_price": 0.24189413,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776466821.471358,
+      "closed_timestamp": 1776506628.8181648,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 39807.3468067646
+    }
+  ],
+  "XRPUSDT": [
+    {
+      "signal_id": "e2de6aca-c73d-4430-91c8-6aee0bec89dd",
+      "pair": "XRPUSDT",
+      "signal": "LONG",
+      "entry_price": 1.48381478,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776466810.5188546,
+      "closed_timestamp": 1776506687.3253841,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 39876.80652952194
+    },
+    {
+      "signal_id": "820c6433-1de0-4075-8d54-cc57b30409e8",
+      "pair": "XRPUSDT",
+      "signal": "LONG",
+      "entry_price": 1.43103807,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776564010.035722,
+      "closed_timestamp": 1776636082.5197303,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 72072.48400831223
+    }
+  ],
+  "OGNUSDT": [
+    {
+      "signal_id": "0a0811a8-5b54-4915-a011-cf3c643bb625",
+      "pair": "OGNUSDT",
+      "signal": "LONG",
+      "entry_price": 0.02393013,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776495613.4222782,
+      "closed_timestamp": 1776506762.505037,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 11149.082758903503
+    }
+  ],
+  "1000BONKUSDT": [
+    {
+      "signal_id": "4d72a560-790e-46bc-8b04-da85f3b77679",
+      "pair": "1000BONKUSDT",
+      "signal": "LONG",
+      "entry_price": 0.0064281,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776477609.2954178,
+      "closed_timestamp": 1776507132.8656034,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 29523.570185661316
+    }
+  ],
+  "PROVEUSDT": [
+    {
+      "signal_id": "e78585bd-4ef6-4892-825c-0e15ea2e57e4",
+      "pair": "PROVEUSDT",
+      "signal": "LONG",
+      "entry_price": 0.2475,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776470414.993076,
+      "closed_timestamp": 1776508242.8234541,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 37827.83037805557
+    }
+  ],
+  "BATUSDT": [
+    {
+      "signal_id": "d20bb9ff-a59c-4e82-acb9-a12c3289641f",
+      "pair": "BATUSDT",
+      "signal": "LONG",
+      "entry_price": 0.10505071,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776495613.3885624,
+      "closed_timestamp": 1776509521.6311202,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 13908.242557764053
+    }
+  ],
+  "GOOGLUSDT": [
+    {
+      "signal_id": "51ee00ce-c3cb-4a7f-aaf9-57e016e4e133",
+      "pair": "GOOGLUSDT",
+      "signal": "LONG",
+      "entry_price": 332.3,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776449830.7086205,
+      "closed_timestamp": 1776509715.7314684,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 59885.022847890854
+    }
+  ],
+  "AIXBTUSDT": [
+    {
+      "signal_id": "9bafc940-8a66-427f-a993-ef6b9c1d067d",
+      "pair": "AIXBTUSDT",
+      "signal": "LONG",
+      "entry_price": 0.02991,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776477609.247199,
+      "closed_timestamp": 1776509858.4674,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 32249.220201015472
+    },
+    {
+      "signal_id": "9bafc940-8a66-427f-a993-ef6b9c1d067d",
+      "pair": "AIXBTUSDT",
+      "signal": "LONG",
+      "entry_price": 0.02991,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": -6.9528,
+      "success": false,
+      "timestamp": 1776477609.247199,
+      "closed_timestamp": 1776509870.8875046,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 32261.640305519104
+    }
+  ],
+  "AEVOUSDT": [
+    {
+      "signal_id": "a1089c33-676a-4bb3-b486-54dd70b89494",
+      "pair": "AEVOUSDT",
+      "signal": "LONG",
+      "entry_price": 0.02671512,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": -7.7926,
+      "success": false,
+      "timestamp": 1776474013.5028374,
+      "closed_timestamp": 1776538515.289374,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 64501.78653669357
+    }
+  ],
+  "2ZUSDT": [
+    {
+      "signal_id": "ecef4b20-e3ea-4837-ba35-4bd67ee8dd18",
+      "pair": "2ZUSDT",
+      "signal": "LONG",
+      "entry_price": 0.09253,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776481214.6766312,
+      "closed_timestamp": 1776556819.6181717,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 75604.94154047966
+    }
+  ],
+  "BICOUSDT": [
+    {
+      "signal_id": "2df62381-e048-47c2-aefe-46f8ff099d93",
+      "pair": "BICOUSDT",
+      "signal": "LONG",
+      "entry_price": 0.02541183,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776488412.2473106,
+      "closed_timestamp": 1776558476.7271142,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 70064.47980356216
+    }
+  ],
+  "MOCAUSDT": [
+    {
+      "signal_id": "e8a0df10-86a5-4e09-899c-7768d0555955",
+      "pair": "MOCAUSDT",
+      "signal": "LONG",
+      "entry_price": 0.014355,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776484810.7964551,
+      "closed_timestamp": 1776561777.4974906,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 76966.70103549957
+    }
+  ],
+  "AGLDUSDT": [
+    {
+      "signal_id": "bd1d17b4-5163-4d1d-9384-c6fc102c9af9",
+      "pair": "AGLDUSDT",
+      "signal": "LONG",
+      "entry_price": 0.27543313,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776542416.3296273,
+      "closed_timestamp": 1776565397.3028522,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 22980.97322487831
+    }
+  ],
+  "POLUSDT": [
+    {
+      "signal_id": "c6df5d8b-2629-47be-8ba8-f34c7c7aeefa",
+      "pair": "POLUSDT",
+      "signal": "LONG",
+      "entry_price": 0.09088,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776495613.628976,
+      "closed_timestamp": 1776565489.7211728,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 69876.09219670296
+    }
+  ],
+  "UMAUSDT": [
+    {
+      "signal_id": "d9351584-5503-40d7-a55f-c3957d6aaa1d",
+      "pair": "UMAUSDT",
+      "signal": "LONG",
+      "entry_price": 0.45571288,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776553213.1063366,
+      "closed_timestamp": 1776565782.1994495,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 12569.093112945557
+    }
+  ],
+  "KNCUSDT": [
+    {
+      "signal_id": "27ee0604-0f19-4d51-bde1-18d70570d779",
+      "pair": "KNCUSDT",
+      "signal": "LONG",
+      "entry_price": 0.1436,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776492013.0166092,
+      "closed_timestamp": 1776565814.2967088,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 73801.28009963036
+    }
+  ],
+  "SKYAIUSDT": [
+    {
+      "signal_id": "e4abeb49-ceba-4698-8d22-d8f938b4f869",
+      "pair": "SKYAIUSDT",
+      "signal": "LONG",
+      "entry_price": 0.18714931,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776492012.9055161,
+      "closed_timestamp": 1776569303.9870787,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 77291.08156251907
+    }
+  ],
+  "RONINUSDT": [
+    {
+      "signal_id": "b990c1d5-847f-4308-862a-ff7baa8134e5",
+      "pair": "RONINUSDT",
+      "signal": "LONG",
+      "entry_price": 0.10302494,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": -9.2016,
+      "success": false,
+      "timestamp": 1776553212.995879,
+      "closed_timestamp": 1776611908.463094,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 58695.46721506119
+    },
+    {
+      "signal_id": "b990c1d5-847f-4308-862a-ff7baa8134e5",
+      "pair": "RONINUSDT",
+      "signal": "LONG",
+      "entry_price": 0.10302494,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776553212.995879,
+      "closed_timestamp": 1776612336.8880153,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 59123.89213633537
+    }
+  ],
+  "ETHUSDT": [
+    {
+      "signal_id": "7b3148ba-e70a-4382-954f-e428e1481622",
+      "pair": "ETHUSDT",
+      "signal": "LONG",
+      "entry_price": 2330.21,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776630924.411991,
+      "closed_timestamp": 1776631736.9286895,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 812.5166985988617
+    }
+  ],
+  "INITUSDT": [
+    {
+      "signal_id": "3ee20d00-ccd5-4ca8-b6a8-6e8c69d2430b",
+      "pair": "INITUSDT",
+      "signal": "LONG",
+      "entry_price": 0.09524,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776592814.4671261,
+      "closed_timestamp": 1776632256.3237624,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 39441.85663628578
+    }
+  ],
+  "XAGUSDT": [
+    {
+      "signal_id": "e292ca2e-6383-4264-9b2d-881c82b4d7e6",
+      "pair": "XAGUSDT",
+      "signal": "LONG",
+      "entry_price": 78.64,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776630377.2252667,
+      "closed_timestamp": 1776636002.0021925,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 5624.776925802231
+    },
+    {
+      "signal_id": "e292ca2e-6383-4264-9b2d-881c82b4d7e6",
+      "pair": "XAGUSDT",
+      "signal": "LONG",
+      "entry_price": 78.64,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776630377.2252667,
+      "closed_timestamp": 1776636002.5822341,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 5625.356967449188
+    }
+  ],
+  "STBLUSDT": [
+    {
+      "signal_id": "8a3de58a-7fc7-4aba-864b-74f95a050479",
+      "pair": "STBLUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03348,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776596358.4948454,
+      "closed_timestamp": 1776636058.9573922,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 39700.46254682541
+    },
+    {
+      "signal_id": "8a3de58a-7fc7-4aba-864b-74f95a050479",
+      "pair": "STBLUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03348,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776596358.4948454,
+      "closed_timestamp": 1776641283.9526865,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 44925.45784115791
+    }
+  ],
+  "ACXUSDT": [
+    {
+      "signal_id": "fe5d8600-1a1c-4ada-bd1b-170c85eec742",
+      "pair": "ACXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.04431,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776571211.0883377,
+      "closed_timestamp": 1776636288.1737845,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 65077.085446834564
+    }
+  ],
+  "FLOCKUSDT": [
+    {
+      "signal_id": "215b4cbf-c81c-4aad-9042-4985fdc0108c",
+      "pair": "FLOCKUSDT",
+      "signal": "LONG",
+      "entry_price": 0.05757075,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": -7.3266,
+      "success": false,
+      "timestamp": 1776630374.4084358,
+      "closed_timestamp": 1776636706.7146811,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 6332.306245326996
+    }
+  ],
+  "JELLYJELLYUSDT": [
+    {
+      "signal_id": "a39161ef-b120-4f41-8de1-b1792e4da6c5",
+      "pair": "JELLYJELLYUSDT",
+      "signal": "LONG",
+      "entry_price": 0.04663,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776596447.0069454,
+      "closed_timestamp": 1776636928.8800678,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 40481.87312245369
+    }
+  ],
+  "FUSDT": [
+    {
+      "signal_id": "b1739b5e-b443-45e9-b7e8-dec4b5348f4a",
+      "pair": "FUSDT",
+      "signal": "LONG",
+      "entry_price": 0.005521,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776630371.1408029,
+      "closed_timestamp": 1776636945.9728303,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 6574.832027435303
+    }
+  ],
+  "FOGOUSDT": [
+    {
+      "signal_id": "3faec0ee-5f4b-4d89-98e2-14ea28dd5b36",
+      "pair": "FOGOUSDT",
+      "signal": "LONG",
+      "entry_price": 0.01838,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776596348.8844788,
+      "closed_timestamp": 1776637012.3679752,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 40663.483496427536
+    }
+  ],
+  "TLMUSDT": [
+    {
+      "signal_id": "32bb6d07-a8f7-4875-a64b-f4471f340fe3",
+      "pair": "TLMUSDT",
+      "signal": "LONG",
+      "entry_price": 0.001828,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776556813.073158,
+      "closed_timestamp": 1776637267.8934715,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 80454.82031345367
+    }
+  ],
+  "BTCUSDT": [
+    {
+      "signal_id": "9b34f1ad-168d-434a-8322-e40971b61dba",
+      "pair": "BTCUSDT",
+      "signal": "LONG",
+      "entry_price": 75175.83536232,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776596404.4424036,
+      "closed_timestamp": 1776637298.997046,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 40894.55464243889
+    }
+  ],
+  "ERAUSDT": [
+    {
+      "signal_id": "5b8ef1e6-59f6-4d5c-8b51-52a231915cff",
+      "pair": "ERAUSDT",
+      "signal": "LONG",
+      "entry_price": 0.13196531,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776638366.7859056,
+      "closed_timestamp": 1776641577.4642744,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 3210.678368806839
+    },
+    {
+      "signal_id": "5b8ef1e6-59f6-4d5c-8b51-52a231915cff",
+      "pair": "ERAUSDT",
+      "signal": "LONG",
+      "entry_price": 0.13196531,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776638366.7859056,
+      "closed_timestamp": 1776641577.57491,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 3210.7890043258667
+    }
+  ],
+  "ZRXUSDT": [
+    {
+      "signal_id": "9393d643-2a4f-4e6c-8ba7-50a9edbf55ea",
+      "pair": "ZRXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.1053,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776636254.1113672,
+      "closed_timestamp": 1776642052.37342,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 5798.262052774429
+    },
+    {
+      "signal_id": "9393d643-2a4f-4e6c-8ba7-50a9edbf55ea",
+      "pair": "ZRXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.1053,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776636254.1113672,
+      "closed_timestamp": 1776642052.460263,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 5798.348895788193
+    },
+    {
+      "signal_id": "9393d643-2a4f-4e6c-8ba7-50a9edbf55ea",
+      "pair": "ZRXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.1053,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776636254.1113672,
+      "closed_timestamp": 1776644589.3530438,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 8335.241676568985
+    },
+    {
+      "signal_id": "9393d643-2a4f-4e6c-8ba7-50a9edbf55ea",
+      "pair": "ZRXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.1053,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776636254.1113672,
+      "closed_timestamp": 1776645125.9152124,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 8871.80384516716
+    },
+    {
+      "signal_id": "9393d643-2a4f-4e6c-8ba7-50a9edbf55ea",
+      "pair": "ZRXUSDT",
+      "signal": "LONG",
+      "entry_price": 0.1053,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776636254.1113672,
+      "closed_timestamp": 1776669864.8667438,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 33610.75537657738
+    }
+  ],
+  "COINUSDT": [
+    {
+      "signal_id": "9e15c4d2-e40a-4554-8308-932d647cd16a",
+      "pair": "COINUSDT",
+      "signal": "LONG",
+      "entry_price": 201.80684016,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776638869.2633562,
+      "closed_timestamp": 1776643208.736345,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 4339.472988843918
+    }
+  ],
+  "TSLAUSDT": [
+    {
+      "signal_id": "54005391-1f5a-40a5-9232-52fa0b45c4c5",
+      "pair": "TSLAUSDT",
+      "signal": "LONG",
+      "entry_price": 365.52,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776638865.1699035,
+      "closed_timestamp": 1776643209.688285,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 4344.518381595612
+    },
+    {
+      "signal_id": "54005391-1f5a-40a5-9232-52fa0b45c4c5",
+      "pair": "TSLAUSDT",
+      "signal": "LONG",
+      "entry_price": 365.52,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776638865.1699035,
+      "closed_timestamp": 1776643312.1366782,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 4446.966774702072
+    }
+  ],
+  "HYPERUSDT": [
+    {
+      "signal_id": "1270b4f6-6554-41c1-87e4-72c29a9a6ef9",
+      "pair": "HYPERUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.09351,
+      "confidence": 0.5,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776642495.0670385,
+      "closed_timestamp": 1776654205.974581,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 11710.907542467117
+    }
+  ],
+  "ALLOUSDT": [
+    {
+      "signal_id": "4b3aa696-41c0-49cd-a651-c566416b166d",
+      "pair": "ALLOUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.09849,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776643430.127633,
+      "closed_timestamp": 1776658060.0455363,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 14629.91790318489
+    }
+  ],
+  "SPKUSDT": [
+    {
+      "signal_id": "1c3a04d9-1836-42d3-82b2-2d5008718242",
+      "pair": "SPKUSDT",
+      "signal": "LONG",
+      "entry_price": 0.03062,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776661208.2717154,
+      "closed_timestamp": 1776661819.5079813,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 611.2362658977509
+    }
+  ],
+  "AVAAIUSDT": [
+    {
+      "signal_id": "30ccc69f-9361-4a90-8a65-f1cf4ffa3ea4",
+      "pair": "AVAAIUSDT",
+      "signal": "LONG",
+      "entry_price": 0.008333,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776636235.0795088,
+      "closed_timestamp": 1776663433.5074625,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 27198.427953720093
+    }
+  ],
+  "AVAXUSDT": [
+    {
+      "signal_id": "083ede06-269f-4696-8565-7a547d370586",
+      "pair": "AVAXUSDT",
+      "signal": "SHORT",
+      "entry_price": 8.993,
+      "confidence": 0.5,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776641809.2285895,
+      "closed_timestamp": 1776669610.0449817,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 27800.816392183304
+    }
+  ],
+  "SUSDT": [
+    {
+      "signal_id": "648a7fa9-29d6-4ebf-bec7-cd212abd4f55",
+      "pair": "SUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.04123656,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776642129.4252422,
+      "closed_timestamp": 1776669774.7830665,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 27645.35782432556
+    }
+  ],
+  "BRETTUSDT": [
+    {
+      "signal_id": "935a211e-7296-4aff-84d8-7b18a62d10bd",
+      "pair": "BRETTUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.006583,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776641747.779611,
+      "closed_timestamp": 1776669824.9163675,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 28077.136756420135
+    }
+  ],
+  "ANKRUSDT": [
+    {
+      "signal_id": "d8f35073-babf-44f1-9240-3bab485a874f",
+      "pair": "ANKRUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.004909,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776641747.0816085,
+      "closed_timestamp": 1776669834.5468214,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 28087.46521282196
+    }
+  ],
+  "SOMIUSDT": [
+    {
+      "signal_id": "f18decbe-bfae-441b-9c1c-71bab7380ebb",
+      "pair": "SOMIUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.16205012,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776643784.2417638,
+      "closed_timestamp": 1776669862.5988796,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 26078.357115745544
+    }
+  ],
+  "LINEAUSDT": [
+    {
+      "signal_id": "7df0ba3e-5698-4dc7-ad8f-f54ece272b17",
+      "pair": "LINEAUSDT",
+      "signal": "SHORT",
+      "entry_price": 0.003223,
+      "confidence": 0.5,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776642122.884281,
+      "closed_timestamp": 1776669877.1559782,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 27754.27169728279
+    }
+  ],
+  "XANUSDT": [
+    {
+      "signal_id": "b663993d-9282-4e85-98b2-607e0bcdec1d",
+      "pair": "XANUSDT",
+      "signal": "LONG",
+      "entry_price": 0.007718,
+      "confidence": 0.6666666666666666,
+      "pnl_percentage": 0.0,
+      "success": false,
+      "timestamp": 1776631146.735406,
+      "closed_timestamp": 1776672541.260626,
+      "source": "CORNIX",
+      "targets_hit": 0,
+      "time_held": 41394.525220155716
     }
   ]
 }

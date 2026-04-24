@@ -470,5 +470,432 @@
       "query": "Bitcoin",
       "engine": "duckduckgo"
     }
+  },
+  {
+    "timestamp": "2026-04-04 10:13:17",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 10:13:21",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 10:13:25",
+    "type": "GET_ADMINS",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 10:32:38",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 10:32:43",
+    "type": "GET_MEMBER",
+    "details": {
+      "chat_id": "-1002385326575",
+      "user_id": 777000
+    }
+  },
+  {
+    "timestamp": "2026-04-04 10:32:46",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 11:19:24",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 11:19:28",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 12:45:42",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:07:43",
+    "type": "AUDIT_QUICK",
+    "details": {
+      "type": "security_scan"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:08:17",
+    "type": "AUDIT_FULL",
+    "details": {
+      "type": "comprehensive"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:08:49",
+    "type": "AUDIT_RECOMMENDATIONS",
+    "details": {
+      "type": "recommendations"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:08:53",
+    "type": "AUDIT_SAVE",
+    "details": {
+      "filename": "full_code_audit_report_2026-04-04.md"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:20:08",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:20:26",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:21:11",
+    "type": "SEND_MESSAGE",
+    "details": {
+      "chat_id": "-1002385326575"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:22:10",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:22:17",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:23:19",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:23:23",
+    "type": "GET_MEMBER_COUNT",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:23:31",
+    "type": "SEND_MESSAGE",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 13:34:34",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 14:15:55",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 14:16:02",
+    "type": "GET_ADMINS",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 15:32:31",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 15:32:36",
+    "type": "GET_MEMBER_COUNT",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 15:32:43",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 15:32:46",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 16:52:32",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 16:52:35",
+    "type": "GET_MEMBER_COUNT",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 17:14:40",
+    "type": "AUDIT_QUICK",
+    "details": {
+      "type": "security_scan"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 17:15:14",
+    "type": "INTERNET_SEARCH_PERFORMED",
+    "details": {
+      "query": "STOUSDT price today",
+      "engine": "duckduckgo"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 20:10:21",
+    "type": "INTERNET_SEARCH_PERFORMED",
+    "details": {
+      "query": "Iran conflict impact on oil prices next week analysis 2026",
+      "engine": "duckduckgo"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 20:10:22",
+    "type": "MARKET_DATA_SEARCHED",
+    "details": {
+      "symbol": "BRENT"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 20:10:23",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "oil market geopolitical risk Iran supply disruption"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 23:23:38",
+    "type": "INTERNET_SEARCH_PERFORMED",
+    "details": {
+      "query": "USOIL crude oil price trend analysis",
+      "engine": "duckduckgo"
+    }
+  },
+  {
+    "timestamp": "2026-04-04 23:56:02",
+    "type": "AUDIT_QUICK",
+    "details": {
+      "type": "security_scan"
+    }
+  },
+  {
+    "timestamp": "2026-04-05 01:35:06",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "BTC Bitcoin latest news"
+    }
+  },
+  {
+    "timestamp": "2026-04-05 15:13:38",
+    "type": "ALL_OPS_MEMBERS_FETCHED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-05 15:14:01",
+    "type": "OPS_MEMBER_LIST_RETRIEVED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-05 21:31:12",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1003706659588"
+    }
+  },
+  {
+    "timestamp": "2026-04-05 21:31:12",
+    "type": "OPS_MEMBER_LIST_RETRIEVED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-05 23:26:23",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "cryptocurrency latest news bitcoin ethereum market regulation"
+    }
+  },
+  {
+    "timestamp": "2026-04-05 23:27:01",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "bloomberg cryptocurrency"
+    }
+  },
+  {
+    "timestamp": "2026-04-05 23:28:51",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "latest cryptocurrency market news today bitcoin price regulation"
+    }
+  },
+  {
+    "timestamp": "2026-04-05 23:28:57",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "bitcoin"
+    }
+  },
+  {
+    "timestamp": "2026-04-05 23:56:02",
+    "type": "SEND_MESSAGE",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-05 23:58:39",
+    "type": "GET_CHAT_HISTORY",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-06 00:02:36",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-06 00:04:00",
+    "type": "SEND_MESSAGE",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-06 00:04:16",
+    "type": "SEND_MESSAGE",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-06 00:08:06",
+    "type": "SEND_MESSAGE",
+    "details": {
+      "chat_id": "-1002209928687"
+    }
+  },
+  {
+    "timestamp": "2026-04-06 00:26:58",
+    "type": "TRADING_NEWS_SEARCHED",
+    "details": {
+      "query": "cryptocurrency market news Bitcoin Ethereum trading signals April 2025"
+    }
+  },
+  {
+    "timestamp": "2026-04-06 10:20:44",
+    "type": "MARKET_DATA_SEARCHED",
+    "details": {
+      "symbol": "ETH"
+    }
+  },
+  {
+    "timestamp": "2026-04-06 10:20:44",
+    "type": "MARKET_DATA_SEARCHED",
+    "details": {
+      "symbol": "BTC"
+    }
+  },
+  {
+    "timestamp": "2026-04-06 10:20:44",
+    "type": "MARKET_DATA_SEARCHED",
+    "details": {
+      "symbol": "SOL"
+    }
+  },
+  {
+    "timestamp": "2026-04-07 21:50:56",
+    "type": "CODE_EDIT",
+    "details": {
+      "file": "test_mcp.txt",
+      "len": 4
+    }
+  },
+  {
+    "timestamp": "2026-04-07 21:50:57",
+    "type": "AUDIT_QUICK",
+    "details": {
+      "type": "security_scan"
+    }
+  },
+  {
+    "timestamp": "2026-04-07 21:50:57",
+    "type": "GET_CHAT_INFO",
+    "details": {
+      "chat_id": "-1001234567890"
+    }
+  },
+  {
+    "timestamp": "2026-04-07 21:54:04",
+    "type": "CODE_EDIT",
+    "details": {
+      "file": "test_mcp.txt",
+      "len": 11
+    }
+  },
+  {
+    "timestamp": "2026-04-07 21:54:04",
+    "type": "AUDIT_QUICK",
+    "details": {
+      "type": "security_scan"
+    }
   }
 ]

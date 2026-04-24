@@ -3,6 +3,14 @@ import numpy as np
 import talib
 from utils_logger import log_message
 
+# Rust acceleration
+try:
+    from shared_state import RUST_CORE_AVAILABLE
+    if RUST_CORE_AVAILABLE:
+        import aladdin_core
+except Exception:
+    RUST_CORE_AVAILABLE = False
+
 def calculate_rsi(data, period=14):
     close_prices = data['close'].values
     rsi = talib.RSI(close_prices, timeperiod=period)
@@ -21,9 +29,33 @@ def calculate_bollinger_bands(df, period=20, std_dev=2):
     return df
 
 def calculate_vwap(df):
-    df['Cumulative Volume'] = df['volume'].cumsum()
-    df['Cumulative Volume Price'] = (df['close'] * df['volume']).cumsum()
-    df['VWAP'] = df['Cumulative Volume Price'] / df['Cumulative Volume']
+    """Calculate VWAP with daily reset at 00:00 UTC (institutional standard).
+    Falls back to session-cumulative if index has no timezone info.
+    """
+    try:
+        if hasattr(df.index, 'tz') and df.index.tz is not None:
+            day_group = df.index.normalize()
+        elif hasattr(df.index, 'date'):
+            day_group = pd.DatetimeIndex(df.index).normalize()
+        else:
+            # No datetime index — fall back to simple cumulative
+            df['Cumulative Volume'] = df['volume'].cumsum()
+            df['Cumulative Volume Price'] = (df['close'] * df['volume']).cumsum()
+            df['VWAP'] = df['Cumulative Volume Price'] / df['Cumulative Volume']
+            return df
+
+        typical_price = (df['high'] + df['low'] + df['close']) / 3
+        tp_vol = typical_price * df['volume']
+
+        df['VWAP'] = (
+            tp_vol.groupby(day_group).cumsum()
+            / df['volume'].groupby(day_group).cumsum()
+        )
+    except Exception:
+        # Safe fallback: cumulative (old behaviour)
+        df['Cumulative Volume'] = df['volume'].cumsum()
+        df['Cumulative Volume Price'] = (df['close'] * df['volume']).cumsum()
+        df['VWAP'] = df['Cumulative Volume Price'] / df['Cumulative Volume']
     return df
 
 def calculate_macd(df, short_window=12, long_window=26, signal_window=9):
@@ -43,14 +75,28 @@ def calculate_atr(df, period=14):
         from shared_state import RUST_CORE_AVAILABLE
         if RUST_CORE_AVAILABLE:
             import aladdin_core
-            # Use Rust implementation for better performance
-            high = df['high'].tolist()
-            low = df['low'].tolist()
-            close = df['close'].tolist()
+            # Validate data before sending to Rust
+            if len(df) < period:
+                log_message(f"Insufficient data for ATR calculation: {len(df)} < {period}")
+                df['ATR'] = np.zeros(len(df))
+                return df
+                
+            # Clean and validate data
+            high = df['high'].ffill().tolist()
+            low = df['low'].ffill().tolist()
+            close = df['close'].ffill().tolist()
+            
+            # Ensure no NaN or infinite values
+            high = [float(x) if not (np.isnan(x) or np.isinf(x)) else 0.0 for x in high]
+            low = [float(x) if not (np.isnan(x) or np.isinf(x)) else 0.0 for x in low]
+            close = [float(x) if not (np.isnan(x) or np.isinf(x)) else 0.0 for x in close]
             
             atr_values = aladdin_core.calculate_atr_rust(high, low, close, period)
-            df['ATR'] = atr_values
-            return df
+            if atr_values and len(atr_values) == len(df):
+                df['ATR'] = atr_values
+                return df
+            else:
+                log_message("Rust ATR returned invalid data, using talib fallback")
     except (ImportError, Exception) as e:
         log_message(f"Rust ATR unavailable, using talib fallback: {e}")
     
@@ -63,31 +109,48 @@ def calculate_atr(df, period=14):
     return df
 
 def calculate_ichimoku(df):
-    # Tenkan-sen (Conversion Line)
+    """Calculate Ichimoku Cloud with Rust acceleration when available"""
+    try:
+        if RUST_CORE_AVAILABLE:
+            high = df['high'].ffill().tolist()
+            low  = df['low'].ffill().tolist()
+            tenkan, kijun, span_a, span_b = aladdin_core.calculate_ichimoku_rust(high, low)
+            df['tenkan_sen']   = tenkan
+            df['kijun_sen']    = kijun
+            df['senkou_span_a'] = span_a
+            df['senkou_span_b'] = span_b
+            return df
+    except Exception as e:
+        log_message(f"Rust Ichimoku unavailable, using pandas fallback: {e}")
+
+    # Pandas fallback
     nine_period_high = df['high'].rolling(window=9).max()
     nine_period_low = df['low'].rolling(window=9).min()
     df['tenkan_sen'] = (nine_period_high + nine_period_low) / 2
 
-    # Kijun-sen (Base Line)
     twenty_six_period_high = df['high'].rolling(window=26).max()
     twenty_six_period_low = df['low'].rolling(window=26).min()
     df['kijun_sen'] = (twenty_six_period_high + twenty_six_period_low) / 2
 
-    # Senkou Span A (Leading Span A)
     df['senkou_span_a'] = ((df['tenkan_sen'] + df['kijun_sen']) / 2).shift(26)
 
-    # Senkou Span B (Leading Span B)
     fifty_two_period_high = df['high'].rolling(window=52).max()
     fifty_two_period_low = df['low'].rolling(window=52).min()
     df['senkou_span_b'] = ((fifty_two_period_high + fifty_two_period_low) / 2).shift(26)
 
     return df
 
-def calculate_chandelier_exit(df, atr_period=22, mult=3.0):
+def calculate_chandelier_exit(df, atr_period=22, mult=3.0, lookback=None):
     """
     Chandelier Exit Hybrid (ATR-based trailing stop indicator)
     Adapted from CE Pro Hybrid PineScript logic.
+
+    `lookback` controls the highest-high / lowest-low window; when None it
+    defaults to `atr_period` (legacy behaviour). Pine CE Hybrid uses distinct
+    values (Line: ATR=22, Look=14 ; Cloud: ATR=14, Look=28) — see reverse_hunt.py.
     """
+    if lookback is None:
+        lookback = atr_period
     try:
         if 'ATR' not in df.columns:
             high = df['high'].values
@@ -96,10 +159,28 @@ def calculate_chandelier_exit(df, atr_period=22, mult=3.0):
             atr = talib.ATR(high, low, close_prices, timeperiod=atr_period)
         else:
             atr = df['ATR'].values
-            
+
+        # ── Rust fast path ──────────────────────────────────────────────────
+        if RUST_CORE_AVAILABLE and not np.all(np.isnan(atr)):
+            try:
+                long_stop, short_stop, direction = aladdin_core.calculate_chandelier_exit_rust(
+                    df['high'].tolist(),
+                    df['low'].tolist(),
+                    df['close'].tolist(),
+                    atr.tolist(),
+                    lookback,   # Rust `period` only drives rolling HH/LL; ATR is pre-computed
+                    mult,
+                )
+                df['CE_Long_Stop']  = long_stop
+                df['CE_Short_Stop'] = short_stop
+                df['CE_Direction']  = direction
+                return df
+            except Exception as e:
+                log_message(f"Rust Chandelier Exit fallback: {e}")
+
         # Calculate raw Highest High and Lowest Low
-        highest_high = df['high'].rolling(window=atr_period).max().values
-        lowest_low = df['low'].rolling(window=atr_period).min().values
+        highest_high = df['high'].rolling(window=lookback).max().values
+        lowest_low = df['low'].rolling(window=lookback).min().values
         
         # Base Stops
         long_raw = lowest_low - (atr * mult)
@@ -162,6 +243,108 @@ def calculate_chandelier_exit(df, atr_period=22, mult=3.0):
         df['CE_Short_Stop'] = df['high']
         df['CE_Direction'] = 0
         return df
+
+def calculate_chandelier_exit_cloud(df, cloud_atr_period=50, cloud_mult=5.0, cloud_lookback=None):
+    """
+    Chandelier Exit — Cloud (Trend) Layer.
+    Ported from 'CE Pro Hybrid' PineScript by ChartArchitect_Gemini.
+
+    Runs a second, slower CE calculation on top of the existing Line layer so the
+    bot has a macro trend filter:
+      - CE_Cloud_Direction  : +1 (bull) / -1 (bear)  — macro trend
+      - CE_Cloud_Long_Stop  : slow long trailing stop
+      - CE_Cloud_Short_Stop : slow short trailing stop
+      - CE_Break_Sup        : True when line-layer was bull but close breaks below lStop
+      - CE_Break_Res        : True when line-layer was bear but close breaks above sStop
+
+    Must be called AFTER calculate_chandelier_exit() so CE_Direction / CE_Long_Stop /
+    CE_Short_Stop are already present.
+    """
+    if cloud_lookback is None:
+        cloud_lookback = cloud_atr_period
+    try:
+        n = len(df)
+        high   = df['high'].values
+        low    = df['low'].values
+        close  = df['close'].values
+
+        # ── ATR for cloud layer (independent of Line ATR) ─────────────────────
+        try:
+            cloud_atr = talib.ATR(high, low, close, timeperiod=cloud_atr_period)
+        except Exception:
+            cloud_atr = df['ATR'].values if 'ATR' in df.columns else np.full(n, np.nan)
+
+        # ── Rust fast path ─────────────────────────────────────────────────────
+        if RUST_CORE_AVAILABLE and not np.all(np.isnan(cloud_atr)):
+            try:
+                cl_long, cl_short, cl_dir = aladdin_core.calculate_chandelier_exit_rust(
+                    high.tolist(), low.tolist(), close.tolist(),
+                    cloud_atr.tolist(), cloud_lookback, cloud_mult,
+                )
+                df['CE_Cloud_Direction']  = [int(d) for d in cl_dir]
+                df['CE_Cloud_Long_Stop']  = cl_long
+                df['CE_Cloud_Short_Stop'] = cl_short
+            except Exception as e:
+                log_message(f"Rust CE cloud fallback: {e}")
+                df['CE_Cloud_Direction']  = 0
+                df['CE_Cloud_Long_Stop']  = low
+                df['CE_Cloud_Short_Stop'] = high
+        else:
+            # Pure-Python fallback ── same ratchet logic as calculate_chandelier_exit
+            hh       = np.array([np.nanmax(high[max(0, i - cloud_lookback):i + 1])  for i in range(n)])
+            ll       = np.array([np.nanmin(low[max(0,  i - cloud_lookback):i + 1])  for i in range(n)])
+            long_raw  = ll  - cloud_atr * cloud_mult
+            short_raw = hh  + cloud_atr * cloud_mult
+
+            cl_long_arr  = np.full(n, np.nan)
+            cl_short_arr = np.full(n, np.nan)
+            cl_dir_arr   = np.zeros(n, dtype=int)
+            l_s, s_s, d = 0.0, 0.0, 1
+
+            for i in range(1, n):
+                if np.isnan(long_raw[i]) or np.isnan(short_raw[i]):
+                    cl_long_arr[i] = l_s; cl_short_arr[i] = s_s; cl_dir_arr[i] = d
+                    continue
+                pl = l_s if not np.isnan(l_s) else long_raw[i]
+                ps = s_s if not np.isnan(s_s) else short_raw[i]
+                l_s = max(long_raw[i], pl)  if close[i-1] > pl else long_raw[i]
+                s_s = min(short_raw[i], ps) if close[i-1] < ps else short_raw[i]
+                if   close[i-1] > ps: d = 1
+                elif close[i-1] < pl: d = -1
+                cl_long_arr[i] = l_s; cl_short_arr[i] = s_s; cl_dir_arr[i] = d
+
+            df['CE_Cloud_Direction']  = cl_dir_arr
+            df['CE_Cloud_Long_Stop']  = cl_long_arr
+            df['CE_Cloud_Short_Stop'] = cl_short_arr
+
+        # ── breakSup / breakRes marks (ported from Pine Script Hybrid) ─────────
+        # Uses the LINE layer stops already present in the DataFrame.
+        if 'CE_Direction' in df.columns and 'CE_Long_Stop' in df.columns:
+            line_dir   = df['CE_Direction'].values
+            line_lStop = df['CE_Long_Stop'].values
+            line_sStop = df['CE_Short_Stop'].values
+
+            prev_dir   = np.roll(line_dir,   1);  prev_dir[0]   = line_dir[0]
+            prev_lStop = np.roll(line_lStop, 1);  prev_lStop[0] = line_lStop[0]
+            prev_sStop = np.roll(line_sStop, 1);  prev_sStop[0] = line_sStop[0]
+
+            df['CE_Break_Sup'] = (prev_dir == 1)  & (close < prev_lStop)
+            df['CE_Break_Res'] = (prev_dir == -1) & (close > prev_sStop)
+        else:
+            df['CE_Break_Sup'] = False
+            df['CE_Break_Res'] = False
+
+        return df
+
+    except Exception as e:
+        log_message(f"Error in calculate_chandelier_exit_cloud: {e}")
+        df['CE_Cloud_Direction']  = 0
+        df['CE_Cloud_Long_Stop']  = df['low']
+        df['CE_Cloud_Short_Stop'] = df['high']
+        df['CE_Break_Sup']        = False
+        df['CE_Break_Res']        = False
+        return df
+
 
 def detect_candlestick_patterns(df):
     """Comprehensive candlestick pattern detection using TA-Lib"""
@@ -262,7 +445,7 @@ def detect_candlestick_patterns(df):
                         'type': pattern_type
                     })
                     
-                    log_message(f"Pattern detected: {pattern_name} ({direction}) - Strength: {strength}")
+                    # Removed per-pattern logging to reduce noise
                     
             except Exception as e:
                 log_message(f"Error detecting pattern {pattern_func}: {e}")
@@ -295,7 +478,27 @@ def calculate_fair_value_gaps(df, lookback=50):
     try:
         if len(df) < 3:
             return {'bullish_fvgs': [], 'bearish_fvgs': [], 'unfilled_fvgs': []}
-        
+
+        current_price = float(df['close'].iloc[-1])
+
+        # ── Rust fast path ──────────────────────────────────────────────────
+        if RUST_CORE_AVAILABLE:
+            try:
+                gaps = aladdin_core.detect_fair_value_gaps_rust(
+                    df['high'].tolist(),
+                    df['low'].tolist(),
+                    lookback,
+                    current_price,
+                    0.10,  # max 10% distance from current price
+                )
+                bullish  = [{'type':'bullish',  'top':g[0], 'bottom':g[1], 'strength':g[3], 'filled':False} for g in gaps if     g[2]]
+                bearish  = [{'type':'bearish',  'top':g[0], 'bottom':g[1], 'strength':g[3], 'filled':False} for g in gaps if not g[2]]
+                unfilled = [{'type': 'bullish' if g[2] else 'bearish', 'top':g[0], 'bottom':g[1], 'strength':g[3], 'filled':False} for g in gaps]
+                log_message(f"FVGs (Rust): {len(bullish)} bullish, {len(bearish)} bearish, {len(unfilled)} unfilled")
+                return {'bullish_fvgs': bullish, 'bearish_fvgs': bearish, 'unfilled_fvgs': unfilled}
+            except Exception as e:
+                log_message(f"Rust FVG fallback: {e}")
+
         bullish_fvgs = []
         bearish_fvgs = []
         unfilled_fvgs = []
@@ -395,6 +598,29 @@ def calculate_volume_profile(df, num_bins=20):
         # Get price range for the visible period (last 100 candles or available data)
         visible_period = min(100, len(df))
         df_visible = df.tail(visible_period).copy()
+
+        # ── Rust fast path (Rayon-parallelized bins) ────────────────────────
+        if RUST_CORE_AVAILABLE:
+            try:
+                bin_prices, bin_volumes, poc, vah, val = aladdin_core.calculate_volume_profile_rust(
+                    df_visible['high'].tolist(),
+                    df_visible['low'].tolist(),
+                    df_visible['close'].tolist(),
+                    df_visible['volume'].tolist(),
+                    num_bins,
+                )
+                current_price = float(df['close'].iloc[-1])
+                threshold = max(bin_volumes) * 0.3 if bin_volumes else 0
+                support    = sorted([p for p, v in zip(bin_prices, bin_volumes) if v >= threshold and p < current_price], reverse=True)
+                resistance = sorted([p for p, v in zip(bin_prices, bin_volumes) if v >= threshold and p > current_price])
+                log_message(f"Volume Profile (Rust): POC={poc:.6f}, VAH={vah:.6f}, VAL={val:.6f}")
+                return {
+                    'price_levels': bin_prices, 'volumes': bin_volumes,
+                    'poc': poc, 'vah': vah, 'val': val,
+                    'support_levels': support, 'resistance_levels': resistance,
+                }
+            except Exception as e:
+                log_message(f"Rust Volume Profile fallback: {e}")
         
         # Calculate price range
         price_min = df_visible['low'].min()
@@ -518,9 +744,11 @@ def calculate_advanced_indicators(df):
         close = df['close'].values
         volume = df['volume'].values
         
-        # Momentum Indicators
-        df['RSI_14'] = talib.RSI(close, timeperiod=14)
-        df['RSI_21'] = talib.RSI(close, timeperiod=21)
+        # Momentum Indicators — skip if already injected by Rust batch processor
+        if 'RSI_14' not in df.columns:
+            df['RSI_14'] = talib.RSI(close, timeperiod=14)
+        if 'RSI_21' not in df.columns:
+            df['RSI_21'] = talib.RSI(close, timeperiod=21)
         df['STOCH_K'], df['STOCH_D'] = talib.STOCH(high, low, close)
         df['STOCHF_K'], df['STOCHF_D'] = talib.STOCHF(high, low, close)
         df['STOCHRSI_K'], df['STOCHRSI_D'] = talib.STOCHRSI(close)
@@ -655,72 +883,300 @@ def calculate_technical_targets(df, current_price, signal_direction, precision, 
     """
     Institutional target identification using Market Structure and Liquidity.
     Prioritizes Volume Profile (POC/VAH/VAL) and Unfilled FVGs over simple ATR.
+
+    Target spacing (ATR-based): TP1 ≈ 1.5×ATR, TP2 ≈ 3×ATR, TP3 ≈ 5×ATR
+    Liquidity levels (VP/FVG) replace ATR targets when they fall within range.
+    Max distance cap: 10% from entry for any single target.
     """
     try:
         atr = df['ATR'].iloc[-1] if 'ATR' in df.columns else current_price * 0.02
-        adx = df['ADX'].iloc[-1] if 'ADX' in df.columns else 20
-        
-        # Base targets (ATR-based)
+
+        # ADX for trend strength — compute inline if not present
+        if 'ADX' in df.columns:
+            adx = float(df['ADX'].iloc[-1])
+        else:
+            try:
+                adx = float(talib.ADX(df['high'].values, df['low'].values, df['close'].values, timeperiod=14)[-1])
+            except Exception:
+                adx = 20.0
+        if np.isnan(adx):
+            adx = 20.0
+
+        # Trending markets → stretch targets; ranging → tighter targets
         tp_scale_mult = 1.3 if adx > 30 else 0.8 if adx < 20 else 1.0
-        
-        # Primary exit logic: Look for Liquidity Clusters
+
+        is_long = signal_direction.upper() in ['LONG', 'BUY']
+        max_dist = current_price * 0.10  # 10% max distance cap
+
+        # ── Collect liquidity magnets (VP + FVG) ────────────────────────────
         liquidity_targets = []
-        
+
         if vp:
-            # Add POC (Point of Control) and VAH/VAL as potential magnetic targets
-            poc = vp.get('poc', 0)
-            vah = vp.get('vah', 0)
-            val = vp.get('val', 0)
-            
-            for lvl in [poc, vah, val]:
-                if lvl == 0: continue
-                # Is this level in the right direction?
-                if signal_direction.upper() in ['LONG', 'BUY'] and lvl > current_price:
+            for lvl in [vp.get('poc', 0), vp.get('vah', 0), vp.get('val', 0)]:
+                if lvl == 0:
+                    continue
+                if is_long and lvl > current_price:
                     liquidity_targets.append(lvl)
-                elif signal_direction.upper() not in ['LONG', 'BUY'] and lvl < current_price:
+                elif not is_long and lvl < current_price:
                     liquidity_targets.append(lvl)
-        
+
         if fvg_data:
-            # Add unfilled FVGs as magnetic targets (liquidity voids)
             for fvg in fvg_data.get('unfilled_fvgs', []):
                 mid = (fvg['top'] + fvg['bottom']) / 2
-                if signal_direction.upper() in ['LONG', 'BUY'] and mid > current_price:
+                if is_long and mid > current_price:
                     liquidity_targets.append(mid)
-                elif signal_direction.upper() not in ['LONG', 'BUY'] and mid < current_price:
+                elif not is_long and mid < current_price:
                     liquidity_targets.append(mid)
-        
-        # Sort and deduplicate
-        liquidity_targets = sorted(list(set(liquidity_targets)), reverse=(signal_direction.upper() not in ['LONG', 'BUY']))
-        
-        # Final TP extraction
-        final_tps = []
-        # Take the top 2 liquidity zones if they exist
-        for lt in liquidity_targets[:2]:
-            if abs(lt - current_price) / current_price > 0.005: # At least 0.5% move
-                final_tps.append(lt)
-        
-        # Fill remaining with ATR-based targets
-        if signal_direction.upper() in ['LONG', 'BUY']:
-            while len(final_tps) < 5:
-                # Add incremental ATR steps starting from the last TP
-                last_tp = final_tps[-1] if final_tps else current_price
-                final_tps.append(last_tp + (atr * 1.5 * tp_scale_mult))
-            sl = current_price - (atr * (2.0 if adx > 20 else 1.5))
-        else:
-            while len(final_tps) < 5:
-                last_tp = final_tps[-1] if final_tps else current_price
-                final_tps.append(last_tp - (atr * 1.5 * tp_scale_mult))
-            sl = current_price + (atr * (2.0 if adx > 20 else 1.5))
-            
-        targets = [round(t, precision) for t in sorted(final_tps, reverse=(signal_direction.upper() not in ['LONG', 'BUY']))]
+
+        # Filter: min 0.5% away, max 10% away, then sort by distance
+        liquidity_targets = [
+            t for t in liquidity_targets
+            if 0.005 < abs(t - current_price) / current_price <= 0.10
+        ]
+        liquidity_targets.sort(key=lambda t: abs(t - current_price))
+
+        # ── Build 3 ATR-based default targets (evenly spaced from entry) ────
+        # TP1 ≈ 1×ATR, TP2 ≈ 1.8×ATR, TP3 ≈ 3×ATR (tighter for faster turnover)
+        atr_steps = [1.0, 1.8, 3.0]
+        sign = 1 if is_long else -1
+        atr_targets = []
+        for step in atr_steps:
+            offset = sign * atr * step * tp_scale_mult
+            # Enforce max distance cap
+            if abs(offset) > max_dist:
+                offset = sign * max_dist
+            atr_targets.append(current_price + offset)
+
+        # ── Merge: liquidity replaces nearest ATR target ────────────────────
+        final_tps = list(atr_targets)  # Start with ATR defaults
+
+        for lt in liquidity_targets[:3]:
+            # Find the ATR target closest in distance to this liquidity level
+            best_idx = min(range(len(final_tps)), key=lambda i: abs(final_tps[i] - lt))
+            # Replace only if the liquidity level is on the correct side
+            if is_long and lt > current_price:
+                final_tps[best_idx] = lt
+            elif not is_long and lt < current_price:
+                final_tps[best_idx] = lt
+
+        # Deduplicate and ensure correct ordering
+        final_tps = sorted(set(final_tps), reverse=(not is_long))
+
+        # Pad back to 3 if dedup removed any (rare edge case)
+        while len(final_tps) < 3:
+            last = final_tps[-1] if final_tps else current_price
+            final_tps.append(last + sign * atr * 1.5 * tp_scale_mult)
+
+        # Stop loss (CE stop overrides this in main.py, but provide a sensible default)
+        sl = current_price - sign * atr * (2.0 if adx > 20 else 1.5)
+
+        targets = [round(t, precision) for t in final_tps[:5]]
         stop_loss = round(sl, precision)
-        
+
         return targets, stop_loss
     except Exception as e:
         log_message(f"Error calculating liquidity targets: {e}")
         # Full fallback to simple ATR
         if signal_direction.upper() in ['LONG', 'BUY']:
-            return [round(current_price * (1 + 0.02*i), precision) for i in range(1, 6)], round(current_price * 0.98, precision)
+            return [round(current_price * (1 + 0.02*i), precision) for i in range(1, 4)], round(current_price * 0.98, precision)
         else:
-            return [round(current_price * (1 - 0.02*i), precision) for i in range(1, 6)], round(current_price * 1.02, precision)
+            return [round(current_price * (1 - 0.02*i), precision) for i in range(1, 4)], round(current_price * 1.02, precision)
+
+
+def calculate_tsi(df, long_period=25, short_period=13, signal_period=7):
+    """
+    True Strength Index (TSI) — ported from REVERSE HUNT [MTF] Pine Script.
+    Double-smoothed momentum: cleaner than MACD, fewer false crossovers.
+
+    Formula:
+        pc  = close.diff()
+        TSI = 100 × EMA(EMA(pc, long), short) / EMA(EMA(|pc|, long), short)
+
+    Adds columns: TSI, TSI_Signal, TSI_Hist
+    """
+    try:
+        close = df['close']
+        pc    = close.diff()
+
+        double_smooth     = pc.ewm(span=long_period,  adjust=False).mean() \
+                              .ewm(span=short_period, adjust=False).mean()
+        double_smooth_abs = pc.abs().ewm(span=long_period,  adjust=False).mean() \
+                                    .ewm(span=short_period, adjust=False).mean()
+
+        tsi = 100 * double_smooth / double_smooth_abs.replace(0, np.nan)
+        tsi_signal = tsi.ewm(span=signal_period, adjust=False).mean()
+
+        df['TSI']       = tsi
+        df['TSI_Signal']= tsi_signal
+        df['TSI_Hist']  = tsi - tsi_signal
+    except Exception as e:
+        log_message(f"calculate_tsi error: {e}")
+        df['TSI']        = 0.0
+        df['TSI_Signal'] = 0.0
+        df['TSI_Hist']   = 0.0
+    return df
+
+
+def calculate_lr_oscillator(df, reg_len=20, norm_len=100, smooth=1, invert=True):
+    """
+    Normalized Linear Regression Oscillator — ported from REVERSE HUNT [MTF].
+    Measures slope direction normalized as Z-score → range approx [-3, +3].
+
+    Adds columns: LR_Osc  (normalized, optionally inverted)
+                  LR_Raw  (raw slope value)
+    """
+    try:
+        closes = df['close'].values
+        n      = len(closes)
+        reg_n  = reg_len
+        slopes = np.full(n, np.nan)
+
+        # Rolling linear regression slope
+        x = np.arange(reg_n, dtype=float)
+        x_mean = x.mean()
+        x_var  = ((x - x_mean) ** 2).sum()
+        for i in range(reg_n - 1, n):
+            y       = closes[i - reg_n + 1: i + 1]
+            y_mean  = y.mean()
+            slopes[i] = ((x - x_mean) * (y - y_mean)).sum() / x_var
+
+        slope_series = pd.Series(slopes, index=df.index)
+        if invert:
+            slope_series = -slope_series
+
+        # Z-score normalization over norm_len window
+        sma_   = slope_series.rolling(norm_len, min_periods=1).mean()
+        std_   = slope_series.rolling(norm_len, min_periods=1).std().replace(0, np.nan)
+        norm   = (slope_series - sma_) / std_
+
+        if smooth > 1:
+            norm = norm.ewm(span=smooth, adjust=False).mean()
+
+        df['LR_Osc'] = norm
+        df['LR_Raw'] = slope_series
+    except Exception as e:
+        log_message(f"calculate_lr_oscillator error: {e}")
+        df['LR_Osc'] = 0.0
+        df['LR_Raw'] = 0.0
+    return df
+
+
+def detect_breakout_retest(df, lookback=50, tolerance_pct=0.015):
+    """
+    Detect breakout + retest patterns on OHLCV data.
+
+    Logic:
+    1. Find swing highs/lows over `lookback` candles (key S/R levels)
+    2. Detect if price broke above a resistance (bullish breakout) or
+       below a support (bearish breakout) in the last 10 candles
+    3. Check if current price is retesting that broken level (within tolerance%)
+
+    Returns dict with:
+      breakout_score : +1.0 (bullish retest = long entry)
+                       -1.0 (bearish retest = short entry)
+                        0.0 (no pattern detected)
+      level         : price level being retested (or None)
+      breakout_type : 'BULLISH_RETEST' | 'BEARISH_RETEST' | 'NONE'
+      channel_slope : linear regression slope of price (positive=uptrend channel,
+                      negative=downtrend channel)
+    """
+    result = {
+        'breakout_score': 0.0,
+        'level': None,
+        'breakout_type': 'NONE',
+        'channel_slope': 0.0,
+        'channel_position': 0.0,  # +1=near upper, -1=near lower, 0=middle
+    }
+    try:
+        if df is None or len(df) < max(lookback, 20):
+            return result
+
+        highs  = df['high'].values
+        lows   = df['low'].values
+        closes = df['close'].values
+        n      = len(closes)
+
+        # ── Channel detection via linear regression on highs and lows ────
+        x = np.arange(lookback)
+        h_slice = highs[-lookback:]
+        l_slice = lows[-lookback:]
+        c_slice = closes[-lookback:]
+
+        h_slope, h_intercept = np.polyfit(x, h_slice, 1)
+        l_slope, l_intercept = np.polyfit(x, l_slice, 1)
+        avg_slope = (h_slope + l_slope) / 2.0
+        # Normalize slope relative to average price
+        avg_price = np.mean(c_slice)
+        result['channel_slope'] = float(avg_slope / avg_price) if avg_price > 0 else 0.0
+
+        # Channel position: where is current price relative to channel
+        upper_now = h_slope * (lookback - 1) + h_intercept
+        lower_now = l_slope * (lookback - 1) + l_intercept
+        cur_price = float(closes[-1])
+        channel_range = upper_now - lower_now
+        if channel_range > 0:
+            pos = (cur_price - lower_now) / channel_range  # 0=lower, 1=upper
+            result['channel_position'] = float(np.clip(pos * 2 - 1, -1, 1))  # scale to [-1,+1]
+
+        # ── Swing high/low identification ─────────────────────────────────
+        # A swing high: local max over 5-candle window
+        # A swing low:  local min over 5-candle window
+        swing_window = 5
+        swing_highs, swing_lows = [], []
+        for i in range(swing_window, n - swing_window):
+            if highs[i] == max(highs[i - swing_window: i + swing_window + 1]):
+                swing_highs.append((i, highs[i]))
+            if lows[i] == min(lows[i - swing_window: i + swing_window + 1]):
+                swing_lows.append((i, lows[i]))
+
+        if not swing_highs and not swing_lows:
+            return result
+
+        # ── Breakout detection window: last 3-15 candles ─────────────────
+        breakout_window = 15
+        recent_start    = n - breakout_window
+
+        # BULLISH BREAKOUT: price closed above a recent swing high
+        # then came back to retest it from above
+        for idx, level in reversed(swing_highs):
+            if idx >= recent_start:
+                continue   # level must be established BEFORE breakout window
+            if idx < n - lookback:
+                continue   # too old
+            # Check if any candle in breakout window closed above this level
+            broke_above = any(closes[j] > level * 1.002 for j in range(recent_start, n - 1))
+            if not broke_above:
+                continue
+            # Check if current price is retesting the level (within tolerance)
+            dist_pct = abs(cur_price - level) / level
+            if dist_pct <= tolerance_pct:
+                # Confirm: price approached from above (retest, not breakdown)
+                if cur_price >= level * (1 - tolerance_pct * 0.5):
+                    result['breakout_score'] = 1.0
+                    result['level']          = float(level)
+                    result['breakout_type']  = 'BULLISH_RETEST'
+                    return result
+
+        # BEARISH BREAKOUT: price closed below a recent swing low
+        # then came back to retest it from below
+        for idx, level in reversed(swing_lows):
+            if idx >= recent_start:
+                continue
+            if idx < n - lookback:
+                continue
+            broke_below = any(closes[j] < level * 0.998 for j in range(recent_start, n - 1))
+            if not broke_below:
+                continue
+            dist_pct = abs(cur_price - level) / level
+            if dist_pct <= tolerance_pct:
+                if cur_price <= level * (1 + tolerance_pct * 0.5):
+                    result['breakout_score'] = -1.0
+                    result['level']          = float(level)
+                    result['breakout_type']  = 'BEARISH_RETEST'
+                    return result
+
+    except Exception as e:
+        log_message(f"detect_breakout_retest error: {e}")
+
+    return result
 

@@ -1,0 +1,48 @@
+{
+  "top_features": [
+    "mom_20",
+    "price_vs_sma20",
+    "sentiment_score",
+    "stddev",
+    "bb_width",
+    "stochf_k",
+    "price_change_3",
+    "channel_slope",
+    "ht_phasor_quad",
+    "adxr",
+    "obv",
+    "sentiment_confidence",
+    "stochrsi_k",
+    "bop",
+    "ht_dcphase",
+    "vrvp_val_distance",
+    "body_size",
+    "volume_ratio_5",
+    "volatility_5",
+    "D_close_vs_sma20",
+    "ht_phasor_inphase",
+    "price_vs_sma50",
+    "W_close_vs_sma20",
+    "plus_di",
+    "W_adx"
+  ],
+  "best_params": {
+    "max_depth": 4,
+    "learning_rate": 0.08552289267713531,
+    "subsample": 0.7457482764333636,
+    "colsample_bytree": 0.714562692032675,
+    "reg_alpha": 1.1606565474097381,
+    "reg_lambda": 2.017481915094589,
+    "min_child_weight": 3,
+    "gamma": 0.6921013383855197,
+    "n_estimators": 138
+  },
+  "regime_paths": {
+    "RANGING": "/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA/models/model_ranging.ubj",
+    "TRENDING": "/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA/models/model_trending.ubj"
+  },
+  "retrained": "2026-04-11T03:04:43.702874+00:00",
+  "n_samples": 60,
+  "win_rate": 0.4,
+  "best_cv_auc": 0.6732142857142857
+}
