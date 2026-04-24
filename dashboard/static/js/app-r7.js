@@ -112,8 +112,26 @@ function updateUI() {
     // Manual overlay
     const manualOverlay = document.getElementById('manual-lock-overlay');
     if (manualOverlay) manualOverlay.style.display = _tier === 'free' ? 'flex' : 'none';
-    // Admin tab
-    document.getElementById('nav-admin').style.display = (_user && _user.is_admin) ? '' : 'none';
+    // Admin tab — completely REMOVE from DOM for non-admins (professional
+    // optics: no `display:none` artefact visible to curious users via
+    // devtools). Also lazy-load admin.js only for admins so non-admin
+    // sessions never download the admin surface JS or learn the paths
+    // to /api/admin/* endpoints.
+    const adminNav = document.getElementById('nav-admin');
+    if (adminNav) {
+        if (_user && _user.is_admin) {
+            adminNav.style.display = '';
+            // Inject admin.js on first admin login (idempotent).
+            if (!document.getElementById('admin-js-loaded')) {
+                const s = document.createElement('script');
+                s.id = 'admin-js-loaded';
+                s.src = '/static/js/admin.js?v=20260424-gated';
+                document.head.appendChild(s);
+            }
+        } else {
+            adminNav.remove();
+        }
+    }
     // Account tab — visible to any logged-in user
     const navAccount = document.getElementById('nav-account');
     if (navAccount) navAccount.style.display = _user ? '' : 'none';

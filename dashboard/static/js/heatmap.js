@@ -434,12 +434,17 @@ async function loadLiqHeatmap(pair) {
     _liqCurrentPair = pair;
     document.getElementById('liq-pair-input').value = pair;
     document.getElementById('liq-chart-title').textContent = pair;
-    document.getElementById('liq-chart-sub').textContent = 'Loading...';
+    document.getElementById('liq-chart-sub').textContent = 'Loading snapshot…';
+    // Non-blocking parallel side-loads (ctx, velocity, suggest) — don't
+    // wait for them to render the primary heatmap.
     loadLiqContext(pair);
-    connectLiqMarkWs(pair);
-    connectOrderBookWs(pair);
     loadLiqVelocity(pair);
     loadLiqSuggest(pair);
+    // ═══ SNAPSHOT-FIRST (F2) ═══════════════════════════════════════════
+    // Render the REST snapshot immediately. Only AFTER the user sees the
+    // heatmap do we establish the live WebSocket connections — this
+    // eliminates the cold-start "Connecting…" stall that plagued older
+    // builds, and lets the user orient themselves while streams come up.
     try {
         var results = await Promise.all([
             fetch('/api/liq/heatmap/' + pair + '?window=' + _liqWindow, { headers: authHeaders() }),
@@ -452,7 +457,14 @@ async function loadLiqHeatmap(pair) {
         renderLiqHeatmap(heatData, _liqCachedVp);
     } catch(e) {
         document.getElementById('liq-chart-sub').textContent = 'Failed to load';
+        return;
     }
+    // Snapshot is now painted. Hook the live streams on the next tick
+    // so they don't compete with the initial canvas render.
+    setTimeout(function() {
+        connectLiqMarkWs(pair);
+        connectOrderBookWs(pair);
+    }, 0);
 }
 
 function renderLiqHeatmap(data, vpData) {

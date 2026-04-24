@@ -7,7 +7,20 @@ let _screenerFilter = 'all';
 async function loadScreener(force = false) {
     const el = document.getElementById('screener-container');
     if (!el) return;
-    el.innerHTML = '<div class="loading"><div class="spinner"></div>Fetching TradingView data...</div>';
+    // Sk1 · Skeleton shimmer grid — maintains final layout so the user
+    // sees structure instantly instead of a solitary spinner. 12 cards
+    // matching the final screener-grid dimensions; staggered animation
+    // delays make the shimmer feel organic rather than mechanical.
+    const skeletonCards = Array(12).fill(
+        '<div class="screener-card" style="border:1px solid var(--border);background:var(--surface);padding:16px;border-radius:10px">' +
+        '<div style="height:18px;width:40%;background:var(--border);border-radius:4px;margin-bottom:14px;animation:sk-pulse 1.5s ease-in-out infinite"></div>' +
+        '<div style="height:12px;width:100%;background:var(--border);border-radius:4px;margin-bottom:10px;animation:sk-pulse 1.5s ease-in-out infinite .1s"></div>' +
+        '<div style="height:12px;width:80%;background:var(--border);border-radius:4px;margin-bottom:10px;animation:sk-pulse 1.5s ease-in-out infinite .2s"></div>' +
+        '<div style="height:12px;width:60%;background:var(--border);border-radius:4px;animation:sk-pulse 1.5s ease-in-out infinite .3s"></div>' +
+        '</div>'
+    ).join('');
+    el.innerHTML = '<style>@keyframes sk-pulse{0%,100%{opacity:.45}50%{opacity:.12}}</style>' +
+                   '<div class="screener-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">' + skeletonCards + '</div>';
     try {
         const res = await fetch('/api/screener', { headers: authHeaders() });
         if (!res.ok) { el.innerHTML = `<p style="color:var(--red)">Error: ${res.status}</p>`; return; }

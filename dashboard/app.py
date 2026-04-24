@@ -848,8 +848,17 @@ app = FastAPI(title="Anunnaki World Dashboard", lifespan=lifespan)
 app.state.limiter = _limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# ═══ S5 · CORS — env-gated origins ══════════════════════════════════════
+# Localhost origins are a gratuitous attack surface in production. Only
+# admit them when ENVIRONMENT != "production" (dev laptop & staging).
+_ENV = os.getenv("ENVIRONMENT", "development").lower()
+_PROD_ORIGINS = ["https://anunnakiworld.com", "https://www.anunnakiworld.com"]
+_DEV_EXTRA    = ["http://localhost:8050", "http://127.0.0.1:8050"]
+_CORS_ORIGINS = _PROD_ORIGINS if _ENV == "production" else (_PROD_ORIGINS + _DEV_EXTRA)
+
 app.add_middleware(CORSMiddleware,
-    allow_origins=["https://anunnakiworld.com", "https://www.anunnakiworld.com", "http://localhost:8050", "http://127.0.0.1:8050"],
+    allow_origins=_CORS_ORIGINS,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
     allow_credentials=True,
@@ -876,7 +885,59 @@ class NoCacheJSMiddleware(BaseHTTPMiddleware):
 app.add_middleware(NoCacheJSMiddleware)
 
 
+# ═══ S4 · SecurityHeadersMiddleware — institutional-grade HTTP hardening
+# ═══════════════════════════════════════════════════════════════════════
+# Every response carries the modern browser-security header set. Starts
+# with CSP in Report-Only so we can observe violations for 48h before
+# flipping to enforcing (flip by renaming the header key to
+# "Content-Security-Policy"). All other headers are enforcing from day 1.
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: _Req, call_next):
+        r = await call_next(request)
+        # Prevent clickjacking — no framing of our pages, anywhere.
+        r.headers["X-Frame-Options"] = "DENY"
+        # Stop MIME-sniff attacks on user-uploaded / user-facing assets.
+        r.headers["X-Content-Type-Options"] = "nosniff"
+        # HSTS — one year, include subdomains, preload-ready. Only meaningful
+        # when served over HTTPS (Cloudflare/edge), harmless over plain HTTP.
+        r.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        # Strip Referer cross-origin so we don't leak path params to
+        # third-party tools (e.g. chart vendors loaded in iframes).
+        r.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Deny browser APIs we never use. Reduces side-channel attack surface.
+        r.headers["Permissions-Policy"] = (
+            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+            "magnetometer=(), microphone=(), payment=(), usb=()"
+        )
+        # CSP — Report-Only mode for the first 48 h. Tuned to our actual
+        # asset sources (TradingView, Google Fonts, inline styles, WSS).
+        # Flip to enforcing by replacing the header name below.
+        r.headers["Content-Security-Policy-Report-Only"] = (
+            "default-src 'self'; "
+            "script-src  'self' 'unsafe-inline' 'unsafe-eval' https://s3.tradingview.com https://www.google-analytics.com; "
+            "style-src   'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src    'self' data: https://fonts.gstatic.com; "
+            "img-src     'self' data: blob: https:; "
+            "connect-src 'self' wss: https:; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "object-src 'none';"
+        )
+        return r
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
 # ── Public / Frontend Routes ───────────────────────────────────────────
+
+@app.get("/.well-known/security.txt", response_class=PlainTextResponse)
+async def security_txt():
+    """RFC 9116 responsible-disclosure contact. Scanned by every security
+    auditor / bug-bounty aggregator. Contents in static/.well-known/."""
+    p = _STATIC_DIR / ".well-known" / "security.txt"
+    if p.exists():
+        return PlainTextResponse(p.read_text())
+    return PlainTextResponse("Contact: mailto:security@anunnakiworld.com\n")
 
 @app.get("/robots.txt", response_class=PlainTextResponse)
 async def robots_txt():
@@ -936,8 +997,38 @@ async def app_shell():
     return HTMLResponse(content=html_path.read_text(), status_code=200)
 
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_panel():
-    """Serve the admin panel shell. Auth is enforced client-side + on every API call."""
+async def admin_panel(request: Request):
+    """Serve the admin panel shell ONLY to authenticated admins.
+
+    Non-admins, unauthenticated visitors, and holders of stale tokens get
+    a 404 — indistinguishable from a non-existent route (security through
+    silence; we refuse to even confirm the panel exists to unauthorised
+    requesters). This closes the attack-surface leak where attackers could
+    previously fingerprint the admin tab layout + discover admin.js paths
+    without any credentials.
+
+    The route accepts the JWT via `Authorization: Bearer …` header,
+    `?t=<token>` query param (for direct /admin?t=… bookmarks), or the
+    `aladdin_token` cookie (for seamless SPA navigation).
+    """
+    from auth import SECRET_KEY, ALGORITHM, get_user_by_id, is_admin as _is_admin
+    from jose import jwt as _jwt
+
+    token = (
+        request.headers.get("authorization", "").replace("Bearer ", "").strip()
+        or request.query_params.get("t", "").strip()
+        or request.cookies.get("aladdin_token", "").strip()
+    )
+    try:
+        if not token:
+            return HTMLResponse(content="<h1>404 Not Found</h1>", status_code=404)
+        payload = _jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user = get_user_by_id(int(payload.get("sub", 0)))
+        if not user or not _is_admin(user):
+            return HTMLResponse(content="<h1>404 Not Found</h1>", status_code=404)
+    except Exception:
+        return HTMLResponse(content="<h1>404 Not Found</h1>", status_code=404)
+
     html_path = Path(__file__).parent / "admin.html"
     return HTMLResponse(content=html_path.read_text(), status_code=200)
 
@@ -1265,25 +1356,19 @@ async def api_payment_history(user: dict = Depends(get_current_user)):
 # ── Admin Routes (for payment verification) ──────────────────────────
 
 @app.get("/api/admin/payments/pending")
-async def api_admin_pending(user: dict = Depends(get_current_user)):
+async def api_admin_pending(user: dict = Depends(require_admin)):
     """Admin: list pending payments."""
-    if not check_is_admin(user):
-        return JSONResponse(content={"error": "Admin access required"}, status_code=403)
     return JSONResponse(content={"payments": admin_get_pending_payments()})
 
 @app.post("/api/admin/payments/activate/{payment_id}")
-async def api_admin_activate(payment_id: str, user: dict = Depends(get_current_user)):
+async def api_admin_activate(payment_id: str, user: dict = Depends(require_admin)):
     """Admin: confirm a payment and activate subscription."""
-    if not check_is_admin(user):
-        return JSONResponse(content={"error": "Admin access required"}, status_code=403)
     result = admin_confirm_payment(payment_id)
     return JSONResponse(content=result)
 
 @app.get("/api/admin/users")
-async def api_admin_users(user: dict = Depends(get_current_user)):
+async def api_admin_users(user: dict = Depends(require_admin)):
     """Admin: list all registered users."""
-    if not check_is_admin(user):
-        return JSONResponse(content={"error": "Admin access required"}, status_code=403)
     users = await asyncio.to_thread(get_all_users)
     return JSONResponse(content={"users": users})
 
@@ -1291,11 +1376,9 @@ async def api_admin_users(user: dict = Depends(get_current_user)):
 async def api_admin_set_tier(
     user_id: int,
     request: Request,
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(require_admin)
 ):
     """Admin: set user tier."""
-    if not check_is_admin(user):
-        return JSONResponse(content={"error": "Admin access required"}, status_code=403)
     body = await request.json()
     tier = body.get('tier', 'free')
     days = body.get('days', 30)
@@ -1309,42 +1392,32 @@ async def api_admin_set_tier(
     return JSONResponse(content=result)
 
 @app.post("/api/admin/users/{user_id}/deactivate")
-async def api_admin_deactivate(user_id: int, user: dict = Depends(get_current_user)):
+async def api_admin_deactivate(user_id: int, user: dict = Depends(require_admin)):
     """Admin: deactivate user (downgrade to free)."""
-    if not check_is_admin(user):
-        return JSONResponse(content={"error": "Admin access required"}, status_code=403)
     result = await asyncio.to_thread(admin_deactivate_user, user_id)
     return JSONResponse(content=result)
 
 @app.delete("/api/admin/users/{user_id}")
-async def api_admin_delete_user(user_id: int, user: dict = Depends(get_current_user)):
+async def api_admin_delete_user(user_id: int, user: dict = Depends(require_admin)):
     """Admin: permanently delete a user."""
-    if not check_is_admin(user):
-        return JSONResponse(content={"error": "Admin access required"}, status_code=403)
     result = await asyncio.to_thread(admin_delete_user, user_id)
     return JSONResponse(content=result)
 
 @app.post("/api/admin/check-expiry")
-async def api_admin_check_expiry(user: dict = Depends(get_current_user)):
+async def api_admin_check_expiry(user: dict = Depends(require_admin)):
     """Admin: manually trigger subscription expiry check."""
-    if not check_is_admin(user):
-        return JSONResponse(content={"error": "Admin access required"}, status_code=403)
     result = await asyncio.to_thread(check_subscription_expiry)
     return JSONResponse(content=result)
 
 
 # ── Admin: maintenance / dev mode ────────────────────────────────────
 @app.get("/api/admin/settings")
-async def api_admin_get_settings(user: dict = Depends(get_current_user)):
-    if not check_is_admin(user):
-        return JSONResponse({"error": "Admin access required"}, status_code=403)
+async def api_admin_get_settings(user: dict = Depends(require_admin)):
     return JSONResponse({"maintenance": get_maintenance_info()})
 
 
 @app.post("/api/admin/settings/maintenance")
-async def api_admin_set_maintenance(request: Request, user: dict = Depends(get_current_user)):
-    if not check_is_admin(user):
-        return JSONResponse({"error": "Admin access required"}, status_code=403)
+async def api_admin_set_maintenance(request: Request, user: dict = Depends(require_admin)):
     body = await request.json()
     enabled = bool(body.get("enabled", False))
     message = (body.get("message") or "").strip()
@@ -1354,9 +1427,7 @@ async def api_admin_set_maintenance(request: Request, user: dict = Depends(get_c
 
 # ── Admin: device management per user ────────────────────────────────
 @app.get("/api/admin/users/{user_id}/devices")
-async def api_admin_user_devices(user_id: int, user: dict = Depends(get_current_user)):
-    if not check_is_admin(user):
-        return JSONResponse({"error": "Admin access required"}, status_code=403)
+async def api_admin_user_devices(user_id: int, user: dict = Depends(require_admin)):
     from auth import get_user_by_id
     target = await asyncio.to_thread(get_user_by_id, user_id)
     if not target:
@@ -1367,10 +1438,8 @@ async def api_admin_user_devices(user_id: int, user: dict = Depends(get_current_
 
 
 @app.post("/api/admin/users/{user_id}/device-limit")
-async def api_admin_set_device_limit(user_id: int, request: Request, user: dict = Depends(get_current_user)):
+async def api_admin_set_device_limit(user_id: int, request: Request, user: dict = Depends(require_admin)):
     """Admin: set explicit device limit (or unlimited) on a user."""
-    if not check_is_admin(user):
-        return JSONResponse({"error": "Admin access required"}, status_code=403)
     body = await request.json()
     limit = body.get("limit", None)
     if limit is not None:
@@ -1385,9 +1454,7 @@ async def api_admin_set_device_limit(user_id: int, request: Request, user: dict 
 
 
 @app.post("/api/admin/users/{user_id}/grant-slots")
-async def api_admin_grant_slots(user_id: int, request: Request, user: dict = Depends(get_current_user)):
-    if not check_is_admin(user):
-        return JSONResponse({"error": "Admin access required"}, status_code=403)
+async def api_admin_grant_slots(user_id: int, request: Request, user: dict = Depends(require_admin)):
     body = await request.json()
     slots = int(body.get("slots", 1))
     months = int(body.get("months", 0))
@@ -1399,17 +1466,13 @@ async def api_admin_grant_slots(user_id: int, request: Request, user: dict = Dep
 
 
 @app.delete("/api/admin/users/{user_id}/devices/{device_id}")
-async def api_admin_revoke_device(user_id: int, device_id: int, user: dict = Depends(get_current_user)):
-    if not check_is_admin(user):
-        return JSONResponse({"error": "Admin access required"}, status_code=403)
+async def api_admin_revoke_device(user_id: int, device_id: int, user: dict = Depends(require_admin)):
     result = await asyncio.to_thread(revoke_device, user_id, device_id, True)
     return JSONResponse(result)
 
 
 @app.post("/api/admin/users/{user_id}/resend-verification")
-async def api_admin_resend_verification(user_id: int, user: dict = Depends(get_current_user)):
-    if not check_is_admin(user):
-        return JSONResponse({"error": "Admin access required"}, status_code=403)
+async def api_admin_resend_verification(user_id: int, user: dict = Depends(require_admin)):
     from auth import get_user_by_id
     target = await asyncio.to_thread(get_user_by_id, user_id)
     if not target:
@@ -3725,10 +3788,8 @@ async def api_referral_validate(code: str):
 
 
 @app.get("/api/admin/referrals")
-async def api_admin_referrals(user: dict = Depends(get_current_user)):
+async def api_admin_referrals(user: dict = Depends(require_admin)):
     """Admin: view all referral performance."""
-    if not check_is_admin(user):
-        return JSONResponse({"error": "Admin access required"}, status_code=403)
     return JSONResponse({"referrers": get_admin_referral_stats()})
 
 

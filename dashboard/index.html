@@ -1710,7 +1710,10 @@
     <script src="/static/js/charts.js?v=20260422-multi2"></script>
     <script src="/static/js/analytics.js?v=4"></script>
     <script src="/static/js/screener.js?v=7"></script>
-    <script src="/static/js/admin.js?v=20260419d"></script>
+    <!-- admin.js is loaded dynamically from app-r7.js only if the current
+         user has is_admin=true. Non-admins never download it, which both
+         saves ~15 KB bandwidth per session AND prevents fingerprinting of
+         the /api/admin/* endpoint surface. -->
     <script src="/static/js/payments.js?v=2"></script>
     <script src="/static/js/heatmap.js?v=12"></script>
     <script src="/static/js/order-flow.js?v=3"></script>

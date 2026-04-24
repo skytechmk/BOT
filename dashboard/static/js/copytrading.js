@@ -200,6 +200,30 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     }
     html += '</div></div>';
 
+    // ── PP4 · API-key rotation nudge ─────────────────────────────
+    // Soft at 90 d, stronger at 180 d. Purely informational — users
+    // stay fully operational; we simply recommend generating a fresh
+    // key with the same permissions (Futures only, no withdrawal).
+    if (hasKeys && cfg.api_key_rotation_needed) {
+        var urgent = !!cfg.api_key_rotation_urgent;
+        var ageDays = cfg.api_key_age_days != null ? Math.round(cfg.api_key_age_days) : '—';
+        var borderColor = urgent ? '#f87171' : '#f0b429';
+        var textColor   = urgent ? '#fecaca' : '#f0b429';
+        var bg          = urgent ? '#1a0a0a' : '#1a1200';
+        var title = urgent
+            ? 'API key is older than 180 days'
+            : 'Consider rotating your Binance API key';
+        var body = urgent
+            ? 'For account hygiene, generate a fresh Futures-only key (no withdrawal permission) and replace the one in use. Your existing key still works — this is a recommendation, not a forced expiry.'
+            : 'Your Binance API key is ' + ageDays + ' days old. Best practice is to rotate keys every 90–180 days. Generate a new Futures-only key and paste it below when convenient.';
+        html += '<div style="display:flex;gap:14px;align-items:flex-start;background:' + bg + ';border:1.5px solid ' + borderColor + ';border-radius:12px;padding:16px 20px;margin-bottom:16px">';
+        html += '<div style="font-size:24px;flex-shrink:0;line-height:1">🔑</div>';
+        html += '<div style="flex:1">';
+        html += '<div style="font-size:13px;font-weight:800;color:' + textColor + ';margin-bottom:4px">' + title + ' (' + ageDays + ' days)</div>';
+        html += '<div style="font-size:12px;color:var(--text);line-height:1.55">' + body + '</div>';
+        html += '</div></div>';
+    }
+
     // ── TradFi Agreement Warning ─────────────────────────────────
     var showTradFi = cfg && cfg.has_tradefi_errors && !cfg.tradefi_signed;
     if (showTradFi) {

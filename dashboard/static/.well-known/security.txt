@@ -1,0 +1,24 @@
+Contact: mailto:security@anunnakiworld.com
+Expires: 2027-04-24T00:00:00Z
+Preferred-Languages: en, mk
+Canonical: https://anunnakiworld.com/.well-known/security.txt
+Policy: https://anunnakiworld.com/security-policy
+Acknowledgments: https://anunnakiworld.com/hall-of-fame
+
+# Responsible disclosure
+#
+# We welcome reports of security vulnerabilities in the Anunnaki World
+# trading platform. Please DO NOT test against production user accounts
+# or live copy-trading keys. For proof-of-concept work please contact
+# us first and we will provision a sandbox account.
+#
+# Scope:
+#   - https://anunnakiworld.com (landing, SPA, admin panel, API)
+#   - Mobile PWA (same code path)
+#
+# Out of scope:
+#   - Third-party services we consume (Binance, OpenRouter, Cloudflare)
+#   - Social engineering of our staff or users
+#   - Denial-of-service via volumetric traffic
+#
+# Reports are typically acknowledged within 48 hours.

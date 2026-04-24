@@ -470,6 +470,20 @@ def get_config(user_id: int) -> Optional[Dict]:
     del d['api_key_enc']
     del d['api_secret_enc']
     d['has_tradefi_errors'] = has_tradefi_errors(user_id)
+    # PP4 · API-key rotation nudge — surface age so the UI can show a
+    # soft banner at 90 days and a stronger one at 180. The key itself
+    # is still perfectly valid; rotation is a hygiene recommendation,
+    # not a forced expiry.
+    try:
+        import time as _t
+        age = max(0.0, _t.time() - float(d.get('updated_at') or d.get('created_at') or 0))
+        d['api_key_age_days']        = round(age / 86400.0, 1)
+        d['api_key_rotation_needed'] = age >= (90 * 86400)      # >= 90 d: suggest
+        d['api_key_rotation_urgent'] = age >= (180 * 86400)     # >= 180 d: strong
+    except Exception:
+        d['api_key_age_days']        = None
+        d['api_key_rotation_needed'] = False
+        d['api_key_rotation_urgent'] = False
     return d
 
 

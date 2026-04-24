@@ -839,11 +839,11 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
             </div>
         </div>
 
-        <span class="hero-eyebrow"><span class="dot"></span>566 PAIRS · SCANNING LIVE</span>
+        <span class="hero-eyebrow"><span class="dot"></span><span data-live-pairs-text>566</span> PAIRS · SCANNING LIVE</span>
         <h1>We do the math.<br><em>You make the move.</em></h1>
         <p class="hero-sub">
             Institutional-grade crypto signals, reasoned by AI. A Python + Rust hybrid
-            engine scans 566 Binance USDT perpetuals every 30 seconds, fuses nine
+            engine scans <span data-live-pairs-text>566</span> Binance USDT perpetuals every 30 seconds, fuses nine
             technical regimes with a calibrated XGBoost + Transformer ensemble, and
             delivers signals you can copy-trade in one click.
         </p>
@@ -855,7 +855,7 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
             <a class="btn btn-lg btn-ghost" href="#how">See how it works</a>
         </div>
         <div class="hero-trust" aria-label="Platform statistics">
-            <div><strong data-count="566">0</strong>USDT perps covered</div>
+            <div><strong class="live-pairs-count" data-count="566">0</strong>USDT perps covered</div>
             <div><strong>30 s</strong>Scan cadence</div>
             <div>
                 <strong id="hero-signals-fired" data-live-signals="1"
@@ -871,7 +871,7 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
 <!-- ══════════════════════ STATS STRIP ══════════════════════ -->
 <section class="stats-strip">
     <div class="container stats-grid">
-        <div class="stat"><div class="val" data-count="566">0</div><div class="lbl">USDT perps</div></div>
+        <div class="stat"><div class="val live-pairs-count" data-count="566">0</div><div class="lbl">USDT perps</div></div>
         <div class="stat"><div class="val" data-count="9">0</div><div class="lbl">Technical regimes</div></div>
         <div class="stat"><div class="val" data-count="2">0</div><div class="lbl">ML models ensembled</div></div>
         <div class="stat"><div class="val">1 s</div><div class="lbl">Mark-price updates</div></div>
@@ -902,7 +902,7 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
             <div class="feature purple reveal">
                 <div class="icon">🔥</div>
                 <h3>Real-time Liquidation Heatmap</h3>
-                <p>Stream of forced-liquidation clusters across 566 symbols. See
+                <p>Stream of forced-liquidation clusters across <span data-live-pairs-text>566</span> symbols. See
                    where leverage is trapped before price actually moves there —
                    with funding and OI overlays per pair.</p>
             </div>
@@ -959,7 +959,7 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
                 <div class="step-num">01</div>
                 <h4>Scan the tape</h4>
                 <p>Every 30 seconds the engine re-evaluates 1m/15m/1h/4h klines
-                   for all 566 pairs and computes 120+ features in Rust — ATR,
+                   for all <span data-live-pairs-text>566</span> pairs and computes 120+ features in Rust — ATR,
                    Ichimoku, CE, VWAP, RSI, FVG, Volume Profile.</p>
             </div>
             <div class="step reveal">
@@ -1562,6 +1562,33 @@ const countIO = new IntersectionObserver(entries => {
     });
 }, {threshold: 0.5});
 document.querySelectorAll('[data-count]').forEach(el => countIO.observe(el));
+
+/* ═══ 4a. PP2 · Hydrate USDT-perps count from /api/public/stats ═══
+   Replaces the hardcoded "566" with the actual live count before the
+   counters animate. Elements opt in via class="live-pairs-count". If
+   the fetch fails, the static data-count fallback still animates —
+   no broken UX on offline landing visits. */
+(async function hydratePairsCount() {
+    try {
+        const res = await fetch('/api/public/stats', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const live = parseInt(data.pairs_monitored, 10);
+        if (!Number.isFinite(live) || live < 50) return;
+        document.querySelectorAll('.live-pairs-count').forEach(el => {
+            el.setAttribute('data-count', String(live));
+            // If IO has already fired (element was above fold + observed),
+            // update the displayed value immediately.
+            if (el.textContent && el.textContent !== '0') {
+                el.textContent = live.toLocaleString();
+            }
+        });
+        // Also patch hero eyebrow + prose that reference the count.
+        document.querySelectorAll('[data-live-pairs-text]').forEach(el => {
+            el.textContent = String(live);
+        });
+    } catch (e) { /* fall back to static counts */ }
+})();
 
 /* ═══ 4b. LIVE "Signals fired" counter ═══
    Pulls the authoritative all-time count from /api/public/stats every
