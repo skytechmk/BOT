@@ -40,13 +40,31 @@ PARAMS SHAPE
       "end":             1714579200,      # epoch seconds (inclusive)
       "pairs":           ["BTCUSDT", ...] # optional — None = all
       "initial_capital": 10000.0,          # USD
-      "risk_pct":        2.0,              # % of equity per trade (position sizing)
-      "leverage":        10,
+      "position_mode":   "risk_pct",       # "risk_pct" | "fixed"
+      "risk_pct":        2.0,              # % of equity per trade (position_mode=risk_pct)
+      "fixed_amount":    200.0,            # USD margin per trade (position_mode=fixed)
+      "leverage":        0,                # 0 = use each signal's own leverage (recommended)
       "fee_pct":         0.05,             # taker fee per side (Binance default)
-      "sl_mode":         "strict",         # "strict" | "none" (future: "trailing")
-      "tp_mode":         "first",          # "first" | "weighted" | "last"
-      "max_hold_hours":  48                # force-close if no TP/SL hit in N hours
+      "sim_mode":        "actual",         # "actual" | "simulate"
+                                           #   actual   — use recorded pnl from signal_registry
+                                           #              (matches what happened on Binance)
+                                           #   simulate — re-replay bars (can diverge from live)
+      "sl_mode":         "strict",         # simulate only: "strict" | "none"
+      "tp_mode":         "weighted",       # simulate only: "first" | "weighted" | "last"
+      "max_hold_hours":  48                # simulate only: force-close after N hours
     }
+
+NOTE ON sim_mode:
+    "actual" is the recommended default. It uses the pnl column that
+    performance_tracker.py already computed (raw_price_change × leverage)
+    and applies the user's position sizing on top.  The result matches what
+    a user who followed every signal on Binance would have seen.
+
+    "simulate" re-walks OHLCV bars bar-by-bar.  It can diverge from live
+    because (a) 5m bars still have intrabar uncertainty, (b) trailing-stop
+    exits are not replicated, (c) signals that were manually/auto-closed
+    early are re-simulated as full duration.  Use it to study WHAT-IF
+    parameter changes, not to validate past performance.
 """
 from __future__ import annotations
 
@@ -141,7 +159,7 @@ def _load_signals(start_ts: float, end_ts: float,
 
 def _load_ohlcv_forward(pair: str, from_ts: float,
                         horizon_hours: int = 48,
-                        prefer_tfs: Tuple[str, ...] = ("15m", "1h", "5m")
+                        prefer_tfs: Tuple[str, ...] = ("5m", "15m", "1h")
                         ) -> List[Tuple[float, float, float, float, float]]:
     """Return a list of (ts, open, high, low, close) bars starting at the
     first bar with timestamp >= from_ts, up to `horizon_hours` later.
@@ -170,6 +188,22 @@ def _load_ohlcv_forward(pair: str, from_ts: float,
 
 
 # ─────────────────────── per-trade simulation ─────────────────────────
+
+def _position_usd(cfg: Dict[str, Any], sig_leverage: int) -> float:
+    """Return the notional (margin × leverage) in USD for this trade.
+
+    position_mode = "fixed"    → fixed_amount is the margin; multiply by leverage.
+    position_mode = "risk_pct" → risk_pct% of current equity is the margin;
+                                  multiply by leverage.
+    """
+    lev = int(cfg["leverage"]) or sig_leverage  # 0 → use signal's own leverage
+    lev = max(1, min(125, lev))
+    if cfg["position_mode"] == "fixed":
+        margin = float(cfg["fixed_amount"])
+    else:
+        margin = float(cfg["__equity"]) * (float(cfg["risk_pct"]) / 100.0)
+    return margin * lev
+
 
 def _pick_tp(targets: List[float], entry: float, direction: str,
              tp_mode: str) -> Optional[float]:
@@ -243,17 +277,14 @@ def _simulate(sig: sqlite3.Row, cfg: Dict[str, Any]) -> Optional[Dict[str, Any]]
             last_ts, _, _, _, last_close = bars[-1]
             exit_price, exit_reason, exit_ts = last_close, "timeout", last_ts
 
-        # PnL mechanics
-        raw_pct = (exit_price - entry) / entry * 100.0
+        # PnL mechanics — use signal's own leverage if cfg["leverage"]==0
+        sig_lev  = max(1, int(sig["leverage"] or 1))
+        raw_pct  = (exit_price - entry) / entry * 100.0
         if direction == "SHORT":
             raw_pct = -raw_pct
-        lev = max(1, int(cfg["leverage"]))
-        fee_total_pct = float(cfg["fee_pct"]) * 2.0  # open + close
+        fee_total_pct     = float(cfg["fee_pct"]) * 2.0  # open + close
         net_pct_on_notional = raw_pct - fee_total_pct
-        # Position-sizing: risk_pct of equity at the time of the trade.
-        # (The caller passes `equity_before` in cfg at iteration time.)
-        equity_before = cfg["__equity"]
-        size_usd = equity_before * (float(cfg["risk_pct"]) / 100.0) * lev
+        size_usd = _position_usd(cfg, sig_lev)
         pnl_usd  = size_usd * (net_pct_on_notional / 100.0)
         return {
             "signal_id":   sig["signal_id"],
@@ -269,6 +300,66 @@ def _simulate(sig: sqlite3.Row, cfg: Dict[str, Any]) -> Optional[Dict[str, Any]]
         }
     except Exception as e:
         log.debug(f"[backtest] simulate failed for {sig['signal_id']}: {e!r}")
+        return None
+
+
+def _simulate_actual(sig: sqlite3.Row, cfg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Use the pnl already recorded by performance_tracker.py.
+
+    pnl column = raw_price_change_pct × signal_leverage  (leveraged % on margin).
+    We scale it to USD using the caller's chosen position sizing.
+
+    Signals with pnl=0 AND status still OPEN/SENT are skipped (not yet closed).
+    Signals with status VOIDED/CANCELLED are also skipped (they never traded).
+
+    This mode is the most accurate reflection of what actually happened on
+    Binance — it's what a user who followed every signal would have seen.
+    """
+    try:
+        status = str(sig["status"] or "").upper()
+        if status in ("OPEN", "SENT", "VOIDED", "CANCELLED"):
+            return None
+        pnl_recorded = float(sig["pnl"] or 0.0)
+        # Signals with no recorded outcome (CLOSED with pnl=0) are ambiguous;
+        # skip them rather than count them as breakeven and distort the curve.
+        if pnl_recorded == 0.0 and status == "CLOSED":
+            return None
+
+        sig_lev  = max(1, int(sig["leverage"] or 1))
+        # pnl_recorded is already leveraged % on margin.
+        # Convert fee: 2× taker fee on the leveraged notional, expressed as
+        # % on margin.
+        fee_pct_on_margin = float(cfg["fee_pct"]) * 2.0 * sig_lev
+        net_pnl_pct       = pnl_recorded - fee_pct_on_margin
+
+        # Dollar PnL: apply to caller's chosen position size (margin only,
+        # because pnl_recorded already bakes in the leverage multiplier).
+        if cfg["position_mode"] == "fixed":
+            margin_usd = float(cfg["fixed_amount"])
+        else:
+            margin_usd = float(cfg["__equity"]) * (float(cfg["risk_pct"]) / 100.0)
+
+        pnl_usd = margin_usd * (net_pnl_pct / 100.0)
+
+        entry    = float(sig["price"] or 0)
+        entry_ts = float(sig["timestamp"])
+        closed_ts = float(sig["closed_timestamp"] or entry_ts)
+        direction = sig["signal"].upper() if sig["signal"] else "LONG"
+
+        return {
+            "signal_id":   sig["signal_id"],
+            "pair":        sig["pair"],
+            "direction":   direction,
+            "entry_ts":    entry_ts,
+            "entry_price": entry,
+            "exit_ts":     closed_ts,
+            "exit_price":  entry,   # not meaningful in actual mode
+            "exit_reason": status.lower(),
+            "pnl_pct":     round(pnl_recorded, 4),
+            "pnl_usd":     round(pnl_usd, 4),
+        }
+    except Exception as e:
+        log.debug(f"[backtest] actual({sig['signal_id']}): {e!r}")
         return None
 
 
@@ -337,11 +428,14 @@ DEFAULT_PARAMS = {
     "end":             None,
     "pairs":           None,
     "initial_capital": 10_000.0,
+    "position_mode":   "risk_pct",
     "risk_pct":        2.0,
-    "leverage":        10,
+    "fixed_amount":    200.0,
+    "leverage":        0,            # 0 = use each signal's own leverage
     "fee_pct":         0.05,
+    "sim_mode":        "actual",
     "sl_mode":         "strict",
-    "tp_mode":         "first",
+    "tp_mode":         "weighted",
     "max_hold_hours":  48,
 }
 
@@ -349,15 +443,17 @@ DEFAULT_PARAMS = {
 def _normalise_params(p: Dict[str, Any]) -> Dict[str, Any]:
     out = dict(DEFAULT_PARAMS)
     out.update({k: p[k] for k in p if k in DEFAULT_PARAMS and p[k] is not None})
-    # Safety bounds — silently clamp rather than reject; users may type
-    # wild numbers and deserve a sane run.
+    # Safety bounds — silently clamp rather than reject.
     out["initial_capital"] = max(100.0,    min(1e7,  float(out["initial_capital"])))
     out["risk_pct"]        = max(0.1,      min(50.0, float(out["risk_pct"])))
-    out["leverage"]        = max(1,        min(125,  int(out["leverage"])))
+    out["fixed_amount"]    = max(1.0,      min(1e6,  float(out["fixed_amount"])))
+    out["leverage"]        = max(0,        min(125,  int(out["leverage"])))  # 0 = per-signal
     out["fee_pct"]         = max(0.0,      min(0.5,  float(out["fee_pct"])))
     out["max_hold_hours"]  = max(1,        min(24*7, int(out["max_hold_hours"])))
     out["sl_mode"]         = "strict" if out["sl_mode"] not in ("strict", "none") else out["sl_mode"]
-    out["tp_mode"]         = out["tp_mode"] if out["tp_mode"] in ("first", "last", "weighted") else "first"
+    out["tp_mode"]         = out["tp_mode"] if out["tp_mode"] in ("first", "last", "weighted") else "weighted"
+    out["sim_mode"]        = out["sim_mode"] if out["sim_mode"] in ("actual", "simulate") else "actual"
+    out["position_mode"]   = out["position_mode"] if out["position_mode"] in ("risk_pct", "fixed") else "risk_pct"
     return out
 
 
@@ -385,9 +481,10 @@ def run_backtest(user_id: int, params: Dict[str, Any]) -> int:
         sigs = _load_signals(cfg["start"], cfg["end"], cfg["pairs"])
         equity = float(cfg["initial_capital"])
         trades: List[Dict[str, Any]] = []
+        _dispatch = _simulate_actual if cfg["sim_mode"] == "actual" else _simulate
         for s in sigs:
             cfg["__equity"] = equity
-            t = _simulate(s, cfg)
+            t = _dispatch(s, cfg)
             if t is None:
                 continue
             equity += t["pnl_usd"]

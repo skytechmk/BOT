@@ -60,16 +60,39 @@
     <label class="bt-lbl">Initial capital (USD)
       <input type="number" id="bt-capital" value="10000" min="100" step="100">
     </label>
-    <label class="bt-lbl">Risk per trade (%)
+
+    <label class="bt-lbl">Position sizing
+      <select id="bt-posmode">
+        <option value="fixed" selected>Fixed amount per trade</option>
+        <option value="risk_pct">% of equity per trade</option>
+      </select>
+    </label>
+    <div id="bt-fixed-row">
+    <label class="bt-lbl">Fixed margin per trade (USD)
+      <input type="number" id="bt-fixed" value="200" min="1" step="10">
+    </label>
+    </div>
+    <div id="bt-risk-row" style="display:none">
+    <label class="bt-lbl">Risk per trade (% of equity)
       <input type="number" id="bt-risk" value="2" min="0.1" max="50" step="0.1">
     </label>
-    <label class="bt-lbl">Leverage
-      <input type="number" id="bt-lev" value="10" min="1" max="125" step="1">
+    </div>
+
+    <label class="bt-lbl">Leverage (0 = use each signal's own leverage)
+      <input type="number" id="bt-lev" value="0" min="0" max="125" step="1">
     </label>
     <label class="bt-lbl">Fee per side (%)
       <input type="number" id="bt-fee" value="0.05" min="0" max="0.5" step="0.01">
     </label>
 
+    <label class="bt-lbl">Mode
+      <select id="bt-simmode">
+        <option value="actual" selected>📊 Actual results (uses recorded live PnL — matches Binance)</option>
+        <option value="simulate">🔬 Simulate (re-replay OHLCV bars — what-if analysis)</option>
+      </select>
+    </label>
+
+    <div id="bt-sim-extra">
     <label class="bt-lbl">Stop-loss mode
       <select id="bt-sl">
         <option value="strict" selected>Strict (use signal SL)</option>
@@ -78,14 +101,15 @@
     </label>
     <label class="bt-lbl">Take-profit target
       <select id="bt-tp">
-        <option value="first" selected>TP1 (nearest)</option>
-        <option value="weighted">Weighted midpoint</option>
+        <option value="weighted" selected>Weighted midpoint (approx trailing)</option>
+        <option value="first">TP1 (nearest)</option>
         <option value="last">Last TP (farthest)</option>
       </select>
     </label>
     <label class="bt-lbl">Max hold (hours)
       <input type="number" id="bt-hold" value="48" min="1" max="168" step="1">
     </label>
+    </div>
 
     <button type="submit" class="btn btn-primary" style="width:100%;margin-top:10px" id="bt-submit">
       Run backtest
@@ -129,6 +153,19 @@
 </style>
 `;
         document.getElementById('bt-form').addEventListener('submit', onSubmit);
+        // Position mode toggle
+        document.getElementById('bt-posmode').addEventListener('change', function() {
+            const fixed = this.value === 'fixed';
+            document.getElementById('bt-fixed-row').style.display = fixed ? '' : 'none';
+            document.getElementById('bt-risk-row').style.display  = fixed ? 'none' : '';
+        });
+        // Sim mode toggle — hide sim-specific fields in actual mode
+        document.getElementById('bt-simmode').addEventListener('change', function() {
+            document.getElementById('bt-sim-extra').style.display =
+                this.value === 'simulate' ? '' : 'none';
+        });
+        // Default: actual mode hides sim-specific fields
+        document.getElementById('bt-sim-extra').style.display = 'none';
         loadHistory();
     }
 
@@ -251,13 +288,18 @@
         results.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:40px 0">
             Replaying signals and walking OHLCV bars… typically 2&ndash;5 seconds.</p>`;
 
+        const posMode = document.getElementById('bt-posmode').value;
+        const simMode = document.getElementById('bt-simmode').value;
         const params = {
             start:           epochFromDate(document.getElementById('bt-start').value, false),
             end:             epochFromDate(document.getElementById('bt-end').value,   true),
             initial_capital: Number(document.getElementById('bt-capital').value),
-            risk_pct:        Number(document.getElementById('bt-risk').value),
+            position_mode:   posMode,
+            fixed_amount:    Number(document.getElementById('bt-fixed').value),
+            risk_pct:        Number((document.getElementById('bt-risk') || {value: 2}).value),
             leverage:        Number(document.getElementById('bt-lev').value),
             fee_pct:         Number(document.getElementById('bt-fee').value),
+            sim_mode:        simMode,
             sl_mode:         document.getElementById('bt-sl').value,
             tp_mode:         document.getElementById('bt-tp').value,
             max_hold_hours:  Number(document.getElementById('bt-hold').value),
