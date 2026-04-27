@@ -2,6 +2,13 @@
   "mcpServers": {
     "aladdin": {
       "url": "http://127.0.0.1:8819/sse"
+    },
+    "token-savior-recall": {
+      "command": "/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA/.token-savior-venv/bin/token-savior",
+      "env": {
+        "WORKSPACE_ROOTS": "/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA",
+        "TOKEN_SAVIOR_PROFILE": "lean"
+      }
     }
   }
 }

@@ -76,7 +76,30 @@ async function loadCopyTradingPage() {
         container.innerHTML = '<div class="paywall-overlay"><div class="paywall-icon">🤖</div><div class="paywall-title">Copy-Trading — Pro Feature</div><div class="paywall-desc">Automatically mirror Aladdin signals to your Binance Futures account with institutional-grade exit management.</div><button class="btn btn-gold" onclick="switchPage(\'pricing\')">Upgrade to Pro — 109 USDT/mo</button></div>';
         return;
     }
-    container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading copy-trading...</div>';
+    // ── Skeleton loader: users see the page shape instantly ──
+    // 12 shimmer cards approximating the stats + balance grids,
+    // plus placeholder blocks for the exchange selector and config
+    // panels — eliminates the blank-spinner cold-start stall.
+    const _sk = (w, h, r) => `<div style="height:${h}px;width:${w};background:var(--border);border-radius:${r||6}px;animation:sk-pulse 1.5s ease-in-out infinite"></div>`;
+    container.innerHTML = '<style>@keyframes sk-pulse{0%,100%{opacity:.45}50%{opacity:.12}}</style>' +
+        // Exchange selector strip
+        '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px">' +
+          _sk('40%', 10, 4) + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px">' +
+          [1,2,3,4,5].map(() => _sk('100%', 68, 10)).join('') + '</div></div>' +
+        // Status bar
+        '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 20px;margin-bottom:16px;display:flex;gap:12px;align-items:center">' +
+          _sk('12px', 12, 50) + _sk('140px', 14, 4) + '</div>' +
+        // Stats row 1 — 4 cards
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px">' +
+          [1,2,3,4].map(() => '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">' +
+            _sk('60%', 9, 4) + _sk('80%', 22, 4) + _sk('55%', 9, 4) + '</div>').join('') + '</div>' +
+        // Stats row 2 — 4 cards
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">' +
+          [1,2,3,4].map(() => '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">' +
+            _sk('50%', 9, 4) + _sk('70%', 22, 4) + _sk('45%', 9, 4) + '</div>').join('') + '</div>' +
+        // Config panel placeholder
+        '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px">' +
+          _sk('35%', 12, 4) + _sk('100%', 40, 8) + _sk('100%', 40, 8) + '</div>';
     try {
         var results = await Promise.all([
             fetch('/api/copy-trading/config',  { headers: authHeaders() }),
@@ -89,6 +112,8 @@ async function loadCopyTradingPage() {
         renderCopyTrading(cfgData.config, cfgData.stats || histData.stats || {}, histData.trades || [], balData);
         // Fetch server IP for the whitelist guide (non-blocking)
         fetchServerIP();
+        // Fetch UDS stream health badge (non-blocking, shows WS Live vs REST fallback)
+        fetchUDSHealth();
         // Auto-refresh balance every 5 s if user has a configured account
         stopCTBalancePolling();
         if (cfgData.config) {
@@ -190,6 +215,8 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += '<div style="width:10px;height:10px;border-radius:50%;background:' + (isActive ? 'var(--green)' : '#555') + ';box-shadow:' + (isActive ? '0 0 8px var(--green)' : 'none') + '"></div>';
     html += '<span style="font-weight:700;font-size:15px">' + (isActive ? 'Copy-Trading Active' : 'Copy-Trading Inactive') + '</span>';
     if (hasKeys) html += '<span style="font-size:11px;color:var(--text-dim);font-family:monospace;background:var(--bg);padding:2px 8px;border-radius:4px">🔑 ' + cfg.api_key_masked + '</span>';
+    // UDS health badge — populated after render by fetchUDSHealth()
+    html += '<span id="ct-uds-badge" style="display:none;font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px;letter-spacing:.04em;font-family:monospace"></span>';
     html += '</div>';
     html += '<div style="display:flex;gap:8px">';
     if (hasConfig) {
@@ -457,6 +484,7 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     var allowedTiers = (hasConfig && cfg.allowed_tiers)  ? cfg.allowed_tiers.split(',')    : ['blue_chip','large_cap','mid_cap','small_cap','high_risk'];
     var allowedSectors = (hasConfig && cfg.allowed_sectors && cfg.allowed_sectors !== 'all') ? cfg.allowed_sectors.split(',') : [];
     var hotOnly      = hasConfig ? !!cfg.hot_only : false;
+    var copyExperimental = hasConfig ? !!cfg.copy_experimental : false;
 
     html += '<div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:14px;letter-spacing:.05em">RISK PARAMETERS</div>';
 
@@ -513,6 +541,8 @@ function renderCopyTrading(cfg, stats, trades, bal) {
 
     // ── SQI Scaling ─────────────────────────────────────────────
     html += '<div style="margin-bottom:14px"><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);cursor:pointer"><input type="checkbox" id="ct-scale-sqi" ' + (scaleSqi ? 'checked' : '') + ' style="width:14px;height:14px"> Scale position size with signal SQI quality score (\xb125% of base)</label></div>';
+
+    html += '<div style="margin-bottom:14px;padding:12px 14px;border:1px solid #f0b42955;background:#f0b42910;border-radius:10px"><label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--text);cursor:pointer"><input type="checkbox" id="ct-copy-experimental" ' + (copyExperimental ? 'checked' : '') + ' style="width:14px;height:14px;margin-top:2px"><span><strong style="color:#f0b429">🧪 Copy experimental signals</strong><br><span style="color:var(--text-dim);font-size:11px">Disabled by default. Enables copy-trading for signals marked EXPERIMENTAL in Telegram/dashboard.</span></span></label></div>';
 
     // ── Signal Filters ───────────────────────────────────────────
     if (hasConfig) {
@@ -710,7 +740,8 @@ function ctSortTrades(key) {
                 _ctSortableTh('entry',  'Entry')  +
                 _ctSortableTh('pnl_usd','PnL $')  +
                 _ctSortableTh('pnl_pct','PnL %')  +
-                _ctSortableTh('status', 'Status');
+                _ctSortableTh('status', 'Status') +
+                '<th style="font-size:10px;color:var(--text-dim)">Stop Loss</th>';
         }
     }
     if (tbody) tbody.innerHTML = _ctRenderTradeRows(_ctSortedTrades());
@@ -749,6 +780,21 @@ function _ctRenderTradeRows(trades) {
         var pnlUsdAttrs = isOpen ? ' class="ct-pnl-usd"' : '';
         var pnlPctAttrs = isOpen ? ' class="ct-pnl-pct"' : '';
 
+        // Trailing SL: show the live stop-loss price (sl_price column from DB).
+        // For open trades: green if far from price, red if close. Closed trades show static value.
+        var slPx = t.sl_price ? parseFloat(t.sl_price) : 0;
+        var slCell;
+        if (slPx > 0) {
+            var slStr = formatPrice(slPx);
+            if (isOpen) {
+                slCell = '<span style="font-family:monospace;font-size:10px;color:var(--red);font-weight:600" class="ct-sl-price" title="Active stop-loss">' + slStr + '</span>';
+            } else {
+                slCell = '<span style="font-family:monospace;font-size:10px;color:var(--text-dim)">' + slStr + '</span>';
+            }
+        } else {
+            slCell = '<span style="color:var(--text-dim)">—</span>';
+        }
+
         out += '<tr' + rowAttrs + '>' +
             '<td style="font-size:11px;white-space:nowrap">' + ts + '</td>' +
             '<td style="font-weight:700">' + (t.pair||'—') + '</td>' +
@@ -759,6 +805,7 @@ function _ctRenderTradeRows(trades) {
             '<td' + pnlUsdAttrs + '>' + pnlUsdCell + '</td>' +
             '<td' + pnlPctAttrs + '>' + pnlPctCell + '</td>' +
             '<td>' + statusBadge + closeBtn + '</td>' +
+            '<td>' + slCell + '</td>' +
             '</tr>';
     });
     return out;
@@ -826,6 +873,7 @@ async function saveCopyTradingKeys() {
         size_mode:        _ctVal('ct-size-mode', 'pct'),
         fixed_size_usd:   parseFloat(_ctVal('ct-fixed-size-usd', 5.0)) || 5.0,
         leverage_mode:    _ctVal('ct-leverage-mode', 'auto'),
+        copy_experimental: (_ctGetEl('ct-copy-experimental') || {}).checked || false,
     };
     try {
         var res = await fetch('/api/copy-trading/keys', {
@@ -881,6 +929,7 @@ async function saveCopyTradingSettings() {
         size_mode:        _ctVal('ct-size-mode', 'pct'),
         fixed_size_usd:   parseFloat(_ctVal('ct-fixed-size-usd', 5.0)) || 5.0,
         leverage_mode:    _ctVal('ct-leverage-mode', 'auto'),
+        copy_experimental: (_ctGetEl('ct-copy-experimental') || {}).checked || false,
     };
     try {
         var res = await fetch('/api/copy-trading/settings', {
@@ -1227,4 +1276,34 @@ function copyServerIP() {
     }).catch(function() {
         prompt('Copy this IP and paste it into Binance API whitelist:', ip);
     });
+}
+
+// ── UDS Health Badge ──────────────────────────────────────────────
+// Fetches /api/copy-trading/uds-status and renders a small badge in
+// the status bar telling users whether the zero-cost WebSocket balance
+// path is live or falling back to REST. Silent on any network failure.
+async function fetchUDSHealth() {
+    var badge = document.getElementById('ct-uds-badge');
+    if (!badge) return;
+    try {
+        var res = await fetch('/api/copy-trading/uds-status', { headers: authHeaders() });
+        if (!res.ok) return;
+        var d = await res.json();
+        var isLive = d.connected === true;
+        var label  = isLive ? '🟢 WS Live' : '🟡 REST fallback';
+        var bg     = isLive ? 'rgba(0,214,143,0.12)' : 'rgba(240,185,11,0.12)';
+        var color  = isLive ? 'var(--green)' : 'var(--gold)';
+        var border = isLive ? '1px solid rgba(0,214,143,0.35)' : '1px solid rgba(240,185,11,0.35)';
+        badge.textContent = label;
+        badge.style.cssText = 'display:inline-block;font-size:10px;font-weight:700;padding:2px 9px;' +
+            'border-radius:10px;letter-spacing:.04em;font-family:monospace;' +
+            'background:' + bg + ';color:' + color + ';border:' + border;
+        if (d.staleness_sec != null) {
+            badge.title = 'WebSocket User Data Stream · last update ' + Math.round(d.staleness_sec) + 's ago';
+        } else {
+            badge.title = 'Balance source: ' + (isLive ? 'WebSocket (zero REST cost)' : 'REST API (rate-limit budget used)');
+        }
+    } catch(_) {
+        // Silent — network failure should not surface an error on a badge
+    }
 }

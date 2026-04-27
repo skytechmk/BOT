@@ -197,17 +197,39 @@ def is_maintenance_mode() -> bool:
 
 
 def get_maintenance_info() -> dict:
+    """Return current maintenance state.
+
+    `kind` is one of:
+      • 'maintenance' — generic maintenance / copy-trading paused
+      • 'reboot'      — short controlled reboot (5–10 min). Banner copy
+                        reassures users that open positions are safe and
+                        ops resume automatically.
+    """
     return {
         "enabled": is_maintenance_mode(),
+        "kind":    get_setting("maintenance_kind", "maintenance") or "maintenance",
         "message": get_setting("maintenance_message", ""),
+        "eta_minutes": int(get_setting("maintenance_eta_min", "0") or 0),
         "updated_at": float(get_setting("maintenance_updated_at", "0") or 0),
     }
 
 
-def set_maintenance_mode(enabled: bool, message: str = "") -> None:
+def set_maintenance_mode(enabled: bool, message: str = "", kind: str = "maintenance",
+                         eta_minutes: int = 0) -> None:
+    """Toggle maintenance state.
+
+    kind:
+      'maintenance'  — generic; uses the message provided.
+      'reboot'       — controlled reboot; UI shows 5–10 min ETA + reassuring copy.
+    """
     set_setting("maintenance_mode", "1" if enabled else "0")
+    if kind not in ("maintenance", "reboot"):
+        kind = "maintenance"
+    set_setting("maintenance_kind", kind)
     if message:
         set_setting("maintenance_message", message)
+    if eta_minutes > 0:
+        set_setting("maintenance_eta_min", str(int(eta_minutes)))
     set_setting("maintenance_updated_at", str(time.time()))
 
 

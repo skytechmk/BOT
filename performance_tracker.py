@@ -179,6 +179,20 @@ def close_open_signal(signal_id, close_reason="MANUAL", pnl=None):
                 except Exception as pm_err:
                     log_message(f"Post-mortem trigger error: {pm_err}")
             
+            # Persist close_reason to signal_registry.db
+            try:
+                from shared_state import SIGNAL_REGISTRY
+                update_payload = {
+                    'status': 'CLOSED',
+                    'close_reason': close_reason,
+                    'closed_timestamp': time.time()
+                }
+                if pnl is not None:
+                    update_payload['pnl'] = pnl
+                SIGNAL_REGISTRY.update_signal(signal_id, update_payload)
+            except Exception as reg_err:
+                log_message(f"Warning: Could not update signal_registry for {signal_id}: {reg_err}")
+            
             # Move to closed signals and remove from open
             del OPEN_SIGNALS_TRACKER[signal_id]
             save_open_signals_tracker()
@@ -207,7 +221,9 @@ def cleanup_expired_open_signals():
         
         # Remove expired signals
         for signal_id in expired_signals:
-            close_open_signal(signal_id, "EXPIRED")
+            sig = OPEN_SIGNALS_TRACKER.get(signal_id, {})
+            estimated_pnl = _estimate_pnl(sig)
+            close_open_signal(signal_id, "EXPIRED", pnl=estimated_pnl)
             log_message(f"Expired signal {signal_id} removed from open signals")
         
         if expired_signals:
@@ -1074,6 +1090,8 @@ def _reconcile_sent_signals(max_age_hours=72):
 
         if r['timestamp'] < age_cutoff:
             # Fix: record actual PnL at current price instead of 0.0
+            # Also: recalculate targets_hit from price if DB still has 0
+            _aged_targets = _json.loads(r['targets_json']) if r['targets_json'] else []
             try:
                 from live_price_feed import LIVE_FEED as _LF
                 _px_now = (_LF.get(r['pair']) or {}).get('mark', 0)
@@ -1081,10 +1099,36 @@ def _reconcile_sent_signals(max_age_hours=72):
                     _raw = (((_px_now - entry) / entry) if is_long_early else ((entry - _px_now) / entry)) * 100
                     aged_pnl = round(_raw * lev_early, 2)
                 else:
+                    _px_now = 0
                     aged_pnl = 0.0
             except Exception:
+                _px_now = 0
                 aged_pnl = 0.0
-            updates.append((aged_pnl, int(r['targets_hit'] or 0), now, sid, r['pair']))
+            # Recalculate targets_hit: if DB has 0 but price moved past TPs, fix it
+            _existing_th = int(r['targets_hit'] or 0) if str(r['targets_hit']).lstrip('-').isdigit() else 0
+            if _existing_th == 0 and _px_now > 0 and _aged_targets:
+                _calc_th = 0
+                for _ti, _tp in enumerate(_aged_targets):
+                    if (is_long_early and _px_now >= _tp) or (not is_long_early and _px_now <= _tp):
+                        _calc_th = _ti + 1
+                    else:
+                        break
+                # Also infer from PnL: if leveraged PnL exceeds what TP1 would give,
+                # at least TP1 must have been hit at some point
+                if _calc_th == 0 and aged_pnl > 0 and _aged_targets:
+                    _tp1_raw = abs(_aged_targets[0] - entry) / entry * 100 if entry > 0 else 999
+                    _tp1_lev = _tp1_raw * lev_early
+                    if aged_pnl >= _tp1_lev * 0.95:  # within 5% tolerance
+                        _calc_th = 1
+                        for _ti in range(1, len(_aged_targets)):
+                            _tpn_raw = abs(_aged_targets[_ti] - entry) / entry * 100 if entry > 0 else 999
+                            _tpn_lev = _tpn_raw * lev_early
+                            if aged_pnl >= _tpn_lev * 0.95:
+                                _calc_th = _ti + 1
+                            else:
+                                break
+                _existing_th = _calc_th
+            updates.append((aged_pnl, _existing_th, now, sid, r['pair'], r['signal']))
             age_count += 1
             continue
         targets = _json.loads(r['targets_json']) if r['targets_json'] else []
@@ -1144,13 +1188,26 @@ def _reconcile_sent_signals(max_age_hours=72):
 
         # ── Walk klines chronologically to find first hit ────────────────
         # Each kline: [open_time, o, h, l, c, v, close_time, ...]
+        # Track highest TP pierced BEFORE the close event — if SL fires after
+        # TP1+TP2 hit, we want targets_hit=2 not 0 in the closed row.
         reason = None       # 'SL_HIT' or 'TP{N}_HIT'
-        tp_hit = 0
+        tp_hit = 0          # final close target index (if TP exit) — for tier increment / status
+        partial_tp_hit = 0  # highest TP pierced at any point pre-close (for targets_hit field)
         hit_price = None
         hit_ts = None
         for k in klines:
             hi = float(k[2])
             lo = float(k[3])
+            # Update partial_tp_hit BEFORE checking SL/max-TP so that any TPs
+            # pierced inside this same bar (or earlier bars) are recorded.
+            for i, tp in enumerate(targets):
+                tn = i + 1
+                if tn <= partial_tp_hit:
+                    continue
+                reached = (is_long and hi >= tp) or (not is_long and lo <= tp)
+                if reached:
+                    partial_tp_hit = tn
+
             # SL check first — whichever was hit FIRST wins
             sl_hit = (is_long and lo <= sl) or (not is_long and hi >= sl)
             # Max-TP hit check
@@ -1175,24 +1232,18 @@ def _reconcile_sent_signals(max_age_hours=72):
                 hit_ts = int(k[0]) / 1000
                 break
 
-        # ── Also walk for highest intermediate TP (for partial tracking) ──
+        # If neither SL nor max-TP fired during the whole window, the signal
+        # is still open but may have hit some intermediate TPs — record those
+        # as partials (no close).
         if reason is None:
-            for k in klines:
-                hi = float(k[2])
-                lo = float(k[3])
-                for i, tp in enumerate(targets):
-                    tn = i + 1
-                    if tn <= tp_hit:
-                        continue
-                    reached = (is_long and hi >= tp) or (not is_long and lo <= tp)
-                    if reached:
-                        tp_hit = tn
+            tp_hit = partial_tp_hit
 
         # ── Persist result ────────────────────────────────────────────────
         if reason == 'SL_HIT':
             raw_pct = ((sl - entry) / entry * 100) if is_long else ((entry - sl) / entry * 100)
             pnl = round(raw_pct * lev, 2)
-            updates.append((pnl, 0, hit_ts or now, sid, r['pair']))
+            # Preserve highest TP pierced before SL (e.g. trailing-SL after TP2 → targets_hit=2)
+            updates.append((pnl, partial_tp_hit, hit_ts or now, sid, r['pair'], r['signal']))
             sl_count += 1
         elif reason and reason.startswith('TP') and tp_hit == len(targets):
             # Final TP hit — check for instant fake-win before counting it.
@@ -1212,7 +1263,7 @@ def _reconcile_sent_signals(max_age_hours=72):
                 continue
             raw_pct  = ((tp_price - entry) / entry * 100) if is_long else ((entry - tp_price) / entry * 100)
             pnl = round(raw_pct * lev, 2)
-            updates.append((pnl, tp_hit, hit_ts or now, sid, r['pair']))
+            updates.append((pnl, tp_hit, hit_ts or now, sid, r['pair'], r['signal']))
             tp_count += 1
         elif tp_hit > 0:
             # Partial TP only — update progress, don't close
@@ -1231,7 +1282,7 @@ def _reconcile_sent_signals(max_age_hours=72):
     if updates:
         cur.executemany(
             "UPDATE signals SET status='CLOSED', pnl=?, targets_hit=?, closed_timestamp=? WHERE signal_id=?",
-            [(pnl, th, ts, sid) for pnl, th, ts, sid, _pair in updates],
+            [(pnl, th, ts, sid) for pnl, th, ts, sid, _pair, _sig in updates],
         )
         con.commit()
         log_message(
@@ -1243,8 +1294,18 @@ def _reconcile_sent_signals(max_age_hours=72):
         # AUTO_BLACKLIST is ALWAYS updated — even after a restart when the
         # signal is no longer in OPEN_SIGNALS_TRACKER.  close_open_signal()
         # is only called when the signal is still in-memory (for CB + RL).
-        for pnl_val, _th, _close_ts, sid, pair in updates:
+        for pnl_val, _th, _close_ts, sid, pair, sig_dir in updates:
             is_win = pnl_val > 0
+            # ── Meta-Labeler outcome logging ────────
+            try:
+                from ml_engine_archive.meta_labeler import get_meta_labeler
+                meta = get_meta_labeler()
+                outcome = 'TP' if is_win else 'SL'
+                if pnl_val == 0.0: outcome = 'EXPIRED'
+                meta.log_outcome(pair, sig_dir, outcome)
+            except Exception as ml_err:
+                log_message(f"Meta-labeler log_outcome error for {pair}: {ml_err}")
+
             # ── Always update blacklist regardless of memory state ────────
             try:
                 AUTO_BLACKLIST.record_outcome(pair, is_win)

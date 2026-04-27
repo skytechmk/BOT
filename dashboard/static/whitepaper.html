@@ -4,6 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Anunnaki World — Intelligence Platform Whitepaper</title>
+<meta name="description" content="Technical whitepaper for the Anunnaki World AI trading engine. Architecture, signal pipeline, risk management, and performance methodology.">
+<link rel="canonical" href="https://anunnakiworld.com/whitepaper">
+<link rel="icon" type="image/jpeg" href="/static/logo.jpeg">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://anunnakiworld.com/whitepaper">
+<meta property="og:title" content="Anunnaki World — Intelligence Platform Whitepaper">
+<meta property="og:description" content="Technical whitepaper for the Anunnaki World AI trading engine. Architecture, signal pipeline, risk management, and performance methodology.">
+<meta property="og:image" content="https://anunnakiworld.com/static/og-banner.jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@AnunnakiSignals">
+<meta name="twitter:title" content="Anunnaki World — Intelligence Platform Whitepaper">
+<meta name="twitter:description" content="Technical whitepaper for the Anunnaki World AI trading engine.">
+<meta name="twitter:image" content="https://anunnakiworld.com/static/og-banner.jpeg">
+<link rel="alternate" hreflang="en" href="https://anunnakiworld.com/whitepaper">
+<link rel="alternate" hreflang="mk" href="https://anunnakiworld.com/whitepaper/mk">
+<link rel="alternate" hreflang="x-default" href="https://anunnakiworld.com/whitepaper">
 <style>
   :root {
     --gold: #f0b90b;
@@ -391,20 +411,20 @@
   <!-- 5. Signal Engine -->
   <h2>5. AI Signal Engine — Reverse Hunt Strategy</h2>
   <p>
-    The signal engine is built around a proprietary strategy called <strong>Reverse Hunt</strong> — a multi-indicator confluence system originally developed as a PineScript strategy for TradingView and ported to Python for automated scanning of 538 pairs simultaneously.
+    The signal engine is built around a proprietary strategy called <strong>REVHUNT</strong> — a multi-indicator confluence system originally developed as a PineScript strategy for TradingView and ported to Python for automated scanning of 538 pairs simultaneously.
   </p>
 
   <h3>5.1 Signal Generation Pipeline</h3>
   <ol>
-    <li><strong>TSI Extreme Zone Detection</strong> — The True Strength Index (25/13 periods, inverted, /50 scale) enters an extreme overbought or oversold zone (adaptive thresholds at the 90th and 97th percentile of historical TSI values per pair).</li>
-    <li><strong>Zone Exit + Momentum Hook</strong> — TSI exits the zone with directional momentum — indicating exhaustion reversal is beginning.</li>
-    <li><strong>Chandelier Exit Confirmation</strong> — The CE Line layer (ATR-22, lookback-22, mult-3.0) must flip direction within 36 bars of the TSI exit. This is the mandatory trigger.</li>
-    <li><strong>ML Ensemble Validation</strong> — The signal is scored by a 4-model ensemble (BiLSTM, TFT, XGBoost, LightGBM) trained on 447,267 samples across 150 pairs × 6 months of 1h data.</li>
-    <li><strong>Risk Filters</strong> — Portfolio correlation check, circuit breaker, macro risk assessment, and Monte Carlo probability simulation must all pass before the signal is published.</li>
+    <li><strong>TSI Extremes</strong> — A proprietary momentum exhaustion oscillator detects when a pair enters an extreme overbought or oversold zone using adaptive, per-pair thresholds calibrated from historical data.</li>
+    <li><strong>REVHUNT Momentum Hook</strong> — The oscillator exits the extreme zone with directional momentum — indicating exhaustion reversal is beginning. This is the first stage of the REVHUNT confirmation sequence.</li>
+    <li><strong>CE Hybrid Confirmation</strong> — A proprietary volatility-trailing system built on a custom Chandelier Exit variant must confirm the directional flip within a calibrated window after the momentum hook. This is the mandatory trigger.</li>
+    <li><strong>PREDATOR Validation</strong> — The signal is validated by a proprietary multi-model ML ensemble (GPU-accelerated) trained on hundreds of thousands of labeled samples across a broad universe of pairs and timeframes.</li>
+    <li><strong>Risk Filters</strong> — Portfolio correlation check, circuit breaker, and macro risk assessment must all pass before the signal is published.</li>
   </ol>
 
   <div class="callout info">
-    <strong>ML Ensemble Performance:</strong> F1 = 0.539 across 150 diverse pairs (vs. 0.677 on a 30-pair subset). The ensemble uses stacking meta-learning. Each signal includes a conviction score (3–8) and ML confidence percentage.
+    <strong>PREDATOR ML Engine:</strong> The ensemble uses stacking meta-learning with GPU acceleration. Each signal includes a conviction score and ML confidence percentage. Model architecture and training parameters are proprietary.
   </div>
 
   <h3>5.2 Signal Output</h3>
@@ -442,13 +462,13 @@
   </ul>
 
   <h3>6.4 Charts Page (Plus/Pro)</h3>
-  <p>TradingView Lightweight Charts with Chandelier Exit overlays, TSI zones, and signal markers. Full historical 1h candle data for all monitored pairs.</p>
+  <p>TradingView Lightweight Charts with CE Hybrid overlays, TSI Extremes zones, and REVHUNT signal markers. Full historical 1h candle data for all monitored pairs.</p>
 
   <h3>6.5 Analytics Page (Plus/Pro)</h3>
   <p>Performance metrics, equity curve, win/loss breakdown by pair and direction, hourly performance heatmap, Sharpe ratio, maximum drawdown, and regime analysis.</p>
 
   <h3>6.6 Pre-Signal Alerts (Pro)</h3>
-  <p>Pairs that are currently in extreme TSI zones and approaching the CE flip threshold — allowing Pro subscribers to position before the confirmed signal fires. Sorted by readiness: IMMINENT → HIGH → MEDIUM → LOW.</p>
+  <p>Pairs that are currently in TSI Extremes zones and approaching the CE Hybrid flip threshold — allowing Pro subscribers to position before the confirmed REVHUNT signal fires. Sorted by readiness: IMMINENT → HIGH → MEDIUM → LOW.</p>
 
   <!-- 7. Tiers -->
   <h2>7. Membership Tiers</h2>
@@ -554,8 +574,8 @@
     </div>
     <div class="tech-card">
       <div class="icon">🤖</div>
-      <div class="name">XGBoost + LSTM</div>
-      <div class="desc">4-model ML ensemble trained on 447K samples, GPU-accelerated</div>
+      <div class="name">PREDATOR ML</div>
+      <div class="desc">Proprietary multi-model ML ensemble, GPU-accelerated</div>
     </div>
     <div class="tech-card">
       <div class="icon">⚡</div>

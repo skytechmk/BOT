@@ -1,0 +1,334 @@
+{
+  "fbb569fb-99cf-4764-a9a2-b6e3c9f91b66": {
+    "signal_id": "fbb569fb-99cf-4764-a9a2-b6e3c9f91b66",
+    "pair": "BIOUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.02427,
+    "timestamp": 1776448586.0974355,
+    "status": "OPEN",
+    "last_updated": 1776448586.0974355
+  },
+  "a1b5935d-e971-411d-af67-c2b34d051546": {
+    "signal_id": "a1b5935d-e971-411d-af67-c2b34d051546",
+    "pair": "TSLAUSDT",
+    "signal_type": "LONG",
+    "entry_price": 367.18,
+    "timestamp": 1776448586.4727304,
+    "status": "OPEN",
+    "last_updated": 1776448586.4727304
+  },
+  "51ee00ce-c3cb-4a7f-aaf9-57e016e4e133": {
+    "signal_id": "51ee00ce-c3cb-4a7f-aaf9-57e016e4e133",
+    "pair": "GOOGLUSDT",
+    "signal_type": "LONG",
+    "entry_price": 332.3,
+    "timestamp": 1776449834.807156,
+    "status": "OPEN",
+    "last_updated": 1776449834.807156
+  },
+  "c2e0c454-6583-4594-b773-0de99f2c07fd": {
+    "signal_id": "c2e0c454-6583-4594-b773-0de99f2c07fd",
+    "pair": "SFPUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.30537531,
+    "timestamp": 1776560413.5547225,
+    "status": "OPEN",
+    "last_updated": 1776560413.5547225
+  },
+  "78b31262-4841-404c-ae6b-d92af107b0a4": {
+    "signal_id": "78b31262-4841-404c-ae6b-d92af107b0a4",
+    "pair": "ETHWUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.28284249,
+    "timestamp": 1776585616.5295148,
+    "status": "OPEN",
+    "last_updated": 1776585616.5295148
+  },
+  "1abd690a-4a2a-4272-9629-0abcb5d69abb": {
+    "signal_id": "1abd690a-4a2a-4272-9629-0abcb5d69abb",
+    "pair": "HMSTRUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.0001483,
+    "timestamp": 1776596173.2606575,
+    "status": "OPEN",
+    "last_updated": 1776596173.2606575
+  },
+  "7a916542-5951-41b0-8702-0907ba83a03d": {
+    "signal_id": "7a916542-5951-41b0-8702-0907ba83a03d",
+    "pair": "HANAUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.03956137,
+    "timestamp": 1776596271.2700455,
+    "status": "OPEN",
+    "last_updated": 1776596271.2700455
+  },
+  "22b63069-792b-4982-98b3-db245948f752": {
+    "signal_id": "22b63069-792b-4982-98b3-db245948f752",
+    "pair": "DODOXUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.01712004,
+    "timestamp": 1776630370.7629192,
+    "status": "OPEN",
+    "last_updated": 1776630370.7629192
+  },
+  "215b4cbf-c81c-4aad-9042-4985fdc0108c": {
+    "signal_id": "215b4cbf-c81c-4aad-9042-4985fdc0108c",
+    "pair": "FLOCKUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.05757075,
+    "timestamp": 1776630377.1771183,
+    "status": "OPEN",
+    "last_updated": 1776630377.1771183
+  },
+  "e292ca2e-6383-4264-9b2d-881c82b4d7e6": {
+    "signal_id": "e292ca2e-6383-4264-9b2d-881c82b4d7e6",
+    "pair": "XAGUSDT",
+    "signal_type": "LONG",
+    "entry_price": 78.64,
+    "timestamp": 1776630380.1439319,
+    "status": "OPEN",
+    "last_updated": 1776630380.1439319
+  },
+  "6cda89ff-fb10-4678-8466-8db8811299f3": {
+    "signal_id": "6cda89ff-fb10-4678-8466-8db8811299f3",
+    "pair": "FLOWUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.03403303,
+    "timestamp": 1776634531.4149637,
+    "status": "OPEN",
+    "last_updated": 1776634531.4149637
+  },
+  "09effde0-085c-46a7-9e79-575bab7191a9": {
+    "signal_id": "09effde0-085c-46a7-9e79-575bab7191a9",
+    "pair": "1000CHEEMSUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.0005238,
+    "timestamp": 1776634531.6107566,
+    "status": "OPEN",
+    "last_updated": 1776634531.6107566
+  },
+  "f4818e8e-41f2-4e3b-bf90-be23843d8bcd": {
+    "signal_id": "f4818e8e-41f2-4e3b-bf90-be23843d8bcd",
+    "pair": "IDOLUSDT",
+    "signal_type": "SHORT",
+    "entry_price": 0.02147,
+    "stop_loss": 0.02281,
+    "targets": [
+      0.0201818,
+      0.0195377,
+      0.0182495
+    ],
+    "leverage": 2,
+    "timestamp": 1776636138.0597568,
+    "status": "OPEN",
+    "last_updated": 1776636138.0597568
+  },
+  "9393d643-2a4f-4e6c-8ba7-50a9edbf55ea": {
+    "signal_id": "9393d643-2a4f-4e6c-8ba7-50a9edbf55ea",
+    "pair": "ZRXUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.1053,
+    "stop_loss": 0.1033,
+    "targets": [
+      0.1071,
+      0.1081,
+      0.1099
+    ],
+    "leverage": 4,
+    "timestamp": 1776636258.063475,
+    "status": "OPEN",
+    "last_updated": 1776636258.063475
+  },
+  "5b8ef1e6-59f6-4d5c-8b51-52a231915cff": {
+    "signal_id": "5b8ef1e6-59f6-4d5c-8b51-52a231915cff",
+    "pair": "ERAUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.13196531,
+    "stop_loss": 0.1269,
+    "targets": [
+      0.1366439,
+      0.1389831,
+      0.1436617
+    ],
+    "leverage": 3,
+    "timestamp": 1776638376.9760184,
+    "status": "OPEN",
+    "last_updated": 1776638376.9760184
+  },
+  "097077ec-fa3c-423d-86aa-69c8ff157a60": {
+    "signal_id": "097077ec-fa3c-423d-86aa-69c8ff157a60",
+    "pair": "COPPERUSDT",
+    "signal_type": "LONG",
+    "entry_price": 6.101,
+    "stop_loss": 6.04172,
+    "targets": [
+      6.16028,
+      6.18992,
+      6.2492
+    ],
+    "leverage": 4,
+    "timestamp": 1776639345.8466296,
+    "status": "OPEN",
+    "last_updated": 1776639345.8466296
+  },
+  "016c881d-41fb-4169-96da-ea5b9a2a0369": {
+    "signal_id": "016c881d-41fb-4169-96da-ea5b9a2a0369",
+    "pair": "ZILUSDT",
+    "signal_type": "SHORT",
+    "entry_price": 0.02162,
+    "stop_loss": 0.02292,
+    "targets": [
+      0.02032,
+      0.01967,
+      0.01838
+    ],
+    "leverage": 2,
+    "timestamp": 1776642233.2640462,
+    "status": "OPEN",
+    "last_updated": 1776642233.2640462
+  },
+  "197eafbb-8698-438d-8d34-669288456491": {
+    "signal_id": "197eafbb-8698-438d-8d34-669288456491",
+    "pair": "BAKEUSDT",
+    "signal_type": "SHORT",
+    "entry_price": 1.5985,
+    "stop_loss": 1.7,
+    "targets": [
+      1.5026,
+      1.4546,
+      1.3587
+    ],
+    "leverage": 2,
+    "timestamp": 1776643049.201044,
+    "status": "OPEN",
+    "last_updated": 1776643049.201044
+  },
+  "5bd32d8f-5a85-4216-980b-13e647721a0c": {
+    "signal_id": "5bd32d8f-5a85-4216-980b-13e647721a0c",
+    "pair": "SKRUSDT",
+    "signal_type": "SHORT",
+    "entry_price": 0.015717,
+    "stop_loss": 0.016243,
+    "targets": [
+      0.0151981,
+      0.0149386,
+      0.0144197
+    ],
+    "leverage": 2,
+    "timestamp": 1776645046.372211,
+    "status": "OPEN",
+    "last_updated": 1776645046.372211
+  },
+  "fa9dba37-f94a-457a-961d-e8d685e9fea3": {
+    "signal_id": "fa9dba37-f94a-457a-961d-e8d685e9fea3",
+    "pair": "SKRUSDT",
+    "signal_type": "SHORT",
+    "entry_price": 0.01527,
+    "stop_loss": 0.0157054,
+    "targets": [
+      0.0148346,
+      0.0146169,
+      0.0141815
+    ],
+    "leverage": 2,
+    "timestamp": 1776697767.2431498,
+    "status": "OPEN",
+    "last_updated": 1776697767.2431498
+  },
+  "a63462fa-8388-462d-acb9-7f8a9bd8ee37": {
+    "signal_id": "a63462fa-8388-462d-acb9-7f8a9bd8ee37",
+    "pair": "COPPERUSDT",
+    "signal_type": "LONG",
+    "entry_price": 6.176,
+    "stop_loss": 6.12,
+    "targets": [
+      6.22621,
+      6.25131,
+      6.30152
+    ],
+    "leverage": 10,
+    "timestamp": 1776870024.5348396,
+    "status": "OPEN",
+    "last_updated": 1776870024.5348396
+  },
+  "3b0a5d50-15de-487b-af43-2705a35e4cdf": {
+    "signal_id": "3b0a5d50-15de-487b-af43-2705a35e4cdf",
+    "pair": "AAPLUSDT",
+    "signal_type": "LONG",
+    "entry_price": 271.43048453,
+    "stop_loss": 268.92698,
+    "targets": [
+      273.93399,
+      275.18575,
+      277.68925
+    ],
+    "leverage": 7,
+    "timestamp": 1776870024.622269,
+    "status": "OPEN",
+    "last_updated": 1776870024.622269
+  },
+  "8cc8c928-a06e-461e-a421-0a37b8580e74": {
+    "signal_id": "8cc8c928-a06e-461e-a421-0a37b8580e74",
+    "pair": "CAKEUSDT",
+    "signal_type": "SHORT",
+    "entry_price": 1.5005,
+    "stop_loss": 1.5386,
+    "targets": [
+      1.4627792,
+      1.4439188,
+      1.406198
+    ],
+    "leverage": 3,
+    "timestamp": 1776877217.3468664,
+    "status": "OPEN",
+    "last_updated": 1776877217.3468664
+  },
+  "a8288e55-ec7e-485e-8973-37d7ad25f31c": {
+    "signal_id": "a8288e55-ec7e-485e-8973-37d7ad25f31c",
+    "pair": "INTCUSDT",
+    "signal_type": "SHORT",
+    "entry_price": 65.29680792,
+    "stop_loss": 66.70946,
+    "targets": [
+      63.88416,
+      63.17784,
+      61.76519
+    ],
+    "leverage": 6,
+    "timestamp": 1776884418.8705916,
+    "status": "OPEN",
+    "last_updated": 1776884418.8705916
+  },
+  "7e8c55b5-2bee-4119-893d-a15d44f65b88": {
+    "signal_id": "7e8c55b5-2bee-4119-893d-a15d44f65b88",
+    "pair": "PIPPINUSDT",
+    "signal_type": "LONG",
+    "entry_price": 0.02551723,
+    "stop_loss": 0.02401,
+    "targets": [
+      0.0269204,
+      0.027622,
+      0.0290251
+    ],
+    "leverage": 2,
+    "timestamp": 1776963681.1593988,
+    "status": "OPEN",
+    "last_updated": 1776963681.1593988
+  },
+  "02dea849-3167-4f34-a658-4df009275e98": {
+    "signal_id": "02dea849-3167-4f34-a658-4df009275e98",
+    "pair": "API3USDT",
+    "signal_type": "LONG",
+    "entry_price": 0.3139,
+    "stop_loss": 0.3076,
+    "targets": [
+      0.3194,
+      0.3221,
+      0.3351
+    ],
+    "leverage": 10,
+    "timestamp": 1777046532.0000293,
+    "status": "OPEN",
+    "last_updated": 1777046532.0000293
+  }
+}

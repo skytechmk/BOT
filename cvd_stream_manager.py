@@ -36,7 +36,7 @@ from collections import defaultdict, deque
 from utils_logger import log_message
 import websockets
 
-_FUTURES_STREAM_URL = "wss://fstream.binance.com/stream?streams={streams}"
+_FUTURES_STREAM_URL = "wss://fstream.binance.com/market/stream?streams={streams}"
 _MAX_STREAMS_PER_CONN = 180          # stay under 200 limit
 _MAX_PAIRS = 220                     # cover all USDT perps Binance scans
 _RECONNECT_BASE = 3

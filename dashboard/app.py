@@ -3,7 +3,7 @@ Anunnaki World Dashboard — Premium WebSocket-powered real-time monitoring.
 3-tier system: Free (24h delayed) / Plus 53 USDT / Pro 109 USDT
 Subscribes to Binance futures kline_1h streams for ALL USDT perps.
 """
-import sys, os, json, time, asyncio, sqlite3, logging, urllib.request
+import sys, os, json, time, asyncio, sqlite3, logging, urllib.request, html
 from pathlib import Path
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 import hmac
 import hashlib
 from fastapi import FastAPI, Depends, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse, RedirectResponse, FileResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -63,7 +63,9 @@ from analytics import (
     get_performance_summary, get_equity_curve, get_pair_performance,
     get_hourly_heatmap, get_daily_pnl, get_signal_breakdown,
     get_indicator_attribution, get_regime_performance,
+    get_public_pair_summary,
 )
+from analytics_live import get_live_kpis, run_backtest
 from liquidation_collector import get_collector as _get_liq_collector
 _LIQ_COLLECTOR = _get_liq_collector()
 
@@ -90,8 +92,10 @@ from copy_trading import (
 
 from market_classifier import (
     init_market_db, run_market_refresh_loop,
-    get_all_classifications, get_tier_labels, get_sector_labels,
+    get_all_classifications, get_tier_labels, get_sector_labels, get_pair_info,
 )
+
+from blog_content import BLOG_POSTS
 
 from device_security import (
     init_device_security_db,
@@ -134,7 +138,60 @@ _STREAM_EMBARGO_SEC = int(os.environ.get('STREAM_EMBARGO_SEC', '1800'))  # 30 mi
 _STREAM_TOKEN       = os.environ.get('STREAM_TOKEN', '').strip()         # empty = public
 _STREAM_SHOW_DIRECTION = os.environ.get('STREAM_SHOW_DIRECTION', '0') == '1'
 
-_WS_BASE = "wss://fstream.binance.com/stream"
+
+def _normalize_pair(pair: str) -> str:
+    pair = (pair or "").upper().strip()
+    if not pair:
+        return ""
+    return pair if pair.endswith("USDT") else f"{pair}USDT"
+
+
+def _known_public_pairs() -> set:
+    if not _SIGNAL_DB_PATH.exists():
+        return set()
+    conn = sqlite3.connect(f"file:{_SIGNAL_DB_PATH}?mode=ro", uri=True)
+    try:
+        pairs = set()
+        rows = conn.execute(
+            "SELECT DISTINCT pair FROM signals WHERE COALESCE(signal_tier,'production')='production'"
+        ).fetchall()
+        pairs.update(r[0] for r in rows if r and r[0] and r[0].isascii())
+        try:
+            archived = conn.execute(
+                "SELECT DISTINCT pair FROM archived_signals WHERE COALESCE(signal_tier,'production')='production'"
+            ).fetchall()
+            pairs.update(r[0] for r in archived if r and r[0] and r[0].isascii())
+        except sqlite3.Error:
+            pass
+        return pairs
+    finally:
+        conn.close()
+
+
+def _render_public_pair_rows(rows) -> str:
+    if not rows:
+        return '<p class="table-empty">No closed production signals have been recorded for this pair yet.</p>'
+
+    out = [
+        '<table class="recent-table">',
+        '<thead><tr><th>Time</th><th>Direction</th><th>Targets Hit</th><th>PnL</th></tr></thead>',
+        '<tbody>',
+    ]
+    for row in rows:
+        pnl = float(row.get("pnl", 0) or 0)
+        pnl_class = "pnl-pos" if pnl > 0 else "pnl-neg" if pnl < 0 else "pnl-flat"
+        out.append(
+            "<tr>"
+            f"<td>{html.escape(row.get('time_local', '—'))}</td>"
+            f"<td>{html.escape(str(row.get('direction', '—')))}</td>"
+            f"<td>{int(row.get('targets_hit', 0) or 0)}</td>"
+            f"<td class=\"{pnl_class}\">{pnl:.2f}%</td>"
+            "</tr>"
+        )
+    out.append('</tbody></table>')
+    return ''.join(out)
+
+_WS_BASE = "wss://fstream.binance.com/market/stream"
 _MAX_STREAMS_PER_CONN = 200
 
 
@@ -667,8 +724,9 @@ def _read_signals(limit: int = 50, tier: str = "free") -> list:
             cutoff_old = time.time() - 7 * 86400
             cur.execute(
                 'SELECT signal_id, pair, signal, price, confidence, targets_json, '
-                'stop_loss, leverage, timestamp, status, pnl, telegram_message_id, targets_hit, features_json '
-                'FROM signals WHERE timestamp > ? AND timestamp < ? '
+                'stop_loss, leverage, timestamp, status, pnl, telegram_message_id, targets_hit, features_json, signal_tier, zone_used, close_reason '
+                "FROM signals WHERE timestamp > ? AND timestamp < ? "
+                "AND COALESCE(signal_tier,'production') IN ('production','experimental') "
                 'ORDER BY timestamp DESC LIMIT ?',
                 (cutoff_old, cutoff_new, limit)
             )
@@ -677,8 +735,10 @@ def _read_signals(limit: int = 50, tier: str = "free") -> list:
             cutoff = time.time() - 30 * 86400
             cur.execute(
                 'SELECT signal_id, pair, signal, price, confidence, targets_json, '
-                'stop_loss, leverage, timestamp, status, pnl, telegram_message_id, targets_hit, features_json '
-                'FROM signals WHERE timestamp > ? ORDER BY timestamp DESC LIMIT ?',
+                'stop_loss, leverage, timestamp, status, pnl, telegram_message_id, targets_hit, features_json, signal_tier, zone_used, close_reason '
+                "FROM signals WHERE timestamp > ? "
+                "AND COALESCE(signal_tier,'production') IN ('production','experimental') "
+                'ORDER BY timestamp DESC LIMIT ?',
                 (cutoff, limit)
             )
 
@@ -716,6 +776,9 @@ def _read_signals(limit: int = 50, tier: str = "free") -> list:
                 'time_utc': ts_utc.isoformat(),
                 'time_local': ts_local.strftime('%d %b %H:%M'),
                 'timestamp': row['timestamp'],
+                'signal_tier': row['signal_tier'] or 'production',
+                'zone_used': row['zone_used'],
+                'close_reason': row['close_reason'],
             }
 
             # Parse features for drift alert (available to all tiers — it's a safety flag)
@@ -868,6 +931,10 @@ _STATIC_DIR = Path(__file__).parent / "static"
 _STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
+_MOBILE_ASSETS_DIR = Path(__file__).parent.parent / "mobile" / "dist" / "assets"
+if _MOBILE_ASSETS_DIR.exists():
+    app.mount("/mobile/assets", StaticFiles(directory=str(_MOBILE_ASSETS_DIR)), name="mobile-assets")
+
 # ── No-cache middleware for JS/CSS — prevents Cloudflare caching stale assets ──
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as _Req
@@ -956,6 +1023,139 @@ async def security_txt():
         return PlainTextResponse(p.read_text())
     return PlainTextResponse("Contact: mailto:security@anunnakiworld.com\n")
 
+
+@app.get("/signals/{pair}", response_class=HTMLResponse)
+async def seo_pair_page(pair: str):
+    """Programmatic SEO page showing historical signal data for any monitored pair.
+
+    Shows aggregate stats and closed-signal history only — never exposes
+    live premium entry, TP, or stop-loss data.  Returns a graceful page
+    even for pairs that have no signal history yet (0 signals rendered).
+    Only truly invalid pair strings get a 404.
+    """
+    pair = _normalize_pair(pair)
+    if not pair or len(pair) < 5 or len(pair) > 30:
+        raise HTTPException(status_code=404, detail="Unknown pair")
+
+    html_path = Path(__file__).parent / "signal_seo.html"
+    if not html_path.exists():
+        return HTMLResponse(content="<h1>Pair page not found</h1>", status_code=404)
+
+    try:
+        summary = await asyncio.to_thread(get_public_pair_summary, pair, 8)
+    except Exception:
+        summary = {"exists": False, "pair": pair}
+
+    try:
+        pair_meta = get_pair_info(pair)
+    except Exception:
+        pair_meta = {}
+
+    last_signal = summary.get("last_signal") or {}
+    recent_rows_html = _render_public_pair_rows(summary.get("recent_closed") or [])
+
+    template = html_path.read_text()
+    page_html = (
+        template
+        .replace("__PAIR__", html.escape(pair))
+        .replace("__WIN_RATE__", f"{float(summary.get('win_rate', 0) or 0):.1f}")
+        .replace("__TOTAL_SIGNALS__", str(int(summary.get("total_signals", 0) or 0)))
+        .replace("__CLOSED_SIGNALS__", str(int(summary.get("closed_signals", 0) or 0)))
+        .replace("__AVG_PNL__", f"{float(summary.get('avg_pnl', 0) or 0):.2f}")
+        .replace("__BEST_TRADE__", "—" if summary.get("best_trade") is None else f"{float(summary['best_trade']):.2f}%")
+        .replace("__WORST_TRADE__", "—" if summary.get("worst_trade") is None else f"{float(summary['worst_trade']):.2f}%")
+        .replace("__SECTOR__", html.escape(str(pair_meta.get("sector", "other"))))
+        .replace("__TIER__", html.escape(str(pair_meta.get("tier", "high_risk"))))
+        .replace("__RANK__", "—" if pair_meta.get("rank") is None else str(pair_meta.get("rank")))
+        .replace("__HOT_STATUS__", "HOT" if pair_meta.get("is_hot") else "Stable")
+        .replace("__LAST_SIGNAL_DIRECTION__", html.escape(str(last_signal.get("direction", "—"))))
+        .replace("__LAST_SIGNAL_STATUS__", html.escape(str(last_signal.get("status", "—"))))
+        .replace("__LAST_SIGNAL_CONFIDENCE__", f"{float(last_signal.get('confidence', 0) or 0):.1f}")
+        .replace("__RECENT_SIGNALS_TABLE__", recent_rows_html)
+    )
+    return HTMLResponse(content=page_html, status_code=200, headers={"Cache-Control": "public, max-age=300"})
+
+
+@app.get("/affiliate", response_class=HTMLResponse)
+async def affiliate_page():
+    html_path = Path(__file__).parent / "affiliate.html"
+    if not html_path.exists():
+        return HTMLResponse(content="<h1>Affiliate page coming soon</h1>", status_code=200)
+    return HTMLResponse(content=html_path.read_text(), status_code=200)
+
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_page():
+    html_path = Path(__file__).parent / "tos.html"
+    if not html_path.exists():
+        return HTMLResponse(content="<h1>Terms of Service coming soon</h1>", status_code=200)
+    return HTMLResponse(content=html_path.read_text(), status_code=200)
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page():
+    html_path = Path(__file__).parent / "privacy.html"
+    if not html_path.exists():
+        return HTMLResponse(content="<h1>Privacy Policy coming soon</h1>", status_code=200)
+    return HTMLResponse(content=html_path.read_text(), status_code=200)
+
+
+@app.get("/faq", response_class=HTMLResponse)
+async def faq_page():
+    html_path = Path(__file__).parent / "faq.html"
+    if not html_path.exists():
+        return HTMLResponse(content="<h1>FAQ coming soon</h1>", status_code=200)
+    return HTMLResponse(content=html_path.read_text(), status_code=200)
+
+
+@app.get("/blog", response_class=HTMLResponse)
+async def blog_index_page():
+    html_path = Path(__file__).parent / "blog_index.html"
+    if not html_path.exists():
+        return HTMLResponse(content="<h1>Blog coming soon</h1>", status_code=200)
+
+    cards = []
+    for slug, post in BLOG_POSTS.items():
+        cards.append(
+            '<article class="post-card">'
+            f'<div class="post-date">{html.escape(post.get("published", ""))}</div>'
+            f'<h2><a href="/blog/{slug}">{html.escape(post["title"])}</a></h2>'
+            f'<p>{html.escape(post["description"])}</p>'
+            f'<a class="post-link" href="/blog/{slug}">Read article →</a>'
+            '</article>'
+        )
+
+    template = html_path.read_text()
+    return HTMLResponse(content=template.replace("__BLOG_CARDS__", "\n".join(cards)), status_code=200)
+
+
+@app.get("/blog/{slug}", response_class=HTMLResponse)
+async def blog_post_page(slug: str):
+    post = BLOG_POSTS.get(slug)
+    if not post:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    html_path = Path(__file__).parent / "blog_post.html"
+    if not html_path.exists():
+        return HTMLResponse(content="<h1>Article template missing</h1>", status_code=500)
+
+    template = html_path.read_text()
+    page_html = (
+        template
+        .replace("__TITLE__", html.escape(post["title"]))
+        .replace("__DESCRIPTION__", html.escape(post["description"]))
+        .replace("__PUBLISHED__", html.escape(post.get("published", "")))
+        .replace("__UPDATED__", html.escape(post.get("updated", post.get("published", ""))))
+        .replace("__SLUG__", html.escape(slug))
+        .replace("__BODY__", post["body_html"])
+    )
+    return HTMLResponse(content=page_html, status_code=200)
+
+@app.get("/favicon.ico")
+async def favicon():
+    ico_path = Path(__file__).parent / "static" / "logo.jpeg"
+    return FileResponse(ico_path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=604800"})
+
 @app.get("/robots.txt", response_class=PlainTextResponse)
 async def robots_txt():
     return PlainTextResponse(
@@ -969,17 +1169,49 @@ async def robots_txt():
 
 @app.get("/sitemap.xml")
 async def sitemap_xml():
-    xml = (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        '  <url>\n'
-        '    <loc>https://anunnakiworld.com/</loc>\n'
-        '    <changefreq>weekly</changefreq>\n'
-        '    <priority>1.0</priority>\n'
-        '  </url>\n'
-        '</urlset>'
-    )
-    return Response(content=xml, media_type="application/xml")
+    """Dynamic sitemap for public landing, content hubs, articles, and pair pages."""
+    xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    ]
+
+    base_url = "https://anunnakiworld.com"
+    static_routes = ["/", "/whitepaper", "/whitepaper/mk", "/affiliate", "/faq", "/blog", "/terms", "/privacy"]
+
+    for route in static_routes:
+        xml.append('  <url>')
+        xml.append(f'    <loc>{base_url}{route}</loc>')
+        if route == "/":
+            xml.append('    <priority>1.0</priority>')
+            xml.append('    <changefreq>daily</changefreq>')
+        else:
+            xml.append('    <priority>0.8</priority>')
+            xml.append('    <changefreq>weekly</changefreq>')
+        xml.append('  </url>')
+
+    for slug, post in BLOG_POSTS.items():
+        xml.append('  <url>')
+        xml.append(f'    <loc>{base_url}/blog/{slug}</loc>')
+        lastmod = post.get("updated") or post.get("published")
+        if lastmod:
+            xml.append(f'    <lastmod>{lastmod}</lastmod>')
+        xml.append('    <priority>0.6</priority>')
+        xml.append('    <changefreq>monthly</changefreq>')
+        xml.append('  </url>')
+
+    try:
+        for pair in sorted(_known_public_pairs()):
+            xml.append('  <url>')
+            xml.append(f'    <loc>{base_url}/signals/{pair}</loc>')
+            xml.append('    <priority>0.7</priority>')
+            xml.append('    <changefreq>weekly</changefreq>')
+            xml.append('  </url>')
+    except Exception as e:
+        logger.warning(f"[sitemap] Failed to build pair URLs: {e}")
+
+    xml.append('</urlset>')
+    return Response(content='\n'.join(xml), media_type="application/xml")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
@@ -1002,16 +1234,26 @@ async def landing():
     html_path = Path(__file__).parent / "landing.html"
     if not html_path.exists():
         return HTMLResponse(content="<h1>Landing page coming soon</h1>", status_code=200)
-    return HTMLResponse(content=html_path.read_text(), status_code=200)
+    
+    html = html_path.read_text()
+    if "<head>" in html:
+        html = html.replace("<head>", '<head>\n<meta name="robots" content="noindex,nofollow">')
+    return HTMLResponse(content=html, status_code=200)
 
 @app.get("/app", response_class=HTMLResponse)
 @app.get("/dashboard", response_class=HTMLResponse)
 async def app_shell():
     """Dashboard SPA shell. The landing page's CTAs point here;
     /app?signup=1 opens the register modal, /app?plan=pro_monthly starts
-    a payment flow directly. /dashboard is a human-friendly alias."""
+    the upgrade flow. The JS logic parses the fragment/query vars."""
     html_path = Path(__file__).parent / "index.html"
-    return HTMLResponse(content=html_path.read_text(), status_code=200)
+    if not html_path.exists():
+        return HTMLResponse(content="<h1>Dashboard missing</h1>", status_code=500)
+    
+    html = html_path.read_text()
+    if "<head>" in html:
+        html = html.replace("<head>", '<head>\n    <meta name="robots" content="noindex,nofollow">')
+    return HTMLResponse(content=html, status_code=200)
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
@@ -1427,6 +1669,193 @@ async def api_admin_check_expiry(user: dict = Depends(require_admin)):
     return JSONResponse(content=result)
 
 
+# ── Admin: Lab Signals (experimental RH paths) ────────────────────
+@app.get("/api/admin/lab/signals")
+async def api_admin_lab_signals(
+    days: int = 30,
+    limit: int = 200,
+    user: dict = Depends(require_admin),
+):
+    """Admin: list experimental-tier signals (the 6 RH short-circuit paths).
+
+    Production-tier signals (clean ARMED path) are NOT included here — they're
+    available via the standard /api/signals endpoint that all users see.
+    """
+    if not _SIGNAL_DB_PATH.exists():
+        return JSONResponse({"signals": [], "stats": {}, "by_zone": []})
+    cutoff = time.time() - max(1, int(days)) * 86400
+    try:
+        conn = sqlite3.connect(f"file:{_SIGNAL_DB_PATH}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        cur  = conn.cursor()
+
+        # Detail rows
+        cur.execute(
+            "SELECT signal_id, pair, signal, price, confidence, targets_json, "
+            "stop_loss, leverage, timestamp, status, pnl, targets_hit, "
+            "zone_used, signal_tier, close_reason, closed_timestamp "
+            "FROM signals WHERE signal_tier = 'experimental' AND timestamp > ? "
+            "ORDER BY timestamp DESC LIMIT ?",
+            (cutoff, max(1, min(int(limit), 1000))),
+        )
+        signals = []
+        for row in cur.fetchall():
+            try:
+                targets = json.loads(row["targets_json"]) if row["targets_json"] else []
+            except Exception:
+                targets = []
+            try:
+                t_hit = json.loads(row["targets_hit"]) if isinstance(row["targets_hit"], str) else []
+            except Exception:
+                t_hit = []
+            pnl_value = row["pnl"]
+            close_reason = row["close_reason"]
+            status_upper = (row["status"] or "").upper()
+            pnl_missing = (
+                status_upper in ("CLOSED", "CANCELLED")
+                and (pnl_value is None or float(pnl_value or 0) == 0.0)
+                and close_reason not in ("SL_HIT", "TP1_HIT", "TP2_HIT", "TP3_HIT")
+            )
+
+            signals.append({
+                "signal_id":   row["signal_id"],
+                "pair":        row["pair"],
+                "signal":      row["signal"],
+                "price":       row["price"],
+                "confidence":  row["confidence"],
+                "targets":     targets,
+                "stop_loss":   row["stop_loss"],
+                "leverage":    row["leverage"],
+                "timestamp":   row["timestamp"],
+                "status":      row["status"],
+                "pnl":         pnl_value,
+                "pnl_missing": pnl_missing,
+                "targets_hit": t_hit,
+                "zone_used":   row["zone_used"],
+                "close_reason": close_reason,
+                "closed_timestamp": row["closed_timestamp"],
+            })
+
+        # Per-zone aggregates. Win/loss is decided by PnL sign on closed/decided
+        # rows so generic 'CLOSED' statuses (no TP/SL hit tag) still classify
+        # correctly. Open/SENT signals are excluded from wins/losses but counted
+        # in `count`.
+        DECIDED_STATUSES = ('CLOSED','TP1_HIT','TP2_HIT','TP3_HIT','SL_HIT',
+                            'CLOSED_WIN','CLOSED_LOSS','LOSS','CANCELLED')
+        placeholders = ','.join('?' * len(DECIDED_STATUSES))
+        cur.execute(
+            f"SELECT zone_used, COUNT(*) AS n, "
+            f"AVG(pnl) AS avg_pnl, "
+            f"SUM(CASE WHEN status IN ({placeholders}) AND status != 'CANCELLED' AND COALESCE(pnl,0) > 0 THEN 1 ELSE 0 END) AS wins, "
+            f"SUM(CASE WHEN status IN ({placeholders}) AND status != 'CANCELLED' AND COALESCE(pnl,0) < 0 THEN 1 ELSE 0 END) AS losses "
+            f"FROM signals WHERE signal_tier = 'experimental' AND timestamp > ? "
+            f"GROUP BY zone_used ORDER BY n DESC",
+            DECIDED_STATUSES + DECIDED_STATUSES + (cutoff,),
+        )
+        by_zone = []
+        for row in cur.fetchall():
+            n     = int(row["n"] or 0)
+            wins  = int(row["wins"] or 0)
+            loss  = int(row["losses"] or 0)
+            decided = wins + loss
+            by_zone.append({
+                "zone_used": row["zone_used"] or "UNKNOWN",
+                "count":     n,
+                "wins":      wins,
+                "losses":    loss,
+                "win_rate":  (wins / decided) if decided > 0 else None,
+                "avg_pnl":   round(float(row["avg_pnl"] or 0), 4),
+            })
+
+        # Headline stats
+        total      = sum(z["count"] for z in by_zone)
+        total_w    = sum(z["wins"]   for z in by_zone)
+        total_l    = sum(z["losses"] for z in by_zone)
+        decided    = total_w + total_l
+        avg_pnl    = (sum((z["avg_pnl"] or 0) * z["count"] for z in by_zone) / total) if total else 0.0
+        stats = {
+            "total":     total,
+            "wins":      total_w,
+            "losses":    total_l,
+            "win_rate":  (total_w / decided) if decided > 0 else None,
+            "avg_pnl":   round(avg_pnl, 4),
+            "window_days": int(days),
+        }
+        conn.close()
+        return JSONResponse({"signals": signals, "stats": stats, "by_zone": by_zone})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Admin: ERR/WARN telemetry ─────────────────────────────────────
+@app.get("/api/admin/telemetry")
+async def api_admin_telemetry(
+    lines: int = 200,
+    level: str = "ALL",
+    user: dict = Depends(require_admin)
+):
+    """Admin: tail the dashboard debug log and return the most recent
+    ERROR and WARNING entries (or all lines when level=ALL).
+
+    Reads only the dashboard debug log (debug_log10.txt by convention)
+    so no system/secrets are ever exposed.  Returns up to 50 parsed
+    entries regardless of how many raw lines are read.
+    """
+    import re as _re
+    log_candidates = [
+        Path(__file__).parent.parent / "debug_log10.txt",
+        Path(__file__).parent / "debug_log10.txt",
+        Path("/var/log/aladdin/dashboard.log"),
+    ]
+    log_path = next((p for p in log_candidates if p.exists()), None)
+    if not log_path:
+        return JSONResponse({"entries": [], "log_path": None,
+                             "message": "No log file found"})
+
+    # Read the last `lines` lines without loading the whole file
+    try:
+        with open(str(log_path), "r", encoding="utf-8", errors="replace") as fh:
+            all_lines = fh.readlines()
+        tail = all_lines[-lines:] if len(all_lines) > lines else all_lines
+    except OSError as e:
+        return JSONResponse({"entries": [], "error": str(e)}, status_code=500)
+
+    # Simple log-level filter
+    level_up = level.upper()
+    _LOG_PAT = _re.compile(
+        r'(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},?\d*)'
+        r'.*?- (?P<lvl>ERROR|WARNING|INFO|DEBUG)\s*-'
+        r'(?P<msg>.*)', _re.S
+    )
+
+    entries = []
+    for raw in reversed(tail):
+        m = _LOG_PAT.match(raw.strip())
+        if not m:
+            # Include raw line if level filter is ALL
+            if level_up == "ALL":
+                entries.append({"ts": None, "level": "RAW",
+                                "msg": raw.strip()[:300]})
+        else:
+            lvl = m.group("lvl")
+            if level_up in ("ALL", "RAW") or lvl == level_up or \
+               (level_up == "WARN" and lvl == "WARNING") or \
+               (level_up in ("ERR", "ERROR") and lvl == "ERROR") or \
+               (level_up == "CRITICAL" and lvl in ("ERROR", "WARNING")):
+                entries.append({"ts": m.group("ts").strip(),
+                                "level": lvl,
+                                "msg": m.group("msg").strip()[:400]})
+        if len(entries) >= 50:
+            break
+
+    return JSONResponse({
+        "entries": entries,
+        "log_path": str(log_path),
+        "total_lines_in_file": len(all_lines),
+        "lines_read": len(tail),
+    })
+
+
 # ── Admin: maintenance / dev mode ────────────────────────────────────
 @app.get("/api/admin/settings")
 async def api_admin_get_settings(user: dict = Depends(require_admin)):
@@ -1438,7 +1867,12 @@ async def api_admin_set_maintenance(request: Request, user: dict = Depends(requi
     body = await request.json()
     enabled = bool(body.get("enabled", False))
     message = (body.get("message") or "").strip()
-    await asyncio.to_thread(set_maintenance_mode, enabled, message)
+    kind = (body.get("kind") or "maintenance").strip()
+    try:
+        eta = int(body.get("eta_minutes") or 0)
+    except Exception:
+        eta = 0
+    await asyncio.to_thread(set_maintenance_mode, enabled, message, kind, eta)
     return JSONResponse({"ok": True, "maintenance": get_maintenance_info()})
 
 
@@ -1578,7 +2012,9 @@ async def api_signals_live_pnl(user: Optional[dict] = Depends(get_current_user))
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             "SELECT signal_id, pair, signal, price, stop_loss, leverage, targets_json, status "
-            "FROM signals WHERE status IN ('SENT','OPEN','ACTIVE','TP1_HIT','TP2_HIT') ORDER BY timestamp DESC LIMIT 100"
+            "FROM signals WHERE status IN ('SENT','OPEN','ACTIVE','TP1_HIT','TP2_HIT') "
+            "AND COALESCE(signal_tier,'production') IN ('production','experimental') "
+            "ORDER BY timestamp DESC LIMIT 100"
         ).fetchall()
         conn.close()
     except Exception as e:
@@ -1736,6 +2172,7 @@ def _load_open_signals_for_pnl() -> list[dict]:
         rows = conn.execute(
             "SELECT signal_id, pair, signal, price, stop_loss, leverage, targets_json, status "
             "FROM signals WHERE status IN ('SENT','OPEN','ACTIVE','TP1_HIT','TP2_HIT') "
+            "AND COALESCE(signal_tier,'production') IN ('production','experimental') "
             "ORDER BY timestamp DESC LIMIT 200"
         ).fetchall()
         conn.close()
@@ -1828,6 +2265,7 @@ async def api_stream_live_pnl(request: Request, user: Optional[dict] = Depends(g
         last_reload = 0.0
         signals: list[dict] = []
         closed_fired: set[str] = set()
+        _partial_th: dict[str, int] = {}   # track highest targets_hit written per signal
         while True:
             if await request.is_disconnected():
                 break
@@ -1839,6 +2277,7 @@ async def api_stream_live_pnl(request: Request, user: Optional[dict] = Depends(g
 
             prices = PRICE_BROADCASTER.snapshot()
             pnl: dict = {}
+            _partial_updates: list[tuple] = []   # (targets_hit, signal_id) for DB batch
             for s in signals:
                 cur = prices.get(s["pair"])
                 if not cur or s["entry"] <= 0:
@@ -1872,6 +2311,10 @@ async def api_stream_live_pnl(request: Request, user: Optional[dict] = Depends(g
                         )
                     except Exception as _ce:
                         print(f"[sse_live_pnl] close error {s['signal_id']}: {_ce}")
+                # Persist partial TP progress to DB when it increases
+                elif targets_hit > 0 and targets_hit > _partial_th.get(s["signal_id"], 0):
+                    _partial_th[s["signal_id"]] = targets_hit
+                    _partial_updates.append((targets_hit, s["signal_id"]))
                 pnl[s["signal_id"]] = {
                     "pair":          s["pair"],
                     "current_price": cur,
@@ -1884,6 +2327,20 @@ async def api_stream_live_pnl(request: Request, user: Optional[dict] = Depends(g
                     "tp3_hit":       targets_hit >= 3,
                     "sl_hit":        sl_hit,
                 }
+            # Batch-write partial TP progress (non-blocking)
+            if _partial_updates:
+                try:
+                    def _write_partial(updates):
+                        _c = sqlite3.connect('signal_registry.db', timeout=3)
+                        _c.executemany(
+                            "UPDATE signals SET targets_hit=? WHERE signal_id=? AND COALESCE(targets_hit,0) < ?",
+                            [(th, sid, th) for th, sid in updates]
+                        )
+                        _c.commit()
+                        _c.close()
+                    await asyncio.to_thread(_write_partial, _partial_updates)
+                except Exception as _pe:
+                    print(f"[sse_live_pnl] partial TP write error: {_pe}")
             payload = {"pnl": pnl, "updated": now}
             yield f"event: pnl\ndata: {json.dumps(payload, separators=(',', ':'))}\n\n"
             await asyncio.sleep(2.0)
@@ -1905,6 +2362,64 @@ async def api_stream_stats(user: Optional[dict] = Depends(get_current_user)):
     if not user:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
     return JSONResponse(PRICE_BROADCASTER.stats())
+
+@app.get("/api/signals/hit_stats")
+async def api_signals_hit_stats(days: int = 30):
+    """Return TP/SL hit percentages for the last N days (default 30)."""
+    from analytics import get_signal_hit_stats
+    return JSONResponse(get_signal_hit_stats(days))
+
+@app.get("/api/signals/stats")
+async def api_signals_stats():
+    """Return high-level KPI counts for all signals."""
+    import sqlite3, time
+    DB = Path(__file__).resolve().parent.parent / "signal_registry.db"
+    conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    cur = conn.cursor()
+    total = cur.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+    open_cnt = cur.execute("SELECT COUNT(*) FROM signals WHERE upper(status) IN ('SENT','OPEN','ACTIVE','TP1_HIT','TP2_HIT')").fetchone()[0]
+    closed_cnt = total - open_cnt
+    cutoff = time.time() - 30*86400
+    last30 = cur.execute("SELECT COUNT(*) FROM signals WHERE timestamp>?", (cutoff,)).fetchone()[0]
+    conn.close()
+    return {
+        "total_signals": total,
+        "open_signals": open_cnt,
+        "closed_signals": closed_cnt,
+        "signals_last_30d": last30,
+    }
+
+# ────────────────────────────────────────────────────────────────────
+#  LIVE KPI + BACKTEST API
+# ────────────────────────────────────────────────────────────────────
+
+@app.get("/api/kpis")
+async def api_kpis():
+    """Landing-page KPI snapshot (real data)."""
+    return JSONResponse(get_live_kpis())
+
+
+@app.get("/api/public/stats")
+async def api_public_stats():
+    """Public unauthenticated stats for landing page (pairs + signals)."""
+    total = get_live_kpis().get("total_signals", 0)
+    try:
+        from market_classifier import get_all_classifications
+        pairs_monitored = len(get_all_classifications())
+    except Exception:
+        pairs_monitored = 0
+    return JSONResponse({
+        "total_signals": total,
+        "pairs_monitored": pairs_monitored,
+    })
+
+
+@app.get("/api/backtest")
+async def api_backtest(days: int = 365, capital: float = 1000.0, pos_pct: float = 1.0):
+    """Equity-curve back-test based on realised signals."""
+    res = run_backtest(days=days, starting_capital=capital, position_pct=pos_pct)
+    return JSONResponse(res)
+
 
 
 def _close_signal_and_feedback(signal_id, pair, direction, entry, sl, targets,
@@ -2120,6 +2635,45 @@ async def api_quick_entry(request: Request, user: dict = Depends(require_tier("u
     if result.get('error'):
         return JSONResponse(result, status_code=400)
     return JSONResponse(result)
+
+# ── Copy-Trading: UDS Stream Health ────────────────────────────────
+@app.get("/api/copy-trading/uds-status")
+async def api_ct_uds_status(user: dict = Depends(get_current_user)):
+    """Return the current user's WebSocket User Data Stream health.
+
+    Tells the frontend whether the zero-cost push-based balance path
+    is live (connected=True) or whether the system is falling back to
+    the REST API (connected=False). Includes staleness in seconds and
+    reconnect count for diagnostic use.
+    """
+    if not user:
+        return JSONResponse({"error": "Not authenticated"}, status_code=401)
+    uid = user["id"]
+    try:
+        from binance_user_stream import (
+            get_state  as _uds_state,
+            is_fresh   as _uds_fresh,
+            is_enabled as _uds_enabled,
+        )
+        if not _uds_enabled():
+            return JSONResponse({"enabled": False, "connected": False,
+                                 "message": "UDS disabled via BINANCE_WS_USER_STREAM env var"})
+        state = _uds_state(uid) or {}
+        fresh = _uds_fresh(uid)
+        last_ts = state.get("server_time") or state.get("last_update") or 0
+        staleness = round(time.time() - last_ts, 1) if last_ts else None
+        return JSONResponse({
+            "enabled":      True,
+            "connected":    bool(state.get("connected", False)),
+            "fresh":        fresh,
+            "staleness_sec": staleness,
+            "reconnects":   int(state.get("reconnects", 0)),
+            "last_error":   state.get("last_error"),
+            "balance_usdt": state.get("balance_usdt"),
+        })
+    except Exception as e:
+        return JSONResponse({"enabled": False, "connected": False,
+                             "error": str(e)[:200]})
 
 
 # ── Liquidation Heatmap (Plus/Pro) ─────────────────────────────────
@@ -3062,6 +3616,7 @@ async def ct_save_keys(request: Request, user: dict = Depends(require_tier("pro"
         leverage_mode=str(body.get('leverage_mode', 'auto')),
         sl_mode=str(body.get('sl_mode', 'signal')),
         sl_pct=float(body.get('sl_pct', 3.0)),
+        copy_experimental=bool(body.get('copy_experimental', False)),
     )
     if result.get('error'):
         return JSONResponse(result, status_code=400)
@@ -3111,6 +3666,7 @@ async def ct_update(request: Request, user: dict = Depends(require_tier("pro")))
     if 'leverage_mode' in body: kwargs['leverage_mode'] = str(body['leverage_mode'])
     if 'sl_mode' in body: kwargs['sl_mode'] = str(body['sl_mode'])
     if 'sl_pct' in body: kwargs['sl_pct'] = float(body['sl_pct'])
+    if 'copy_experimental' in body: kwargs['copy_experimental'] = bool(body['copy_experimental'])
     result = ct_update_settings(user['id'], **kwargs)
     if result.get('error'):
         return JSONResponse(result, status_code=400)
@@ -3889,36 +4445,35 @@ async def payment_cancel_page(order: str = ""):
 async def referral_landing(code: str):
     """
     Shareable referral URL with social OG preview cards.
-    Shows '20% off' messaging then redirects to /?ref=code.
+    Shows the current referral offer, then redirects to /?ref=code.
+    This route is a utility/share page and should not be indexed.
     """
     safe_code = code.strip().upper()[:12]
-    html = f"""<!DOCTYPE html>
+    html_doc = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
     <title>You've been invited to Anunnaki World Signals</title>
 
-    <!-- Open Graph — controls Telegram / Discord / Twitter previews -->
     <meta property="og:type"        content="website">
     <meta property="og:url"         content="https://anunnakiworld.com/ref/{safe_code}">
-    <meta property="og:title"       content="🎁 Get 20% Off — Anunnaki World Signals">
-    <meta property="og:description" content="You've been personally invited! Use this link to get 20% off your first subscription + 7 free bonus days. Institutional-grade AI crypto signals covering 200+ USDT perpetual pairs.">
+    <meta property="og:title"       content="🎁 Get 7 Bonus Days — Anunnaki World Signals">
+    <meta property="og:description" content="You've been personally invited. Create your account through this link and, after the first verified payment, both you and the referrer receive 7 bonus days.">
     <meta property="og:image"       content="https://anunnakiworld.com/static/logo.jpeg">
     <meta property="og:site_name"   content="Anunnaki World Signals">
 
-    <!-- Twitter Card -->
     <meta name="twitter:card"        content="summary">
-    <meta name="twitter:title"       content="🎁 Get 20% Off — Anunnaki World Signals">
-    <meta name="twitter:description" content="You've been personally invited! Use this link to get 20% off your first subscription + 7 free bonus days.">
+    <meta name="twitter:title"       content="🎁 Get 7 Bonus Days — Anunnaki World Signals">
+    <meta name="twitter:description" content="Join through this invite link and both accounts receive 7 bonus days after the first verified payment.">
     <meta name="twitter:image"       content="https://anunnakiworld.com/static/logo.jpeg">
 
-    <!-- Redirect after OG bots have had time to scrape -->
     <meta http-equiv="refresh" content="0;url=/?ref={safe_code}">
     <style>
         body {{ margin:0; background:#0d0d0f; color:#fff; font-family:Inter,sans-serif;
                display:flex; align-items:center; justify-content:center; height:100vh; }}
-        .card {{ text-align:center; max-width:420px; padding:40px 32px;
+        .card {{ text-align:center; max-width:460px; padding:40px 32px;
                  background:#141416; border:1px solid #2a2a2e; border-radius:16px; }}
         .logo {{ width:72px; height:72px; border-radius:14px; margin-bottom:20px; }}
         h1 {{ font-size:22px; margin:0 0 10px; }}
@@ -3936,14 +4491,12 @@ async def referral_landing(code: str):
         <img src="/static/logo.jpeg" alt="Anunnaki World" class="logo">
         <div class="badge">🎁 Special Invite</div>
         <h1>You've been invited!</h1>
-        <p>Claim <strong style="color:#fff">20% off your first subscription</strong>
-           plus <strong style="color:#fff">7 free bonus days</strong> on Anunnaki World Signals —
-           institutional-grade AI crypto signals covering 200+ USDT perpetual pairs.</p>
-        <a href="/?ref={safe_code}">Claim Your Discount →</a>
+        <p>Join Anunnaki World through this invite link. After your <strong style="color:#fff">first verified payment</strong>, both you and the referrer receive <strong style="color:#fff">7 bonus days</strong>.</p>
+        <a href="/?ref={safe_code}">Accept Invite →</a>
     </div>
 </body>
 </html>"""
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html_doc)
 
 
 # ── Referral Routes ──────────────────────────────────────────────────
@@ -4011,9 +4564,9 @@ def _count_all_signals_direct() -> int:
     con = sqlite3.connect(str(_SIGNAL_DB_PATH), timeout=3)
     try:
         con.row_factory = sqlite3.Row
-        n_open = con.execute("SELECT COUNT(*) FROM signals").fetchone()[0] or 0
+        n_open = con.execute("SELECT COUNT(*) FROM signals WHERE COALESCE(signal_tier,'production')='production'").fetchone()[0] or 0
         try:
-            n_arch = con.execute("SELECT COUNT(*) FROM archived_signals").fetchone()[0] or 0
+            n_arch = con.execute("SELECT COUNT(*) FROM archived_signals WHERE COALESCE(signal_tier,'production')='production'").fetchone()[0] or 0
         except sqlite3.Error:
             n_arch = 0
         return int(n_open) + int(n_arch)
@@ -4207,8 +4760,10 @@ async def api_stream_signals(request: Request):
         cutoff_old = time.time() - 7 * 86400  # show last 7 days on stream
         cur.execute(
             'SELECT signal_id, pair, signal, price, confidence, targets_json, '
-            'stop_loss, leverage, timestamp, status, pnl, targets_hit '
-            'FROM signals WHERE timestamp > ? ORDER BY timestamp DESC LIMIT 30',
+            'stop_loss, leverage, timestamp, status, pnl, targets_hit, signal_tier, zone_used '
+            "FROM signals WHERE timestamp > ? "
+            "AND COALESCE(signal_tier,'production') IN ('production','experimental') "
+            'ORDER BY timestamp DESC LIMIT 30',
             (cutoff_old,)
         )
         now = time.time()
@@ -4224,6 +4779,8 @@ async def api_stream_signals(request: Request):
                 "time_utc":  ts_utc.isoformat(),
                 "timestamp": row['timestamp'],
                 "locked":    locked,
+                "signal_tier": row['signal_tier'] or 'production',
+                "zone_used": row['zone_used'],
             }
             if locked:
                 # Redact EVERYTHING except pair + status + time
@@ -4279,6 +4836,128 @@ async def api_stream_config(request: Request):
         "server_time":     time.time(),
     })
 
+
+# ── Backtest aggregate stats for the stream view ──────────────────────
+# Cache: 5 min (data only changes when someone runs a new backtest)
+_BT_STREAM_CACHE: dict = {"ts": 0.0, "data": None}
+_BT_STREAM_TTL = 300.0
+
+
+def _get_bt_stream_stats() -> dict:
+    """Return the stats block from the single most-recent completed backtest
+    run across ALL users, for public display on the stream view.
+
+    Reads only `stats_json` from `backtests.db` — no user ID, no params,
+    no trade-level data is ever exposed.
+    """
+    try:
+        from backtest_engine import _bt_conn as _btc
+        c = _btc()
+        try:
+            row = c.execute(
+                "SELECT stats_json, created_at FROM backtest_runs "
+                "WHERE status='done' ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+        finally:
+            c.close()
+        if not row or not row["stats_json"]:
+            return {}
+        import json as _json
+        stats = _json.loads(row["stats_json"])
+        # Whitelist — only non-sensitive aggregate metrics
+        return {
+            "trades":           int(stats.get("trades", 0)),
+            "wins":             int(stats.get("wins", 0)),
+            "losses":           int(stats.get("losses", 0)),
+            "win_rate":         float(stats.get("win_rate", 0)),
+            "profit_factor":    float(stats.get("profit_factor", 0)),
+            "net_pnl_pct":      float(stats.get("net_pnl_pct", 0)),
+            "max_drawdown_pct": float(stats.get("max_drawdown_pct", 0)),
+            "sharpe":           float(stats.get("sharpe", 0)),
+            "sortino":          float(stats.get("sortino", 0)),
+            "run_at":           float(row["created_at"] or 0),
+        }
+    except Exception:
+        return {}
+
+
+@app.get("/api/stream/backtest")
+async def api_stream_backtest(request: Request):
+    """Public aggregate backtest stats for the stream view.
+
+    Returns stats from the most recently completed backtest run — no
+    user-identifying data, no trade-level details, no parameters.
+    Cached 5 min server-side; safe to call on every stream poll cycle.
+    """
+    _stream_guard(request)
+    now = time.time()
+    if _BT_STREAM_CACHE["data"] and (now - _BT_STREAM_CACHE["ts"]) < _BT_STREAM_TTL:
+        return JSONResponse(_BT_STREAM_CACHE["data"])
+    data = await asyncio.to_thread(_get_bt_stream_stats)
+    _BT_STREAM_CACHE["data"] = data
+    _BT_STREAM_CACHE["ts"]   = now
+    return JSONResponse(data)
+
+
+@app.get("/api/charts/ohlcv")
+async def api_charts_ohlcv(
+    symbol: str = "BTCUSDT",
+    interval: str = "1h",
+    limit: int = 120,
+    user: Optional[dict] = Depends(get_current_user),
+):
+    """Proxy Binance spot klines for the mobile Charts page. Requires Plus+."""
+    if not user:
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+    if not (check_is_admin(user) or TIERS.get(user.get('_effective_tier', user.get('tier', 'free')), 0) >= TIERS.get('plus', 1)):
+        return JSONResponse({"error": "Plus plan required"}, status_code=403)
+    symbol = symbol.upper().strip()
+    ALLOWED_INTERVALS = {"1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w"}
+    if interval not in ALLOWED_INTERVALS:
+        interval = "1h"
+    limit = max(10, min(500, limit))
+    try:
+        import requests as _req
+        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+        resp = await asyncio.to_thread(_req.get, url, timeout=8)
+        if resp.status_code != 200:
+            return JSONResponse({"candles": [], "error": f"Binance {resp.status_code}"}, status_code=200)
+        raw = resp.json()
+        candles = [
+            {
+                "time":   int(k[0]),
+                "open":   float(k[1]),
+                "high":   float(k[2]),
+                "low":    float(k[3]),
+                "close":  float(k[4]),
+                "volume": float(k[5]),
+            }
+            for k in raw
+        ]
+        return JSONResponse({"candles": candles, "symbol": symbol, "interval": interval})
+    except Exception as exc:
+        return JSONResponse({"candles": [], "error": str(exc)}, status_code=200)
+
+
+@app.get("/mobile", response_class=HTMLResponse)
+@app.get("/mobile/{path:path}", response_class=HTMLResponse)
+async def mobile_app(path: str = ""):
+    """Serve the React mobile app. All sub-routes return index.html (SPA)."""
+    mobile_index = Path(__file__).parent.parent / "mobile" / "dist" / "index.html"
+    if not mobile_index.exists():
+        return HTMLResponse(content="<h1>Mobile app not built yet. Run: cd mobile && npm run build</h1>", status_code=503)
+    html = mobile_index.read_text()
+    if "<head>" in html:
+        html = html.replace("<head>", '<head>\n    <meta name="robots" content="noindex,nofollow">')
+    return HTMLResponse(content=html, status_code=200)
+
+
+@app.get("/{path:path}")
+async def catch_all_pairs(path: str):
+    path_lower = path.lower()
+    if path_lower.endswith("usdt") and "/" not in path:
+        return RedirectResponse(url=f"/signals/{path_lower}")
+    raise HTTPException(status_code=404, detail="Not Found")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8050, log_level="info")

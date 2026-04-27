@@ -35,7 +35,11 @@ import websockets
 from utils_logger import log_message
 
 
-_WS_URL          = "wss://fstream.binance.com/stream?streams=!markPrice@arr@1s/!bookTicker"
+# Binance split futures WS endpoints into /public and /market categories;
+# !markPrice@arr@1s lives on /market, !bookTicker lives on /public, so we
+# run two concurrent connections.
+_WS_MARKPRICE_URL = "wss://fstream.binance.com/market/stream?streams=!markPrice@arr@1s"
+_WS_BOOKTICKER_URL = "wss://fstream.binance.com/public/stream?streams=!bookTicker"
 _RECONNECT_BASE  = 2
 _RECONNECT_MAX   = 60
 _DEFAULT_MAX_AGE = 10.0   # seconds — after this, a cached entry is "stale"
@@ -45,8 +49,18 @@ class LivePriceFeed:
     """Singleton — import LIVE_FEED, start once with asyncio.create_task(LIVE_FEED.run())."""
 
     def __init__(self):
-        self._mark: dict = {}      # pair → {mark, index, ts}
+        # mark dict carries: mark, index, funding_rate, next_funding_ts, ts.
+        # The funding fields come for free in markPrice@arr@1s — capturing them
+        # here eliminates a per-pair-per-cycle REST call to futures_funding_rate.
+        self._mark: dict = {}      # pair → {mark, index, funding_rate, next_funding_ts, ts}
         self._book: dict = {}      # pair → {bid, ask, bid_qty, ask_qty, ts}
+        # Per-pair funding-rate history (rolling deque). Appended when we
+        # observe a new settlement (next_funding_ts advances). Deeper history
+        # than this still falls back to REST.
+        from collections import deque as _deque
+        self._funding_history: dict = {}    # pair → deque[(ts, rate)]
+        self._FUNDING_HIST_MAX = 30          # ~10 days @ 8h cadence
+        self._deque = _deque
         self.running = False
         self._msgs_rx = 0
         self._last_log = 0
@@ -81,6 +95,26 @@ class LivePriceFeed:
     def is_fresh(self, pair: str, max_age_s: float = _DEFAULT_MAX_AGE) -> bool:
         return self.get(pair, max_age_s) is not None
 
+    def get_funding_rate(self, pair: str, max_age_s: float = 30.0):
+        """Return (rate, next_funding_ts_ms) from WS markPrice@1s, or None if
+        not yet observed / stale. Callers can fall back to REST on None."""
+        m = self._mark.get(pair)
+        if not m:
+            return None
+        if time.time() - m['ts'] > max_age_s:
+            return None
+        return (m.get('funding_rate', 0.0), m.get('next_funding_ts', 0))
+
+    def get_funding_history(self, pair: str, limit: int = 10):
+        """Return list[(funding_ts_ms, rate)] of the last `limit` settlements
+        observed via WS. May be shorter than `limit` if uptime is short.
+        Callers should fall back to REST when this returns fewer than `limit`."""
+        hist = self._funding_history.get(pair)
+        if not hist:
+            return []
+        # Most-recent last → return newest `limit` items
+        return list(hist)[-limit:]
+
     def stats(self) -> dict:
         return {
             'mark_symbols': len(self._mark),
@@ -94,13 +128,24 @@ class LivePriceFeed:
     # ── WebSocket loop ──────────────────────────────────────────────────────
 
     async def run(self):
-        """Main loop — opens WS, updates caches, auto-reconnects on drop."""
+        """Main loop — spawns one task per WS endpoint (/market + /public).
+        Cross-category subscriptions are no longer allowed on the new
+        Binance futures WS endpoints, so markPrice and bookTicker run on
+        separate connections."""
         self.running = True
+        await asyncio.gather(
+            self._run_one(_WS_MARKPRICE_URL,  "markPrice@arr@1s"),
+            self._run_one(_WS_BOOKTICKER_URL, "!bookTicker"),
+            return_exceptions=True,
+        )
+
+    async def _run_one(self, url: str, label: str):
+        """Run a single WS connection with reconnect/backoff."""
         delay = _RECONNECT_BASE
         while self.running:
             try:
                 async with websockets.connect(
-                    _WS_URL,
+                    url,
                     ping_interval=20,
                     ping_timeout=10,
                     close_timeout=5,
@@ -109,7 +154,7 @@ class LivePriceFeed:
                     open_timeout=15,
                 ) as ws:
                     delay = _RECONNECT_BASE
-                    log_message("✅ LivePriceFeed connected (markPrice@1s + bookTicker)")
+                    log_message(f"✅ LivePriceFeed connected ({label})")
                     async for raw in ws:
                         if not self.running:
                             return
@@ -121,16 +166,42 @@ class LivePriceFeed:
                             self._msgs_rx += 1
 
                             if stream.startswith('!markPrice'):
-                                # Aggregate stream: data is a list of per-symbol dicts
+                                # Aggregate stream: data is a list of per-symbol dicts.
+                                # Each item has: e, E, s, p (mark), i (index),
+                                # P (estSettle), r (funding rate), T (next funding ms).
                                 if isinstance(data, list):
                                     for d in data:
                                         s = d.get('s')
                                         if not s:
                                             continue
+                                        try:
+                                            new_funding = float(d.get('r') or 0)
+                                        except Exception:
+                                            new_funding = 0.0
+                                        try:
+                                            next_T = int(d.get('T') or 0)
+                                        except Exception:
+                                            next_T = 0
+
+                                        prev = self._mark.get(s)
+                                        # Detect funding settlement: next_funding_ts advanced
+                                        # past the previously-known one → append the OLD rate
+                                        # to history (it's now "the rate that just settled").
+                                        if prev:
+                                            prev_T = prev.get('next_funding_ts') or 0
+                                            if next_T and prev_T and next_T > prev_T:
+                                                hist = self._funding_history.get(s)
+                                                if hist is None:
+                                                    hist = self._deque(maxlen=self._FUNDING_HIST_MAX)
+                                                    self._funding_history[s] = hist
+                                                hist.append((prev_T, prev.get('funding_rate', 0.0)))
+
                                         self._mark[s] = {
-                                            'mark':  float(d.get('p') or 0),
-                                            'index': float(d.get('i') or 0),
-                                            'ts':    now,
+                                            'mark':            float(d.get('p') or 0),
+                                            'index':           float(d.get('i') or 0),
+                                            'funding_rate':    new_funding,
+                                            'next_funding_ts': next_T,
+                                            'ts':              now,
                                         }
                             else:
                                 # !bookTicker: one symbol per message

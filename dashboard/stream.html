@@ -3,6 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=1920">
+  <style>
+    /* ── Backtest panel extra rules ──────────────────────────── */
+    .sv-main { grid-template-columns: 0.85fr 1.3fr 0.85fr 0.85fr !important; }
+    .sv-bt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .sv-bt-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--sv-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .sv-bt-val {
+      font-size: 22px;
+      font-weight: 900;
+      font-family: 'SF Mono', Monaco, monospace;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .sv-bt-lbl {
+      font-size: 10px;
+      color: var(--sv-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .sv-bt-pos  { color: var(--sv-green); }
+    .sv-bt-neg  { color: var(--sv-red); }
+    .sv-bt-gold { color: var(--sv-gold); }
+    .sv-bt-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.25);
+      border-radius: 20px;
+      font-size: 11px; font-weight: 700;
+      padding: 4px 12px;
+      color: var(--sv-green);
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+    .sv-bt-pill .dot { width:7px; height:7px; border-radius:50%;
+      background:var(--sv-green); box-shadow:0 0 8px var(--sv-green);
+      animation: sv-pulse 1.8s infinite; }
+    .sv-bt-empty {
+      text-align:center; color:var(--sv-dim);
+      padding: 30px 10px; font-size:12px;
+    }
+    .sv-bt-footer {
+      font-size: 10px; color: var(--sv-dim);
+      text-align: center; margin-top: 8px;
+      padding-top: 8px; border-top: 1px solid var(--sv-border);
+    }
+  </style>
   <title>Anunnaki World Signals — Live Stream View</title>
   <link rel="icon" href="/static/logo.jpeg">
   <link rel="stylesheet" href="/static/css/stream.css?v=2">
@@ -74,6 +130,18 @@
     </div>
     <div class="sv-ps-grid" id="sv-ps-grid">
       <div class="sv-ps-empty">No pairs in extreme zones right now.</div>
+    </div>
+  </section>
+
+  <!-- ═══ NEW: BACKTEST PERFORMANCE ═══ -->
+  <section class="sv-panel sv-backtest">
+    <div class="sv-panel-head">
+      <span class="sv-panel-icon">📈</span>
+      <span class="sv-panel-title">Backtest</span>
+      <span class="sv-panel-sub">Engine performance</span>
+    </div>
+    <div id="sv-bt-body">
+      <div class="sv-bt-empty">Loading…</div>
     </div>
   </section>
 
@@ -291,9 +359,64 @@
   // Re-render feed every second for countdown updates
   setInterval(renderFeed, 1000);
 
+  // ── Backtest panel ─────────────────────────────────────────
+  async function refreshBacktest() {
+    const d = await fetchJSON('/api/stream/backtest' + (KEY_Q || ''));
+    const host = $('sv-bt-body');
+    if (!host) return;
+    if (!d || !d.trades) {
+      host.innerHTML = '<div class="sv-bt-empty">No backtest data available yet.</div>';
+      return;
+    }
+    const wr   = (d.win_rate   || 0).toFixed(1);
+    const pf   = (d.profit_factor || 0).toFixed(2);
+    const sh   = (d.sharpe      || 0).toFixed(2);
+    const dd   = (d.max_drawdown_pct || 0).toFixed(1);
+    const pnl  = (d.net_pnl_pct     || 0).toFixed(1);
+    const pnlPos = (d.net_pnl_pct || 0) >= 0;
+    const pfPos  = (d.profit_factor || 0) >= 1;
+
+    // Format run_at date
+    let runDate = '';
+    if (d.run_at) {
+      const dt = new Date(d.run_at * 1000);
+      runDate = dt.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+    }
+
+    host.innerHTML = `
+<div class="sv-bt-pill"><span class="dot"></span>BACKTEST ENGINE LIVE</div>
+<div class="sv-bt-grid">
+  <div class="sv-bt-card">
+    <div class="sv-bt-val ${pnlPos ? 'sv-bt-pos' : 'sv-bt-neg'}">${pnlPos ? '+' : ''}${pnl}%</div>
+    <div class="sv-bt-lbl">Net PnL</div>
+  </div>
+  <div class="sv-bt-card">
+    <div class="sv-bt-val sv-bt-gold">${wr}%</div>
+    <div class="sv-bt-lbl">Win Rate</div>
+  </div>
+  <div class="sv-bt-card">
+    <div class="sv-bt-val ${pfPos ? 'sv-bt-pos' : 'sv-bt-neg'}">${pf}</div>
+    <div class="sv-bt-lbl">Profit Factor</div>
+  </div>
+  <div class="sv-bt-card">
+    <div class="sv-bt-val sv-bt-neg">-${dd}%</div>
+    <div class="sv-bt-lbl">Max Drawdown</div>
+  </div>
+  <div class="sv-bt-card">
+    <div class="sv-bt-val" style="color:var(--sv-accent)">${sh}</div>
+    <div class="sv-bt-lbl">Sharpe Ratio</div>
+  </div>
+  <div class="sv-bt-card">
+    <div class="sv-bt-val sv-bt-gold">${(d.trades || 0).toLocaleString()}</div>
+    <div class="sv-bt-lbl">Signals Replayed</div>
+  </div>
+</div>
+<div class="sv-bt-footer">Actual PnL mode · Real Binance signal history${runDate ? ` · Run ${runDate}` : ''}</div>`;
+  }
+
   // ── Polling ────────────────────────────────────────────────
   async function refreshAll() {
-    await Promise.all([refreshStats(), refreshZones(), refreshPresignals(), refreshFeed()]);
+    await Promise.all([refreshStats(), refreshZones(), refreshPresignals(), refreshFeed(), refreshBacktest()]);
   }
 
   (async () => {
@@ -303,6 +426,7 @@
     setInterval(refreshZones,      15_000);  // zones: 15s
     setInterval(refreshPresignals, 15_000);  // presignals: 15s
     setInterval(refreshFeed,       20_000);  // feed: 20s
+    setInterval(refreshBacktest,  300_000);  // backtest: 5 min (matches server cache)
   })();
 })();
 </script>

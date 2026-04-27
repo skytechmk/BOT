@@ -364,28 +364,57 @@
       return;
     }
 
+    const isReboot = (m.kind === 'reboot');
+    // Reboot mode: cyan/blue palette, reassuring tone.
+    // Generic maintenance: red/pink palette (legacy).
+    const bgGradient = isReboot
+      ? 'linear-gradient(90deg, #00b4d8, #0077b6)'
+      : 'linear-gradient(90deg, #ff6b85, #d8364e)';
+
     if (!el) {
       el = document.createElement('div');
       el.id = 'awd-maintenance-banner';
       el.style.cssText = `
         position: sticky; top: 0; z-index: 9999;
-        background: linear-gradient(90deg, #ff6b85, #d8364e);
         color: white; text-align: center;
         font-size: 13px; font-weight: 600; letter-spacing: .02em;
         box-shadow: 0 2px 8px rgba(0,0,0,.3);
         overflow: hidden; max-height: 0; opacity: 0; padding: 0 18px;
-        transition: max-height .4s ease, opacity .4s ease, padding .4s ease;
+        transition: max-height .5s ease, opacity .5s ease, padding .5s ease, background .3s ease;
       `;
       document.body.insertBefore(el, document.body.firstChild);
     }
+    // Update palette every render (kind may change live without refresh)
+    el.style.background = bgGradient;
 
-    el.innerHTML = `🛠️ ${escape(m.message || 'Platform under maintenance — copy-trading paused.')}`;
+    if (isReboot) {
+      // Two-line richer banner with safety reassurance + ETA
+      const eta = m.eta_minutes && m.eta_minutes > 0
+        ? `${m.eta_minutes} min`
+        : '5–10 min';
+      el.innerHTML =
+        `<div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;line-height:1.5">` +
+          `<span style="font-size:18px">�</span>` +
+          `<div style="text-align:left">` +
+            `<div style="font-weight:800;letter-spacing:.04em;text-transform:uppercase;font-size:11px;opacity:.85">` +
+              `Scheduled Reboot · back online in ${escape(eta)}` +
+            `</div>` +
+            `<div style="font-weight:600;font-size:13px;margin-top:2px">` +
+              `🔒 Open positions remain safe on Binance · ` +
+              `📈 Copy-trading and signal monitoring will resume automatically` +
+            `</div>` +
+          `</div>` +
+        `</div>`;
+    } else {
+      el.innerHTML = `�️ ${escape(m.message || 'Platform under maintenance — copy-trading paused.')}`;
+    }
+
     el.hidden = false;
     // Trigger slide-down on next frame
     requestAnimationFrame(() => {
-      el.style.maxHeight = '60px';
+      el.style.maxHeight = isReboot ? '90px' : '60px';
       el.style.opacity   = '1';
-      el.style.padding   = '10px 18px';
+      el.style.padding   = isReboot ? '12px 18px' : '10px 18px';
     });
   }
 
@@ -400,8 +429,9 @@
     fetchSiteMeta();
   }
 
-  // Re-poll every 15s — banner appears within 15s of admin toggling, no refresh needed
-  setInterval(fetchSiteMeta, 15 * 1000);
+  // Re-poll every 5s — banner appears within ~5s of admin toggling, no refresh needed.
+  // 5s is the sweet spot between bandwidth (tiny GET, ~300 bytes) and UX immediacy.
+  setInterval(fetchSiteMeta, 5 * 1000);
 
   // Instant update when user tabs back in or window regains focus
   document.addEventListener('visibilitychange', () => {

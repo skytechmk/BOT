@@ -118,7 +118,7 @@ class RealTimeSignalMonitor:
     async def start_pair_websocket(self, pair: str):
         """Start WebSocket connection for a specific pair with enhanced timeout handling"""
         stream_name = f"{pair.lower()}@ticker"
-        uri = f"wss://fstream.binance.com/ws/{stream_name}"  # Use futures WebSocket
+        uri = f"wss://fstream.binance.com/market/ws/{stream_name}"  # Use futures WebSocket (split endpoint)
         
         reconnect_attempts = 0
         max_attempts = 3  # Reduced max attempts

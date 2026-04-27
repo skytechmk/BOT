@@ -47,9 +47,11 @@ async function checkAuth() {
             const data = await res.json();
             _user = data.user;
             _tier = _user.tier;
+            document.cookie = "aladdin_token=" + _token + "; path=/; max-age=604800; SameSite=Lax";
         } else {
             _token = null; _user = null; _tier = 'free';
             localStorage.removeItem('aladdin_token');
+            document.cookie = "aladdin_token=; path=/; max-age=0";
         }
     } catch(e) { _tier = 'free'; }
     updateUI();
@@ -115,6 +117,24 @@ function updateUI() {
     // Manual overlay
     const manualOverlay = document.getElementById('manual-lock-overlay');
     if (manualOverlay) manualOverlay.style.display = _tier === 'free' ? 'flex' : 'none';
+    // Lab tab — admin only. Same gating model as Admin: REMOVE from DOM for
+    // non-admins, lazy-load lab.js only for admins.
+    const labNav = document.getElementById('nav-lab');
+    if (labNav) {
+        if (_user && _user.is_admin) {
+            labNav.style.display = '';
+            if (!document.getElementById('lab-js-loaded')) {
+                const s = document.createElement('script');
+                s.id = 'lab-js-loaded';
+                s.src = '/static/js/lab.js?v=20260425b';
+                document.head.appendChild(s);
+            }
+        } else {
+            labNav.remove();
+            const labPage = document.getElementById('page-lab');
+            if (labPage) labPage.remove();
+        }
+    }
     // Admin tab — completely REMOVE from DOM for non-admins (professional
     // optics: no `display:none` artefact visible to curious users via
     // devtools). Also lazy-load admin.js only for admins so non-admin
@@ -128,7 +148,7 @@ function updateUI() {
             if (!document.getElementById('admin-js-loaded')) {
                 const s = document.createElement('script');
                 s.id = 'admin-js-loaded';
-                s.src = '/static/js/admin.js?v=20260424-gated';
+                s.src = '/static/js/admin.js?v=20260425-reboot';
                 document.head.appendChild(s);
             }
         } else {
@@ -289,6 +309,7 @@ async function submitAuth() {
             _user = data.user;
             _tier = _user.tier;
             localStorage.setItem('aladdin_token', _token);
+            document.cookie = "aladdin_token=" + _token + "; path=/; max-age=604800; SameSite=Lax";
             closeModals();
             updateUI();
             loadMonitored();
@@ -309,6 +330,7 @@ async function submitAuth() {
 function logout() {
     _token = null; _user = null; _tier = 'free';
     localStorage.removeItem('aladdin_token');
+    document.cookie = "aladdin_token=; path=/; max-age=0";
     updateUI(); switchPage('overview');
     loadMonitored(); loadSignals();
 }
@@ -359,6 +381,7 @@ function switchPage(page) {
     if (page === 'copytrading') loadCopyTradingPage();
     else if (typeof stopCTBalancePolling === 'function') stopCTBalancePolling();
     if (page === 'backtest' && typeof loadBacktestPage === 'function') loadBacktestPage();
+    if (page === 'lab' && typeof loadLabPage === 'function') loadLabPage();
     if (page === 'refer') loadReferralPage();
     // manual page — show/hide lock overlay based on tier
     if (page === 'manual') {

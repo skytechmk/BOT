@@ -107,6 +107,50 @@ _CYCLE_LOCK = asyncio.Lock()
 _LAST_BAR_TS_EVALUATED: dict = {}   # pair -> int ms timestamp of last-evaluated 1h bar
 _BAR_DEDUP_LOCK = asyncio.Lock()
 
+# ── RH Signal Tier Classification ─────────────────────────────────────
+# The Reverse Hunt state machine has one clean primary path and 6 short-circuit
+# fallback paths. Only the clean path is "production" — public Telegram + copy
+# trade. All others are "experimental" — admin-only Lab Signals tab in the
+# dashboard, no Telegram, no copy trade.
+#
+# Production zones:
+#   OS_L2_ARMED   — full TSI sequence (L1→L2→recovery→exit L1) + fresh CE flip
+#   OB_L2_ARMED   — same, overbought side
+#   TV_SIGNAL     — manual TradingView override (operator-driven)
+#
+# Experimental zones (the bypass paths flagged in the audit):
+#   *_ARMED_IMM       — retroactive CE flip caught at arming
+#   PROLONGED_*       — fired from L2 directly after extreme-bar threshold
+#   EXTREME_*_L2      — V-bottom catcher, no state-machine progression
+#   CE_MOMENTUM_*     — pure momentum breakout, TSI may be neutral
+#   PERSISTENT_*_L2   — late persistent fallback in process_pair
+#   LATE_*            — legacy late-entry tags
+_PRODUCTION_ZONES = frozenset({'OS_L2_ARMED', 'OB_L2_ARMED', 'TV_SIGNAL'})
+
+try:
+    from trading_session_manager import SESSION as _TRADING_SESSION
+except Exception:
+    _TRADING_SESSION = None
+
+def _classify_signal_tier(zone_used: str, pair: str | None = None) -> str:
+    """Return 'production' for the clean RH ARMED path, 'experimental' otherwise.
+
+    Additional gate: if the pair is a TradFi perp (equity / commodity
+    underlying) and that underlying market is NOT in REGULAR session,
+    force tier='experimental' regardless of zone. We don't want signals
+    from synthetic-liquidity weekends/after-hours reaching subscribers.
+    """
+    if not zone_used:
+        return 'experimental'   # safer default — unknown zones don't broadcast
+    base_tier = 'production' if zone_used in _PRODUCTION_ZONES else 'experimental'
+    if base_tier == 'production' and pair and _TRADING_SESSION is not None:
+        try:
+            if _TRADING_SESSION.is_tradfi(pair) and not _TRADING_SESSION.is_underlying_active(pair):
+                return 'experimental'
+        except Exception:
+            pass
+    return base_tier
+
 async def process_pair(pair, timeframe='1h', tv_override=None):
     """
     REVERSE HUNT Strategy — TSI + CE signal pipeline.
@@ -122,6 +166,15 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
     # ── Permanent Manual Blacklist ─────────────────────────────────────
     if pair in MANUAL_BLACKLIST:
         return
+
+    # ── Delisted-Contract Live Skip (via !contractInfo stream) ─────────
+    # Avoids the "Invalid symbol" REST 400s when a pair was just delisted.
+    try:
+        from contract_info_listener import CONTRACT_INFO as _CI
+        if _CI.is_delisted(pair):
+            return
+    except Exception:
+        pass
 
     # ── Equity-Perp Market-Hours Gate ──────────────────────────────────
     # Binance lists perps for US stocks / ETFs whose underlying market is
@@ -878,6 +931,37 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
             except Exception as _fk_err:
                 log_message(f"[entry_guard] 1m fallback check skipped for {pair}: {_fk_err}")
 
+        # ── Meta-Labeler Gating (Phase 4) ─────────────────────────────────
+        if os.getenv('ML_USE_META_LABELER', 'true').lower() == 'true':
+            try:
+                from ml_engine_archive.meta_labeler import get_meta_labeler
+                _ml_factor = sqi_result['factors'].get('ml_ensemble', {})
+                _raw_feat = _ml_factor.get('_raw_features_array')
+                if _raw_feat is not None:
+                    meta = get_meta_labeler()
+                    p_win = meta.predict_proba(_raw_feat)
+                    
+                    # We need the feature_snapshot dict for logging, so build it early
+                    feature_snapshot = {}
+                    for k, v in df_1h.iloc[-1].to_dict().items():
+                        if isinstance(v, (np.integer, np.floating)): v = float(v)
+                        if isinstance(v, (int, float, bool, str)) and len(str(v)) < 100:
+                            feature_snapshot[k] = v
+                    feature_snapshot['sqi_score'] = sqi_score
+                    
+                    # Ensure confidence value exists
+                    ml_conf = float(_ml_factor.get('probs_calibrated', [0,0,0])[2 if final_signal == 'LONG' else 0]) if 'probs_calibrated' in _ml_factor else 0.5
+                    
+                    meta.log_prediction(pair, final_signal, p_win, ml_conf, feature_snapshot)
+                    
+                    if not meta.should_accept(p_win):
+                        log_message(f"🚫 Signal Rejected for {pair}: Meta-labeler veto (p_win={p_win:.3f} < {meta.threshold})")
+                        return
+                    else:
+                        log_message(f"🧠 Meta-Labeler [{pair}]: Approved (p_win={p_win:.3f})")
+            except Exception as meta_e:
+                log_message(f"[meta_labeler] error: {meta_e}")
+
         # ── Build Telegram message (after all guards so drift flag is final) ──
         _drift_banner = (
             f"\n⚠️ ENTRY DRIFT ALERT: Price moved {drift_pct:.1f}% from candle close."
@@ -901,16 +985,26 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
             f"\n\nDeveloped & hosted by skytech.mk"
         )
 
-        # ── Atomic cycle-cap reservation (race-safe) ──────────────────
-        # Under async concurrency with Semaphore(15), multiple pairs can pass the
-        # optimistic pre-check simultaneously. Serialize the commit path with a lock.
+        # ── Tier classification ────────────────────────────────────────
+        # Only the clean ARMED path is "production" (public TG + copy-trade).
+        # The 6 short-circuit RH paths are routed to the admin-only Lab tab.
+        _zone_used = rh_indicators.get('tsi_zone')
+        signal_tier = _classify_signal_tier(_zone_used, pair)
+
+        if signal_tier == 'experimental':
+            msg = msg.replace(
+                "— ALADDIN INSIGHTS —\n",
+                f"— ALADDIN INSIGHTS —\n"
+                f"🧪 EXPERIMENTAL SIGNAL | Path: {_zone_used} | Opt-in copy-trading only\n",
+                1,
+            )
+
         async with _CYCLE_LOCK:
             if _CYCLE_SIGNALS_SENT >= CYCLE_SIGNAL_LIMIT:
                 log_message(f"🚫 Cycle cap reached ({CYCLE_SIGNAL_LIMIT} signals this scan) — {pair} dropped at commit gate")
                 return
             _CYCLE_SIGNALS_SENT += 1  # Reserve slot BEFORE send to prevent burst
 
-        # Re-enabled: Automatic signal broadcasts to Telegram
         try:
             msg_id = await asyncio.wait_for(send_telegram_message(msg), timeout=15.0)
         except asyncio.TimeoutError:
@@ -919,19 +1013,26 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
             log_message(f"⏱️ Telegram send timeout (15s) for {pair} — signal slot released")
             return
 
-        # Post-send Housekeeping
         increment_daily_signal_count()
         PAIR_COOLDOWN.record_signal(pair)  # P0 Fix: was never called, cooldown was broken
+
+        if signal_tier == 'experimental':
+            log_message(
+                f"🧪 EXPERIMENTAL SIGNAL BROADCAST [{pair}]: {final_signal} | "
+                f"Zone={_zone_used} | SQI={sqi_score} | Telegram sent | "
+                f"copy-trade opt-in only"
+            )
         
         # Capture features for learning
         # BUG FIX: numpy.float64/int64 fail isinstance(v,(int,float)) → features_json was always empty.
         # Convert numpy scalars to native Python types before filtering.
-        feature_snapshot = {}
-        for k, v in df_1h.iloc[-1].to_dict().items():
-            if isinstance(v, (np.integer, np.floating)):
-                v = float(v)
-            if isinstance(v, (int, float, bool, str)) and len(str(v)) < 100:
-                feature_snapshot[k] = v
+        if 'feature_snapshot' not in locals():
+            feature_snapshot = {}
+            for k, v in df_1h.iloc[-1].to_dict().items():
+                if isinstance(v, (np.integer, np.floating)):
+                    v = float(v)
+                if isinstance(v, (int, float, bool, str)) and len(str(v)) < 100:
+                    feature_snapshot[k] = v
 
         # Enrich with SQI v2 + PREDATOR data for analytics attribution
         feature_snapshot['sqi_score'] = sqi_score
@@ -1020,9 +1121,30 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
             except Exception:
                 pass
 
-        register_signal(signal_id, pair, final_signal, current_price, adj_confidence, targets, stop_loss, leverage_val, features=feature_snapshot, telegram_message_id=msg_id)
+        # Order-book features (collected for analysis; not yet used as gates).
+        try:
+            from orderbook_manager import ORDERBOOK as _OB
+            _obf = _OB.features_for(pair)
+            if _obf:
+                feature_snapshot['ob_imbalance']     = _obf['imbalance']
+                feature_snapshot['ob_spread_bps']    = _obf['spread_bps']
+                feature_snapshot['ob_bid_depth_usd'] = _obf['bid_depth_usd']
+                feature_snapshot['ob_ask_depth_usd'] = _obf['ask_depth_usd']
+        except Exception:
+            pass
 
-        # ── Copy-Trading: Execute for all active Pro+ users ────────────
+        # Tag tier + zone in feature snapshot (also stored as top-level columns).
+        feature_snapshot['signal_tier'] = signal_tier
+        feature_snapshot['zone_used']   = _zone_used
+
+        register_signal(
+            signal_id, pair, final_signal, current_price, adj_confidence,
+            targets, stop_loss, leverage_val, features=feature_snapshot,
+            telegram_message_id=msg_id,
+            signal_tier=signal_tier, zone_used=_zone_used,
+        )
+
+        # ── Copy-Trading: production by default; experimental requires user opt-in.
         if _COPY_TRADING_AVAILABLE:
             try:
                 await _execute_copy_trades({
@@ -1032,6 +1154,8 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
                     'leverage': leverage_val,
                     'sqi_score': sqi_score,
                     'sqi_grade': sqi_grade,
+                    'signal_tier': signal_tier,
+                    'zone_used': _zone_used,
                 })
             except Exception as _ct_exc:
                 log_message(f"[copy_trading] execution error: {_ct_exc}")
@@ -1140,7 +1264,8 @@ async def main_async():
             await send_ops_message("🤖 **ML Auto-Retrain Started**\nTraining BiLSTM+TFT+XGBoost+LightGBM ensemble in background (this takes ~20min).")
             proc = await asyncio.create_subprocess_exec(
                 "/root/miniconda3/bin/python3", "-m", "ml_engine_archive.train",
-                "--skip-download", "--epochs", "25", "--pairs", "20",
+                "--skip-download", "--epochs", "50", "--months", "36",
+                "--chunk-size", "30", "--resume-checkpoint",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 cwd="/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA",
@@ -1157,6 +1282,26 @@ async def main_async():
             log_message("⚠️ ML Auto-Retrain: exceeded 2h timeout, killed")
         except Exception as _mle:
             log_message(f"⚠️ ML Auto-Retrain error: {_mle}")
+
+    async def _check_meta_labeler_promotion():
+        """Periodically check if meta-labeler has enough data to train."""
+        try:
+            from ml_engine_archive.meta_labeler import get_meta_labeler, train_from_shadow_log
+            meta = get_meta_labeler()
+            stats = meta.get_shadow_stats()
+            min_outcomes = int(os.getenv('ML_META_LABELER_MIN_OUTCOMES', '200'))
+            
+            if stats.get('with_outcome', 0) >= min_outcomes and meta._is_shadow:
+                log_message(f"🏋️ Meta-labeler has {stats['with_outcome']} outcomes — auto-training...")
+                trained = await asyncio.to_thread(train_from_shadow_log, min_samples=min_outcomes)
+                if trained:
+                    await send_ops_message(
+                        f"🤖 **Meta-Labeler Trained**\n"
+                        f"AUC on val set. {stats['with_outcome']} outcomes used.\n"
+                        f"Shadow mode still active — set ML_META_LABELER_SHADOW=false to enable gating."
+                    )
+        except Exception as e:
+            log_message(f"Error checking meta-labeler promotion: {e}")
 
     # ── TradingView Signal Queue Processor ─────────────────────────────────────
     _TV_ALERTS_DB = os.path.join(os.path.dirname(__file__), 'tv_alerts.db')
@@ -1344,6 +1489,47 @@ async def main_async():
 
                 asyncio.create_task(LIVE_FEED.run())
                 log_message("🚀 LivePriceFeed started (markPrice@1s + bookTicker) — all symbols")
+
+                # Trading-session manager: tracks U.S. equity / commodity session
+                # status for TradFi-perp underlyings. Used by _classify_signal_tier
+                # to suppress signals during NO_TRADING / OVERNIGHT etc.
+                try:
+                    from trading_session_manager import SESSION as _SESSION_MGR
+                    asyncio.create_task(_SESSION_MGR.run())
+                    log_message("🚀 TradingSessionManager started (TradFi underlying gating)")
+                except Exception as _ex:
+                    log_message(f"⚠️ TradingSessionManager could not start: {_ex!r}")
+
+                # Contract info listener: real-time list/delist/leverage events.
+                try:
+                    from contract_info_listener import CONTRACT_INFO as _CONTRACT_INFO
+                    asyncio.create_task(_CONTRACT_INFO.run())
+                    log_message("🚀 ContractInfoListener started (list/delist/bracket updates)")
+                except Exception as _ex:
+                    log_message(f"⚠️ ContractInfoListener could not start: {_ex!r}")
+
+                # Order-book manager: top-20 depth + derived features
+                # (imbalance, spread_bps, depth_usd) for the top-50 pairs.
+                # Features are collected into feature_snapshot but not yet used
+                # as gates — this is the data-collection phase.
+                try:
+                    from orderbook_manager import ORDERBOOK as _ORDERBOOK
+                    _ob_pairs = pairs[:50]
+                    asyncio.create_task(_ORDERBOOK.run(_ob_pairs))
+                    log_message(f"🚀 OrderBookManager started (top {len(_ob_pairs)} pairs, @depth20@500ms)")
+                except Exception as _ex:
+                    log_message(f"⚠️ OrderBookManager could not start: {_ex!r}")
+
+                # Realtime SL/TP closer: 1 Hz loop reading LIVE_FEED markPrice@1s
+                # for every open signal. Closes signals the instant SL or TP is
+                # pierced — no REST kline calls, no proxy dependency. Silently
+                # writes DB; Telegram announcements stay on the 5-min reconcile.
+                try:
+                    from realtime_closer import REALTIME_CLOSER
+                    asyncio.create_task(REALTIME_CLOSER.run())
+                    log_message("🚀 RealtimeCloser started (1Hz, DB-only, REST-free)")
+                except Exception as _ex:
+                    log_message(f"⚠️ RealtimeCloser could not start: {_ex!r}")
 
                 asyncio.create_task(CVD_FEED.run(pairs))
                 log_message(f"🚀 CVDFeed started (aggTrade CVD) — {len(pairs)} pairs")

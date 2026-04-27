@@ -32,6 +32,7 @@
     <button class="ap-tab" data-tab="payments" onclick="selectTab('payments')">💳 Payments</button>
     <button class="ap-tab" data-tab="referrals" onclick="selectTab('referrals')">🔗 Referrals</button>
     <button class="ap-tab" data-tab="settings" onclick="selectTab('settings')">⚙️ Settings</button>
+    <button class="ap-tab" data-tab="telemetry" onclick="selectTab('telemetry')">📊 Telemetry</button>
   </nav>
 
   <main class="ap-main">
@@ -101,6 +102,38 @@
             <button class="ap-btn ap-btn-primary" onclick="saveMaintenance()">Save</button>
             <span id="ap-maint-status" class="ap-hint"></span>
           </div>
+
+          <hr style="border:none;border-top:1px solid var(--border,#1e2d40);margin:20px 0 16px">
+
+          <!-- ── REBOOT MODE — one-click controlled reboot banner ── -->
+          <div style="background:rgba(0,180,216,.06);border:1px solid #00b4d8;border-radius:10px;padding:14px 16px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:18px">🔄</span>
+              <div>
+                <div style="font-weight:700;color:#00b4d8;font-size:14px">Reboot Mode (5–10 min)</div>
+                <div style="font-size:12px;color:var(--text-dim,#7a8493);margin-top:2px">
+                  One-click banner for a controlled platform restart. Reassures users that
+                  <strong>open positions remain safe</strong> on Binance and operations
+                  resume automatically on boot.
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
+              <button class="ap-btn ap-btn-primary" style="background:#00b4d8;border-color:#00b4d8"
+                      onclick="activateRebootMode()">
+                🚀 Activate Reboot Mode
+              </button>
+              <button class="ap-btn" onclick="deactivateMaintenance()">
+                ✓ Clear Banner
+              </button>
+              <span id="ap-reboot-status" class="ap-hint"></span>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim,#7a8493);margin-top:10px;line-height:1.55">
+              Banner shown to users:
+              <em style="color:var(--text,#cbd5e1)">"🔄 Scheduled reboot in progress — back online in 5–10 minutes. Your open positions are safe on Binance. Copy-trading and signal monitoring will resume automatically."</em>
+              <br>The banner auto-appears within 5 seconds for all logged-in users (no refresh needed).
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -145,6 +178,31 @@
         <div class="ap-body" id="ap-settings-admin"></div>
       </div>
     </section>
+
+    <!-- TELEMETRY -->
+    <section id="ap-tab-telemetry" class="ap-section">
+      <div class="ap-card">
+        <div class="ap-card-head">
+          <div>
+            <h2>System Telemetry</h2>
+            <div class="ap-card-sub">Live ERR/WARN log entries from the dashboard process. Reads the last 300 lines of <code id="ap-telemetry-path" style="font-size:11px;opacity:.7">debug_log10.txt</code>.</div>
+          </div>
+          <div class="ap-card-actions">
+            <select class="ap-input" style="width:auto" onchange="setTelemetryLevel(this.value)">
+              <option value="CRITICAL" selected>Errors &amp; Warnings</option>
+              <option value="ERROR">Errors only</option>
+              <option value="WARN">Warnings only</option>
+              <option value="INFO">Info</option>
+              <option value="ALL">All levels</option>
+            </select>
+            <button class="ap-btn" onclick="loadTelemetry()">↻ Refresh</button>
+          </div>
+        </div>
+        <div id="ap-telemetry-table" class="ap-table-wrap" style="max-height:520px;overflow-y:auto">
+          <div class="ap-empty">Click the Telemetry tab to load.</div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- MODALS -->
@@ -158,6 +216,6 @@
     </div>
   </div>
 
-  <script src="/static/js/admin.js?v=20260418"></script>
+  <script src="/static/js/admin.js?v=20260425-reboot"></script>
 </body>
 </html>

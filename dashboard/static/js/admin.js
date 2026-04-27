@@ -66,7 +66,63 @@
     if (tab === 'payments') { loadPaymentConfig(); loadPaymentHistory(); }
     if (tab === 'referrals') loadReferrals();
     if (tab === 'settings') loadSettings();
+    if (tab === 'telemetry') loadTelemetry();
   };
+
+  // ── TELEMETRY ─────────────────────────────────────────────────────
+  // Reads the last 200 log lines from the server, filters by level, and
+  // renders ERR/WARN entries in a compact scrollable table. Admin-only.
+  window._telemetryLevel = 'CRITICAL';  // default: errors + warnings only
+  window.setTelemetryLevel = function(lvl) {
+    window._telemetryLevel = lvl;
+    loadTelemetry();
+  };
+
+  async function loadTelemetry() {
+    const el = document.getElementById('ap-telemetry-table');
+    if (!el) return;
+    el.innerHTML = '<div class="ap-empty">Loading log entries…</div>';
+    const lvl = window._telemetryLevel || 'CRITICAL';
+    try {
+      const r = await fetch(`/api/admin/telemetry?lines=300&level=${lvl}`, { headers: authHeaders() });
+      if (r.status === 401 || r.status === 403) {
+        el.innerHTML = '<div class="ap-empty">Admin access denied.</div>';
+        return;
+      }
+      const d = await r.json();
+      const entries = d.entries || [];
+      const logPath = document.getElementById('ap-telemetry-path');
+      if (logPath) logPath.textContent = d.log_path || 'N/A';
+      if (!entries.length) {
+        el.innerHTML = '<div class="ap-empty">No log entries found for this filter.</div>';
+        return;
+      }
+      const levelColors = {
+        ERROR:   { bg: 'rgba(239,68,68,0.12)',  color: '#fca5a5', label: 'ERR' },
+        WARNING: { bg: 'rgba(240,185,11,0.12)', color: '#fde68a', label: 'WARN' },
+        INFO:    { bg: 'rgba(99,102,241,0.10)', color: '#a5b4fc', label: 'INFO' },
+        DEBUG:   { bg: 'rgba(100,100,100,0.1)', color: '#9ca3af', label: 'DBG' },
+        RAW:     { bg: 'rgba(50,50,50,0.15)',   color: '#6b7280', label: 'RAW' },
+      };
+      const rows = entries.map(e => {
+        const lc = levelColors[e.level] || levelColors.RAW;
+        const tsStr = e.ts ? `<span class="muted">${escapeHtml(e.ts)}</span>` : '<span class="muted">—</span>';
+        const badge = `<span style="background:${lc.bg};color:${lc.color};font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;letter-spacing:.06em">${lc.label}</span>`;
+        return `<tr>
+          <td style="white-space:nowrap;font-size:11px">${tsStr}</td>
+          <td style="white-space:nowrap">${badge}</td>
+          <td style="font-size:12px;word-break:break-word;max-width:600px;line-height:1.45">${escapeHtml(e.msg || '')}</td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table class="ap-table" style="table-layout:fixed;width:100%">
+        <thead><tr><th style="width:175px">Timestamp</th><th style="width:60px">Level</th><th>Message</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    } catch (e) {
+      el.innerHTML = '<div class="ap-empty">Failed to load telemetry.</div>';
+    }
+  }
+  window.loadTelemetry = loadTelemetry;
 
   // ── USERS ─────────────────────────────────────────────────────────
   async function loadUsers() {
@@ -384,12 +440,65 @@
     status.textContent = 'Saving…';
     const r = await fetch('/api/admin/settings/maintenance', {
       method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled, message })
+      body: JSON.stringify({ enabled, message, kind: 'maintenance' })
     });
     const d = await r.json();
     if (d.ok) {
       status.textContent = '✓ Saved ' + new Date().toLocaleTimeString();
       state.maintenance = d.maintenance;
+      updateMaintPill();
+    } else {
+      status.textContent = 'Error: ' + (d.error || 'unknown');
+    }
+  };
+
+  // ── REBOOT MODE — one-click activation ─────────────────────────────
+  window.activateRebootMode = async function () {
+    if (!confirm(
+      'Activate REBOOT MODE?\n\n' +
+      'All logged-in users will see the reboot banner within 5 seconds.\n' +
+      'Copy-trading execution will be paused.\n\n' +
+      'Recommended workflow:\n' +
+      '  1. Click OK to activate the banner\n' +
+      '  2. Wait ~10 seconds for users to see it\n' +
+      '  3. Restart the bot/server\n' +
+      '  4. After services come back, click "Clear Banner"'
+    )) return;
+    const status = document.getElementById('ap-reboot-status');
+    status.textContent = 'Activating…';
+    const message =
+      '🔄 Scheduled reboot in progress — back online in 5–10 minutes. ' +
+      'Your open positions are safe on Binance. ' +
+      'Copy-trading and signal monitoring will resume automatically.';
+    const r = await fetch('/api/admin/settings/maintenance', {
+      method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true, kind: 'reboot', message, eta_minutes: 10 })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      status.textContent = '✓ Reboot banner LIVE (users see it within 5s)';
+      state.maintenance = d.maintenance;
+      // Reflect in the toggle/message fields too
+      document.getElementById('ap-maint-toggle').checked = true;
+      document.getElementById('ap-maint-message').value = message;
+      updateMaintPill();
+    } else {
+      status.textContent = 'Error: ' + (d.error || 'unknown');
+    }
+  };
+
+  window.deactivateMaintenance = async function () {
+    const status = document.getElementById('ap-reboot-status');
+    status.textContent = 'Clearing…';
+    const r = await fetch('/api/admin/settings/maintenance', {
+      method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: false, kind: 'maintenance', message: '' })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      status.textContent = '✓ Banner cleared';
+      state.maintenance = d.maintenance;
+      document.getElementById('ap-maint-toggle').checked = false;
       updateMaintPill();
     } else {
       status.textContent = 'Error: ' + (d.error || 'unknown');

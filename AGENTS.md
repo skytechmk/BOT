@@ -86,7 +86,7 @@ When code maintenance is needed:
 2. **Write a proposal** to `/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA/proposals/YYYY-MM-DD_short-title.md`
 3. Use `edit_file` tool or `exec` — either works, but use the full workspace path above
 4. **Include**: file path, exact changes (diff format), reasoning, risk assessment
-5. **NEVER apply changes directly** — the operator reviews and applies from IDE
+5. **NEVER apply changes directly** — the operator reviews and applies from IDE or he tells you to do it for him
 6. **ALWAYS verify** the file was written by checking the tool's return value
 
 ## Trading Signal Analysis

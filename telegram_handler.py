@@ -105,9 +105,21 @@ def generate_signal_id():
     """Generate a unique signal ID"""
     return str(uuid.uuid4())
 
-def register_signal(signal_id, pair, signal, price, confidence, targets, stop_loss, leverage, features=None, additional_data=None, telegram_message_id=None):
-    """Register a signal with its market-feature snapshot for self-learning"""
+def register_signal(signal_id, pair, signal, price, confidence, targets, stop_loss, leverage, features=None, additional_data=None, telegram_message_id=None, signal_tier='production', zone_used=None):
+    """Register a signal with its market-feature snapshot for self-learning.
+
+    signal_tier: 'production' (clean RH ARMED path → public Telegram + copy-trade)
+                 'experimental' (the 6 short-circuit RH paths → admin-only Lab tab)
+    zone_used: RH state-machine path tag (e.g. 'OS_L2_ARMED', 'CE_MOMENTUM_LONG', ...)
+    """
     try:
+        # Hoist zone_used into features for backward compatibility with downstream readers.
+        feat = dict(features) if features else {}
+        if zone_used and 'zone_used' not in feat:
+            feat['zone_used'] = zone_used
+        if 'signal_tier' not in feat:
+            feat['signal_tier'] = signal_tier
+
         signal_entry = {
             'signal_id': signal_id,
             'pair': pair,
@@ -117,10 +129,12 @@ def register_signal(signal_id, pair, signal, price, confidence, targets, stop_lo
             'targets': targets,
             'stop_loss': stop_loss,
             'leverage': leverage,
-            'features': features,  # Store full technical context (key must match set_signal reader)
+            'features': feat,  # Store full technical context (key must match set_signal reader)
             'timestamp': time.time(),
-            'status': 'SENT',
+            'status': 'SENT' if (signal_tier == 'production' or telegram_message_id is not None) else 'LAB',
             'telegram_message_id': telegram_message_id,
+            'signal_tier': signal_tier,
+            'zone_used': zone_used,
             'performance_data': None
         }
         

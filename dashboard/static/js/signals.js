@@ -246,6 +246,46 @@ function renderPriceLadder(s) {
     return `<div class="price-ladder">${rows.join('')}</div>`;
 }
 
+function _signalFmtPnl(v) {
+    if (v === null || v === undefined || isNaN(v)) return '—';
+    const n = Number(v);
+    const cls = n > 0 ? 'color:#00c853' : n < 0 ? 'color:#ff5252' : 'color:var(--text-dim)';
+    const sign = n > 0 ? '+' : '';
+    const dec = Math.abs(n) < 1 ? 4 : 2;
+    return `<span style="${cls}">${sign}${n.toFixed(dec)}%</span>`;
+}
+
+function _signalFmtOutcome(s) {
+    if (!s || s.status === 'SENT' || s.status === 'OPEN' || s.status === 'ACTIVE') {
+        return '<span style="color:var(--text-dim)">Open</span>';
+    }
+    const status = (s.status || '').toUpperCase();
+    const reason = (s.close_reason || '').toUpperCase();
+    const th = s.targets_hit || 0;
+    if (status === 'CLOSED' || status === 'CANCELLED') {
+        if (reason.includes('SL_HIT')) {
+            if (th > 0) {
+                return `<span style="color:#ff5252">SL Hit after TP${th} ✅</span>`;
+            }
+            return '<span style="color:#ff5252">SL Hit</span>';
+        }
+        if (reason.includes('TP3_HIT') || (th === 3 && reason.includes('BACKFILLED_MARK_CLOSE'))) {
+            return '<span style="color:#00c853">All TPs ✅</span>';
+        }
+        if (reason.includes('TP2_HIT') || (th === 2 && reason.includes('BACKFILLED_MARK_CLOSE'))) {
+            return '<span style="color:#00c853">TP2 ✅</span>';
+        }
+        if (reason.includes('TP1_HIT') || (th === 1 && reason.includes('BACKFILLED_MARK_CLOSE'))) {
+            return '<span style="color:#00c853">TP1 ✅</span>';
+        }
+        if (reason === 'CLOSED_EVEN' || reason === 'BACKFILLED_MARK_CLOSE') {
+            return '<span style="color:var(--text-dim)">Closed Even</span>';
+        }
+        return '<span style="color:var(--text-dim)">Closed</span>';
+    }
+    return '<span style="color:var(--text-dim)">Unknown</span>';
+}
+
 function renderSignals(data) {
     document.getElementById('signal-count').textContent = `(${data.open_count} open / ${data.total} total)`;
     const tier = data.tier || 'free';
@@ -277,6 +317,10 @@ function renderSignals(data) {
             const chartBtn = `<span style="font-size:11px;color:var(--blue);cursor:pointer" onclick="selectPairChart('${s.pair}')">📊 Chart</span>`;
             const sigSym = _symFromPair(s.pair);
             const sigClassBadge = _tierBadgeHtml(sigSym);
+            const isExperimental = (s.signal_tier || '').toLowerCase() === 'experimental';
+            const expBadge = isExperimental
+                ? `<span title="${s.zone_used || 'experimental'}" style="font-size:10px;font-weight:800;color:#f0b429;background:#f0b42922;border:1px solid #f0b42966;border-radius:10px;padding:2px 8px;margin-left:8px;white-space:nowrap">🧪 EXPERIMENTAL${s.zone_used ? ' · ' + s.zone_used : ''}</span>`
+                : '';
 
             const isOpen = ['SENT','OPEN','ACTIVE','TP1_HIT','TP2_HIT'].includes((s.status||'').toUpperCase());
             // Build outcome badge for closed signals
@@ -284,15 +328,18 @@ function renderSignals(data) {
             if (!isOpen) {
                 const numTargets = (s.targets || []).length;
                 const th = s.targets_hit || 0;
-                const isSL = (s.status||'').toUpperCase().includes('SL') || s.pnl < 0;
+                const reason = (s.close_reason || '').toUpperCase();
+                const isSL = reason.includes('SL_HIT') || (s.status||'').toUpperCase().includes('SL') || s.pnl < 0;
                 if (isSL) {
                     outcomeHtml = `<span class="tp-outcome loss">🛑 SL HIT &nbsp;${s.pnl > 0 ? '+' : ''}${s.pnl}%</span>`;
-                } else if (th > 0) {
+                } else if (th > 0 || reason.includes('TP')) {
+                    const tpNum = th > 0 ? th : (reason.match(/TP(\d)/)?.[1] || '');
                     const allHit = th >= numTargets && numTargets > 0;
-                    const label = allHit ? `ALL TPs ✅` : `TP${th} ✅`;
+                    const label = allHit ? `ALL TPs ✅` : (tpNum ? `TP${tpNum} ✅` : `TP ✅`);
                     outcomeHtml = `<span class="tp-outcome win">${label} &nbsp;${s.pnl > 0 ? '+' : ''}${s.pnl}%</span>`;
                 } else {
-                    outcomeHtml = `<span class="tp-outcome age">CLOSED &nbsp;${s.pnl !== 0 ? (s.pnl > 0 ? '+' : '') + s.pnl + '%' : '—'}</span>`;
+                    const reasonLabel = reason === 'CLOSED_EVEN' ? 'EXPIRED' : reason === 'CLOSED_WIN' ? 'CLOSED' : (reason || 'CLOSED');
+                    outcomeHtml = `<span class="tp-outcome age">${reasonLabel} &nbsp;${s.pnl !== 0 ? (s.pnl > 0 ? '+' : '') + s.pnl + '%' : '—'}</span>`;
                 }
             }
             const livePnlHtml = isOpen
@@ -306,7 +353,7 @@ function renderSignals(data) {
                 : '';
             html += `<div class="signal-card${s.entry_drift_alert ? ' has-drift-alert' : ''}">
                 <div class="sc-header">
-                    <span class="sc-pair">${s.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400;font-size:14px">/USDT</span></span>
+                    <span class="sc-pair">${s.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400;font-size:14px">/USDT</span>${expBadge}</span>
                     <span class="sc-dir ${dirLower}">${dirIcon} ${s.direction}</span>
                 </div>
                 ${driftBanner}
@@ -319,7 +366,7 @@ function renderSignals(data) {
                 </div>
                 ${renderPriceLadder(s)}
                 <div class="sc-footer">
-                    <span class="${statusClass}" style="font-weight:600;font-size:12px">${s.status}</span>
+                    <span class="${statusClass}" style="font-weight:600;font-size:12px">${s.close_reason ? s.close_reason.replace('_',' ') : s.status}</span>
                     ${livePnlHtml}
                     ${chartBtn}
                 </div>
@@ -346,8 +393,8 @@ function renderSignals(data) {
                 <td>${typeof _fmtLocalTime === 'function' && s.timestamp ? _fmtLocalTime(s.timestamp) : s.time_local}</td>
                 <td style="font-weight:600">${s.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400">/USDT</span></td>
                 <td class="${dirClass}">${dirIcon} ${s.direction}</td>
-                <td class="${statusClass}">${s.status}</td>
-                <td class="${pnlClass}">${pnlStr}</td>
+                <td class="${statusClass}">${_signalFmtOutcome(s)}</td>
+                <td class="${pnlClass}">${_signalFmtPnl(s.pnl)}</td>
             </tr>`;
         }
         html += '</tbody></table>';
@@ -378,8 +425,8 @@ function _applyLivePnl(pnlMap) {
         const lev = info.leveraged_pct;
         const raw = info.raw_pct;
         const levCls = lev > 0 ? 'pnl-pos' : lev < 0 ? 'pnl-neg' : 'pnl-zero';
-        const levStr = (lev >= 0 ? '+' : '') + lev.toFixed(2) + '%';
-        const rawStr = (raw >= 0 ? '+' : '') + raw.toFixed(2) + '%';
+        const levStr = (lev >= 0 ? '+' : '') + (Math.abs(lev)<1?lev.toFixed(4):lev.toFixed(2)) + '%';
+        const rawStr = (raw >= 0 ? '+' : '') + (Math.abs(raw)<1?raw.toFixed(4):raw.toFixed(2)) + '%';
         const tHit = info.targets_hit || 0;
         const badge = info.sl_hit ? '⚠️ SL' : tHit >= 2 ? '✅ TP2' : tHit >= 1 ? '✅ TP1' : '';
         wrap.innerHTML = `

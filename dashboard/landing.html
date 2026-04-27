@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#05080F">
 
 <title>Anunnaki World — We do the math. You make the move.</title>
-<meta name="description" content="We do the math. You make the move. Institutional-grade AI signals scanning 566+ Binance USDT perps in real time. Live liquidation heatmap, copy-trading, dynamic trailing SL. Free to start.">
+<meta name="description" content="We do the math. You make the move. Institutional-grade AI signals scanning 200+ Binance USDT perps in real time. Live liquidation heatmap, copy-trading, dynamic trailing SL. Free to start.">
 <meta name="keywords" content="crypto signals, binance futures, AI trading, liquidation heatmap, copy trading, perpetual futures, algorithmic trading">
 <link rel="canonical" href="https://anunnakiworld.com/">
 <link rel="icon" type="image/jpeg" href="/static/logo.jpeg">
@@ -14,9 +14,16 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://anunnakiworld.com/">
 <meta property="og:title" content="Anunnaki World — We do the math. You make the move.">
-<meta property="og:description" content="Institutional-grade AI signals scanning 566+ Binance USDT perps in real time. Live liquidation heatmap, copy-trading, AI signals. Free to start.">
-<meta property="og:image" content="https://anunnakiworld.com/static/og-banner.png">
+<meta property="og:description" content="Institutional-grade AI signals scanning 200+ Binance USDT perps in real time. Live liquidation heatmap, copy-trading, AI signals. Free to start.">
+<meta property="og:image" content="https://anunnakiworld.com/static/og-banner.jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@AnunnakiSignals">
+<meta name="twitter:title" content="Anunnaki World — We do the math. You make the move.">
+<meta name="twitter:description" content="Institutional-grade AI signals scanning 200+ Binance USDT perps in real time. Free to start.">
+<meta name="twitter:image" content="https://anunnakiworld.com/static/og-banner.jpeg">
 
 <link rel="preload" as="image" href="/static/logo.jpeg">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
@@ -35,6 +42,18 @@
      to /app) isn't affected by what we write here.
      ═══════════════════════════════════════════════════════════════ -->
 <script>
+// ── Always start at the top, even on refresh ──────────────────────
+// Disable the browser's native scroll restoration so it doesn't
+// remember and re-apply the previous scroll position on reload.
+if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+}
+// Belt-and-suspenders: force top immediately and again after load.
+window.scrollTo(0, 0);
+document.addEventListener('DOMContentLoaded', function () {
+    window.scrollTo(0, 0);
+});
+
 (function lockLandingToDark() {
     var root = document.documentElement;
     function force() {
@@ -790,6 +809,69 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
     .reveal{opacity:1;transform:none}
 }
 </style>
+<!-- ═══════════════════════════════════════════════════════════════
+     SEO Structured Data (JSON-LD)
+     ═══════════════════════════════════════════════════════════════ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Anunnaki World",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Web",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "description": "Institutional-grade AI crypto trading signals scanning 200+ Binance USDT perpetuals in real time.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Anunnaki World",
+    "url": "https://anunnakiworld.com"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do I need to give you money to see if it actually works?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. The Free tier shows every signal we publish with a 24-hour delay so you can verify performance before paying."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does copy-trading need me to send you my API keys?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Only futures-trading scope is needed, and withdraw permission is never required."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What timeframes does the AI trade?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Primary signal generation runs on 1h with 15m and 4h confirmations, with typical holding periods of 2 to 48 hours."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is risk managed?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Through macro risk filters, portfolio correlation controls, circuit breakers, and per-signal stop-loss logic."
+      }
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -972,7 +1054,7 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
                 Log in
             </button>
         </div>
-        <p style="font-size:12px;color:var(--text-dim)">Free plan includes 3 backtests per month · No credit card required</p>
+        <p style="font-size:12px;color:var(--text-dim)">Free plan includes 3 backtests per month · No payment required</p>
     </div>
 </section>
 
@@ -1018,6 +1100,20 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
                    reconciler closes and scores outcomes, and every closed trade
                    feeds the ML retrain loop.</p>
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ SEO SEO HUB (Pair Links) ══════════════════════ -->
+<section style="padding:0 0 48px;text-align:center">
+    <div class="container">
+        <p style="font-size:12px;color:var(--text-faint);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.1em;">Public Performance History</p>
+        <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:14px;">
+            <a href="/signals/BTCUSDT" style="color:var(--neon-cyan);text-decoration:none;background:rgba(255,255,255,0.03);padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.06);">BTCUSDT Signals</a>
+            <a href="/signals/ETHUSDT" style="color:var(--neon-cyan);text-decoration:none;background:rgba(255,255,255,0.03);padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.06);">ETHUSDT Signals</a>
+            <a href="/signals/SOLUSDT" style="color:var(--neon-cyan);text-decoration:none;background:rgba(255,255,255,0.03);padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.06);">SOLUSDT Signals</a>
+            <a href="/blog" style="color:var(--text-dim);text-decoration:none;padding:8px 16px;">Learning Center</a>
+            <a href="/faq" style="color:var(--text-dim);text-decoration:none;padding:8px 16px;">FAQ</a>
         </div>
     </div>
 </section>
@@ -1472,7 +1568,9 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
                 <ul>
                     <li><a href="/whitepaper">Whitepaper (EN)</a></li>
                     <li><a href="/whitepaper/mk">Whitepaper (MK)</a></li>
-                    <li><a href="#faq">FAQ</a></li>
+                    <li><a href="/faq">FAQ</a></li>
+                    <li><a href="/blog">Learning Center</a></li>
+                    <li><a href="/affiliate">Affiliate Program</a></li>
                 </ul>
             </div>
             <div class="foot-col">
@@ -1489,6 +1587,7 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
                 © 2026 Anunnaki World. Not investment advice. Crypto futures trading
                 carries substantial risk of loss. Past performance is not indicative
                 of future results. Operate only with capital you can afford to lose.
+                <br><a href="/terms" style="color:var(--text-faint)">Terms of Service</a> · <a href="/privacy" style="color:var(--text-faint)">Privacy Policy</a>
             </div>
             <div class="foot-skytech">
                 Developed &amp; hosted by <a href="https://skytech.mk" target="_blank" rel="noopener">skytech.mk</a>
@@ -1518,6 +1617,7 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
             // token was revoked / secret rotated — clear and stay on landing
             try {
                 localStorage.removeItem('aladdin_token');
+                document.cookie = "aladdin_token=; path=/; max-age=0";
                 localStorage.removeItem('awd_token');
             } catch (_) {}
         }
@@ -1909,6 +2009,7 @@ document.querySelectorAll('[data-count]').forEach(el => countIO.observe(el));
             // Store token under the SAME key the SPA uses, so /app picks it up.
             try {
                 localStorage.setItem('aladdin_token', data.access_token);
+                document.cookie = "aladdin_token=" + data.access_token + "; path=/; max-age=604800; SameSite=Lax";
                 if (data.user) localStorage.setItem('aladdin_user', JSON.stringify(data.user));
             } catch (_) {}
 

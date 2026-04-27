@@ -16,7 +16,7 @@ import time
 import websockets
 from utils_logger import log_message
 
-_FUTURES_STREAM_URL = "wss://fstream.binance.com/stream?streams={streams}"
+_FUTURES_STREAM_URL = "wss://fstream.binance.com/market/stream?streams={streams}"
 # All 3 execution timeframes — 15m/4h are cached for entry-refinement &
 # regime context; only 1h closes trigger process_pair() (signals stay 1h-gated).
 _KLINE_INTERVALS    = ['15m', '1h', '4h']

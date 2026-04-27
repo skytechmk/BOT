@@ -27,7 +27,7 @@ from typing import Dict, Optional, Set
 import websockets
 
 
-_WS_URL          = "wss://fstream.binance.com/stream?streams=!markPrice@arr@1s"
+_WS_URL          = "wss://fstream.binance.com/market/stream?streams=!markPrice@arr@1s"
 _RECONNECT_BASE  = 2
 _RECONNECT_MAX   = 60
 _BROADCAST_HZ    = 0.5      # 2-second tick cadence for fan-out

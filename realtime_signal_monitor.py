@@ -24,7 +24,7 @@ import logging
 from typing import Dict, List, Optional
 import websockets
 
-_WS_BASE = "wss://fstream.binance.com/stream"
+_WS_BASE = "wss://fstream.binance.com/market/stream"
 _MARK_STREAM = "@markPrice@1s"   # 1-second mark price updates (futures)
 
 class RealTimeSignalMonitor:
@@ -66,6 +66,9 @@ class RealTimeSignalMonitor:
             'ws_reconnects': 0,
         }
 
+        self._last_check = time.time()
+        self._check_interval = 1.0  # Check every 1 second
+
     # ═══════════════════════════════════════════════════════════════════════════
     #  PUBLIC API
     # ═══════════════════════════════════════════════════════════════════════════
@@ -80,6 +83,7 @@ class RealTimeSignalMonitor:
         self._ws_task = asyncio.create_task(self._combined_stream_loop())
         asyncio.create_task(self._sync_pairs_loop())
         asyncio.create_task(self._rest_fallback_loop())
+        asyncio.create_task(self.run())
         self.logger.info("📡 RealTimeSignalMonitor started (combined markPrice stream)")
 
     async def stop_monitoring(self):
@@ -116,17 +120,27 @@ class RealTimeSignalMonitor:
 
     async def _combined_stream_loop(self):
         """
-        Maintain a single combined WebSocket to Binance futures markPrice streams.
-        Reconnects whenever the pair set changes or the connection drops.
+        Maintain a single persistent combined-stream WebSocket and use the
+        SUBSCRIBE/UNSUBSCRIBE JSON-RPC protocol to dynamically add/remove
+        pairs without reconnecting.
+
+        Why: previously we tore the connection down every time a signal
+        opened or closed, which created brief blind-spots and caused
+        ~5–10 reconnects/day. With dynamic subscribe we get a single
+        long-lived connection.
+
+        On WS drop, we reconnect and re-subscribe to all current pairs.
         """
+        sub_id_counter = 1
+        # Connection URL has no `?streams=` param — we send subscriptions
+        # via JSON-RPC after open.
+        url = _WS_BASE   # "wss://fstream.binance.com/market/stream"
+
         while self.running:
-            pairs = list(self._active_pairs)
-            if not pairs:
+            # Wait until at least one pair is wanted before opening the WS.
+            if not self._active_pairs:
                 await asyncio.sleep(2)
                 continue
-
-            streams = "/".join(f"{p.lower()}{_MARK_STREAM}" for p in pairs)
-            url = f"{_WS_BASE}?streams={streams}"
 
             try:
                 async with websockets.connect(
@@ -135,15 +149,64 @@ class RealTimeSignalMonitor:
                     ping_timeout=30,
                     close_timeout=5,
                 ) as ws:
+                    # Subscribe to all currently-active pairs in one batch.
+                    subscribed: set = set()
+                    if self._active_pairs:
+                        params = [f"{p.lower()}{_MARK_STREAM}" for p in self._active_pairs]
+                        await ws.send(json.dumps({
+                            "method": "SUBSCRIBE",
+                            "params": params,
+                            "id":     sub_id_counter,
+                        }))
+                        sub_id_counter += 1
+                        subscribed.update(self._active_pairs)
+                        self.logger.info(
+                            f"🔗 Combined markPrice stream opened — SUBSCRIBE {len(params)} pairs"
+                        )
+
                     self._needs_reconnect = False
-                    self.logger.info(f"🔗 Combined markPrice stream: {len(pairs)} pairs")
-                    async for raw in ws:
+
+                    while self.running:
+                        # Diff current active set vs subscribed and emit
+                        # SUBSCRIBE/UNSUBSCRIBE for the deltas.
+                        if self._needs_reconnect:
+                            self._needs_reconnect = False
+                            wanted = set(self._active_pairs)
+                            to_add = wanted - subscribed
+                            to_rm  = subscribed - wanted
+                            if to_add:
+                                await ws.send(json.dumps({
+                                    "method": "SUBSCRIBE",
+                                    "params": [f"{p.lower()}{_MARK_STREAM}" for p in to_add],
+                                    "id":     sub_id_counter,
+                                }))
+                                sub_id_counter += 1
+                                subscribed.update(to_add)
+                                self.logger.info(f"➕ SUBSCRIBE {len(to_add)} pairs: {sorted(to_add)}")
+                            if to_rm:
+                                await ws.send(json.dumps({
+                                    "method": "UNSUBSCRIBE",
+                                    "params": [f"{p.lower()}{_MARK_STREAM}" for p in to_rm],
+                                    "id":     sub_id_counter,
+                                }))
+                                sub_id_counter += 1
+                                subscribed.difference_update(to_rm)
+                                self.logger.info(f"➖ UNSUBSCRIBE {len(to_rm)} pairs: {sorted(to_rm)}")
+
+                        # Read next message (with timeout so we can re-check
+                        # the diff loop above periodically).
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=5)
+                        except asyncio.TimeoutError:
+                            continue
+
                         if not self.running:
                             break
-                        if self._needs_reconnect:
-                            break   # exit inner loop → reconnect with new pair list
                         try:
-                            msg  = json.loads(raw)
+                            msg = json.loads(raw)
+                            # Subscribe/unsubscribe ACKs come back as {"result":null,"id":N}
+                            if isinstance(msg, dict) and 'result' in msg and 'id' in msg:
+                                continue
                             data = msg.get("data", msg)
                             pair = data.get("s", "")     # symbol field in markPrice
                             mark = data.get("p")          # mark price (string)
@@ -196,6 +259,33 @@ class RealTimeSignalMonitor:
             except Exception as e:
                 self.logger.debug(f"REST fallback error: {e}")
 
+    async def run(self):
+        self.running = True
+        while self.running:
+            try:
+                now = time.time()
+                if now - self._last_check >= self._check_interval:
+                    await self._check_all_signals()
+                    self._last_check = now
+                if self._needs_reconnect:
+                    self._needs_reconnect = False
+                    await self._reconnect_streams()
+                await asyncio.sleep(0.1)
+            except Exception as e:
+                self.logger.error(f"Monitor error: {e}")
+                await asyncio.sleep(1)
+
+    async def _check_all_signals(self):
+        for pair in self._active_pairs:
+            mark_price = await self._get_current_price(pair)
+            if mark_price:
+                await self._check_pair(pair, mark_price)
+
+    async def _get_current_price(self, pair):
+        # Placeholder for fetching current price from Binance stream
+        # This should be implemented to get the latest price from the WebSocket stream
+        return self._price_cache.get(pair)
+
     # ═══════════════════════════════════════════════════════════════════════════
     #  SIGNAL EVALUATION
     # ═══════════════════════════════════════════════════════════════════════════
@@ -228,6 +318,33 @@ class RealTimeSignalMonitor:
 
         is_long = direction in ('LONG', 'BUY')
 
+        # ── peak / trough tracking ─────────────────────────────────────────
+        # We need this to record the *highest TP actually pierced* during the
+        # signal's life, even if the bot was restarted after partial hits or
+        # the trailing SL fires before the final TP. Without it, an SL_HIT
+        # after TP2 was reached would persist `targets_hit=0`, hiding the
+        # real outcome.
+        if is_long:
+            peak = sig.get('_extreme_price') or mark
+            if mark > peak:
+                peak = mark
+            sig['_extreme_price'] = peak
+        else:
+            trough = sig.get('_extreme_price') or mark
+            if mark < trough:
+                trough = mark
+            sig['_extreme_price'] = trough
+        extreme = sig['_extreme_price']
+
+        # Highest TP index pierced *ever* by the extreme (1-indexed; 0 = none).
+        highest_pierced = 0
+        for i, tp in enumerate(targets):
+            pierced = (is_long and extreme >= tp) or (not is_long and extreme <= tp)
+            if pierced:
+                highest_pierced = i + 1
+            else:
+                break  # targets are ordered; stop on first miss
+
         # ── trailing stop update ───────────────────────────────────────────
         sl = self._update_trailing_sl(sid, sig, entry, sl, mark, is_long)
 
@@ -239,29 +356,30 @@ class RealTimeSignalMonitor:
         if sl_triggered:
             raw_pnl = ((sl - entry) / entry * 100) if is_long else ((entry - sl) / entry * 100)
             lev_pnl = round(raw_pnl * leverage, 2)
-            await self._on_close(sid, sig, mark, lev_pnl, 'SL_HIT', targets_hit=0)
+            # Pass highest_pierced so a trailing-SL exit after TPs were
+            # reached records the real outcome (e.g. SL after TP2 → targets_hit=2).
+            self._db_write(sid, pnl=lev_pnl, targets_hit=highest_pierced, close=True, close_reason='SL_HIT')
+            await self._on_close(sid, sig, mark, lev_pnl, 'SL_HIT', targets_hit=highest_pierced)
             return
 
-        # ── TP check (walk in order) ───────────────────────────────────────
-        for i, tp in enumerate(targets):
-            tn = i + 1
-            if tn in hits:
-                continue
-            tp_reached = (is_long and mark >= tp) or (not is_long and mark <= tp)
-            if tp_reached:
-                hits.append(tn)
-                raw_pnl = ((tp - entry) / entry * 100) if is_long else ((entry - tp) / entry * 100)
-                lev_pnl = round(raw_pnl * leverage, 2)
-                is_final = (tn == len(targets))
-                reason   = f'TP{tn}_HIT'
-                self.monitoring_stats['targets_hit'] += 1
-                if is_final:
-                    await self._on_close(sid, sig, mark, lev_pnl, reason, targets_hit=tn)
-                else:
-                    # Partial TP — persist hit but keep signal active
-                    self._db_write(sid, pnl=lev_pnl, targets_hit=tn, close=False)
-                    self.logger.info(f"🎯 {sig['pair']} TP{tn} hit @ {mark:.6f} (+{lev_pnl:.2f}%)")
-                break  # only one TP per tick
+        # ── TP check ───────────────────────────────────────────────────────
+        # Walk *every* unhit TP that has been pierced (not just one per tick).
+        # Handles price gaps that jump multiple TPs in a single tick.
+        new_hits = [n for n in range(1, highest_pierced + 1) if n not in hits]
+        for tn in new_hits:
+            tp = targets[tn - 1]
+            hits.append(tn)
+            raw_pnl = ((tp - entry) / entry * 100) if is_long else ((entry - tp) / entry * 100)
+            lev_pnl = round(raw_pnl * leverage, 2)
+            is_final = (tn == len(targets))
+            reason   = f'TP{tn}_HIT'
+            self._db_write(sid, pnl=lev_pnl, targets_hit=tn, close=is_final, close_reason=reason if is_final else None)
+            self.monitoring_stats['targets_hit'] += 1
+            if is_final:
+                await self._on_close(sid, sig, mark, lev_pnl, reason, targets_hit=tn)
+                return  # signal is closed
+            # Partial TP — persist hit but keep signal active
+            self.logger.info(f"🎯 {sig['pair']} TP{tn} hit @ {mark:.6f} (+{lev_pnl:.2f}%)")
 
     def _update_trailing_sl(self, sid, sig, entry, sl, mark, is_long):
         """Apply trailing-stop tiers; update sig dict in-place."""
@@ -302,7 +420,7 @@ class RealTimeSignalMonitor:
         )
 
         # 1. SQLite ────────────────────────────────────────────────────────
-        self._db_write(sid, pnl=lev_pnl, targets_hit=targets_hit, close=True)
+        # self._db_write(sid, pnl=lev_pnl, targets_hit=targets_hit, close=True)
 
         # 2. close_open_signal → CB + BL + RL ─────────────────────────────
         try:
@@ -346,7 +464,7 @@ class RealTimeSignalMonitor:
         except Exception as e:
             self.logger.debug(f"Notification error: {e}")
 
-    def _db_write(self, sid: str, pnl: float, targets_hit: int, close: bool):
+    def _db_write(self, sid: str, pnl: float, targets_hit: int, close: bool, close_reason: str = None):
         """Write outcome to signal_registry.db immediately."""
         try:
             now = time.time()
@@ -362,8 +480,12 @@ class RealTimeSignalMonitor:
                     "UPDATE signals SET pnl=?, targets_hit=? WHERE signal_id=?",
                     (pnl, targets_hit, sid)
                 )
+            if close_reason:
+                con.execute(
+                    "UPDATE signals SET close_reason=? WHERE signal_id=?",
+                    (close_reason, sid)
+                )
             con.commit()
             con.close()
         except Exception as e:
             self.logger.error(f"DB write error for {sid}: {e}")
-        

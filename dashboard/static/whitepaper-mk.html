@@ -4,6 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Anunnaki World — Бела Книга на Платформата</title>
+<meta name="description" content="Техничка бела книга за Anunnaki World AI трговскиот мотор. Архитектура, сигнален pipeline, управување со ризик и методологија на перформанси.">
+<link rel="canonical" href="https://anunnakiworld.com/whitepaper/mk">
+<link rel="icon" type="image/jpeg" href="/static/logo.jpeg">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://anunnakiworld.com/whitepaper/mk">
+<meta property="og:title" content="Anunnaki World — Бела Книга на Платформата">
+<meta property="og:description" content="Техничка бела книга за Anunnaki World AI трговскиот мотор.">
+<meta property="og:image" content="https://anunnakiworld.com/static/og-banner.jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="mk_MK">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@AnunnakiSignals">
+<meta name="twitter:title" content="Anunnaki World — Бела Книга на Платформата">
+<meta name="twitter:description" content="Техничка бела книга за Anunnaki World AI трговскиот мотор.">
+<meta name="twitter:image" content="https://anunnakiworld.com/static/og-banner.jpeg">
+<link rel="alternate" hreflang="en" href="https://anunnakiworld.com/whitepaper">
+<link rel="alternate" hreflang="mk" href="https://anunnakiworld.com/whitepaper/mk">
+<link rel="alternate" hreflang="x-default" href="https://anunnakiworld.com/whitepaper">
 <style>
   :root {
     --gold: #f0b90b;
@@ -297,20 +317,20 @@
   <!-- 5. АИ двигател -->
   <h2>5. АИ двигател за сигнали — Reverse Hunt стратегија</h2>
   <p>
-    Двигателот за сигнали е изграден околу сопствена стратегија наречена <strong>Reverse Hunt</strong> — систем за повеќе-индикаторска конфлуенција, оригинално развиен како PineScript стратегија за TradingView и пренесен во Python за автоматизирано скенирање на 538 парови истовремено.
+    Двигателот за сигнали е изграден околу сопствена стратегија наречена <strong>REVHUNT</strong> — систем за повеќе-индикаторска конфлуенција, оригинално развиен како PineScript стратегија за TradingView и пренесен во Python за автоматизирано скенирање на 538 парови истовремено.
   </p>
 
   <h3>5.1 Процесен ланец за генерирање сигнали</h3>
   <ol>
-    <li><strong>Откривање на екстремна зона на TSI</strong> — Индексот на вистинска сила (25/13 периоди, инвертиран, /50 скала) влегува во екстремна пребогата или препродадена зона (адаптивни прагови на 90-тиот и 97-миот перцентил на историски TSI вредности по пар).</li>
-    <li><strong>Излез од зона + кука на моментум</strong> — TSI излегува од зоната со насочен моментум — укажувајќи дека почнува заморна реверзија.</li>
-    <li><strong>Потврда на Chandelier Exit</strong> — CE Line слојот (ATR-22, lookback-22, mult-3.0) мора да ја смени насоката во рок од 36 свеќи по TSI излезот. Ова е задолжителниот активатор.</li>
-    <li><strong>Валидација на ML ансамбл</strong> — Сигналот е оценет од ансамбл од 4 модели (BiLSTM, TFT, XGBoost, LightGBM) обучени на 447.267 примероци низ 150 парови × 6 месеци 1h податоци.</li>
-    <li><strong>Филтри за ризик</strong> — Проверка на корелација на портфолио, прекинувач, проценка на макро ризик и Монте Карло симулација на веројатност мора да поминат пред сигналот да биде објавен.</li>
+    <li><strong>TSI Extremes</strong> — Сопствен осцилатор за изнемоштеност на моментум открива кога парот влегува во екстремна пребогата или препродадена зона користејќи адаптивни прагови по пар, калибрирани од историски податоци.</li>
+    <li><strong>REVHUNT кука на моментум</strong> — Осцилаторот излегува од екстремната зона со насочен моментум — укажувајќи дека почнува заморна реверзија. Ова е првата фаза од REVHUNT секвенцата за потврда.</li>
+    <li><strong>CE Hybrid потврда</strong> — Сопствен систем за следење на волатилност изграден на прилагодена варијанта на Chandelier Exit мора да ја потврди насочената промена во калибриран прозорец по куката на моментум. Ова е задолжителниот активатор.</li>
+    <li><strong>PREDATOR валидација</strong> — Сигналот е валидиран од сопствен мулти-моделен ML ансамбл (GPU-забрзан) обучен на стотици илјади означени примероци низ широк универзум на парови и временски рамки.</li>
+    <li><strong>Филтри за ризик</strong> — Проверка на корелација на портфолио, прекинувач и проценка на макро ризик мора да поминат пред сигналот да биде објавен.</li>
   </ol>
 
   <div class="callout info">
-    <strong>Перформанси на ML ансамблот:</strong> F1 = 0,539 низ 150 разновидни парови (наспроти 0,677 на подгрупа од 30 парови). Ансамблот користи мета-учење со слоење. Секој сигнал вклучува оценка за убеденост (3–8) и процент на доверба на ML.
+    <strong>PREDATOR ML двигател:</strong> Ансамблот користи мета-учење со слоење и GPU забрзување. Секој сигнал вклучува оценка за убеденост и процент на доверба на ML. Архитектурата на моделот и параметрите за обука се сопствени.
   </div>
 
   <h3>5.2 Излез на сигнал</h3>
@@ -348,13 +368,13 @@
   </ul>
 
   <h3>6.4 Страница со графикони (Plus/Pro)</h3>
-  <p>TradingView Lightweight Charts со преклопувања на Chandelier Exit, TSI зони и маркери за сигнали. Целосни историски 1h свеќи за сите следени парови.</p>
+  <p>TradingView Lightweight Charts со CE Hybrid преклопувања, TSI Extremes зони и REVHUNT маркери за сигнали. Целосни историски 1h свеќи за сите следени парови.</p>
 
   <h3>6.5 Страница за аналитика (Plus/Pro)</h3>
   <p>Метрики за перформанси, крива на капитал, разбивање на победи/загуби по пар и насока, временска топлинска карта на перформанси, Шарпов сооднос, максимален просек и анализа на режим.</p>
 
   <h3>6.6 Предупредувања за пред-сигнали (Само Pro)</h3>
-  <p>Парови кои моментално се во екстремни TSI зони и се приближуваат до прагот за CE флип — дозволувајќи им на Pro претплатниците да се позиционираат пред потврдениот сигнал. Подредени по подготвеност: НЕМИНОВНО → ВИСОКО → СРЕДНО → НИСКО.</p>
+  <p>Парови кои моментално се во TSI Extremes зони и се приближуваат до прагот за CE Hybrid флип — дозволувајќи им на Pro претплатниците да се позиционираат пред потврдениот REVHUNT сигнал. Подредени по подготвеност: НЕМИНОВНО → ВИСОКО → СРЕДНО → НИСКО.</p>
 
   <!-- 7. Членски нивоа -->
   <h2>7. Членски нивоа</h2>
@@ -460,8 +480,8 @@
     </div>
     <div class="tech-card">
       <div class="icon">🤖</div>
-      <div class="name">XGBoost + LSTM</div>
-      <div class="desc">ML ансамбл со 4 модели обучени на 447К примероци, GPU-забрзан</div>
+      <div class="name">PREDATOR ML</div>
+      <div class="desc">Сопствен мулти-моделен ML ансамбл, GPU-забрзан</div>
     </div>
     <div class="tech-card">
       <div class="icon">⚡</div>

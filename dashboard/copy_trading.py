@@ -61,6 +61,84 @@ _CLIENT_TTL = 600.0  # 10 minutes — refresh after key rotation window
 _HEDGE_CACHE: Dict[int, bool] = {}
 _HEDGE_TS:    Dict[int, float] = {}
 
+# ── Per-(user,pair) leverage + margin-type caches ─────────────────────────────
+# Binance's WS Trade API does NOT expose change_leverage / change_margin_type
+# (they remain REST-only on Binance's side). Pre-WS-API era: every single trade
+# fired both calls unconditionally → REST weight bleed + IP-ban risk.
+# These caches make the calls fire ONLY when state actually changes (~95%+
+# reduction). 12-hour TTL is safe because nothing else mutates these settings.
+_LEVERAGE_CACHE:   Dict[tuple, int]   = {}   # (user_id, pair) -> leverage
+_LEVERAGE_TS:      Dict[tuple, float] = {}   # (user_id, pair) -> last-set ts
+_MARGIN_CROSS_SET: Dict[tuple, float] = {}   # (user_id, pair) -> last-set ts
+_LEV_MARGIN_TTL = 12 * 3600                  # 12 h
+
+
+def _ensure_leverage_cached(client, user_id: int, pair: str, leverage: int) -> int:
+    """Set leverage on Binance only if cached value differs (or TTL expired).
+    Returns the leverage that's now active. Falls back to pair-max on rejection.
+    """
+    key = (user_id, pair)
+    now = time.time()
+    cached_lev = _LEVERAGE_CACHE.get(key)
+    cached_ts  = _LEVERAGE_TS.get(key, 0)
+    if cached_lev == leverage and (now - cached_ts) < _LEV_MARGIN_TTL:
+        return leverage    # already at this leverage, no REST call needed
+    try:
+        client.futures_change_leverage(symbol=pair, leverage=leverage)
+        _LEVERAGE_CACHE[key] = leverage
+        _LEVERAGE_TS[key]    = now
+        return leverage
+    except Exception as e:
+        log.warning(f"Leverage change failed for {pair}: {e} — fetching pair max")
+        try:
+            brackets = client.futures_leverage_bracket(symbol=pair)
+            pair_max = int(brackets[0]['brackets'][0]['initialLeverage'])
+            clamped  = min(leverage, pair_max)
+            client.futures_change_leverage(symbol=pair, leverage=clamped)
+            _LEVERAGE_CACHE[key] = clamped
+            _LEVERAGE_TS[key]    = now
+            log.info(f"Clamped leverage to pair max {clamped}x for {pair}")
+            return clamped
+        except Exception as e2:
+            log.warning(f"Could not clamp leverage for {pair}: {e2}")
+            return leverage   # caller continues with requested; Binance may reject order
+
+
+def _ensure_margin_cross_cached(client, user_id: int, pair: str) -> None:
+    """Set margin type to CROSSED only if not already cached as such.
+    The Binance API throws -4046 if margin type is already correct, which is
+    silently ignored — but the call still hits REST weight. Cache eliminates
+    the redundant call.
+    """
+    key = (user_id, pair)
+    now = time.time()
+    last = _MARGIN_CROSS_SET.get(key, 0)
+    if (now - last) < _LEV_MARGIN_TTL:
+        return    # already CROSSED within TTL window
+    try:
+        client.futures_change_margin_type(symbol=pair, marginType='CROSSED')
+    except Exception:
+        pass  # already cross OR position open — both are fine
+    _MARGIN_CROSS_SET[key] = now
+
+
+def _invalidate_leverage_margin_caches(user_id: int, pair: str | None = None) -> None:
+    """Invalidate caches when Binance rejects with -4046/-4061/etc — forces
+    re-set on next trade. Call from error handlers.
+    """
+    if pair is None:
+        # User-wide flush (key rotation, account change)
+        for k in list(_LEVERAGE_CACHE):
+            if k[0] == user_id:
+                _LEVERAGE_CACHE.pop(k, None); _LEVERAGE_TS.pop(k, None)
+        for k in list(_MARGIN_CROSS_SET):
+            if k[0] == user_id:
+                _MARGIN_CROSS_SET.pop(k, None)
+    else:
+        key = (user_id, pair)
+        _LEVERAGE_CACHE.pop(key, None); _LEVERAGE_TS.pop(key, None)
+        _MARGIN_CROSS_SET.pop(key, None)
+
 
 def _is_maintenance() -> bool:
     """
@@ -199,6 +277,7 @@ def init_copy_trading_db():
         "ALTER TABLE copy_trading_config ADD COLUMN allowed_tiers TEXT DEFAULT 'blue_chip,large_cap,mid_cap,small_cap,high_risk'",
         "ALTER TABLE copy_trading_config ADD COLUMN allowed_sectors TEXT DEFAULT 'all'",
         "ALTER TABLE copy_trading_config ADD COLUMN hot_only INTEGER DEFAULT 0",
+        "ALTER TABLE copy_trading_config ADD COLUMN copy_experimental INTEGER DEFAULT 0",
         "ALTER TABLE copy_trading_config ADD COLUMN sl_mode TEXT DEFAULT 'signal'",
         "ALTER TABLE copy_trading_config ADD COLUMN sl_pct REAL DEFAULT 3.0",
         "ALTER TABLE copy_trades ADD COLUMN sl_price REAL DEFAULT 0",
@@ -373,7 +452,8 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
                   scale_with_sqi: bool = True, tp_mode: str = 'pyramid',
                   size_mode: str = 'pct', fixed_size_usd: float = 5.0,
                   leverage_mode: str = 'auto', sl_mode: str = 'signal',
-                  sl_pct: float = 3.0) -> Dict:
+                  sl_pct: float = 3.0,
+                  copy_experimental: bool = False) -> Dict:
     """Encrypt and store Binance API credentials."""
     # Basic validation — explicit reject with error, no silent clamping.
     api_key = api_key.strip()
@@ -417,8 +497,8 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
                 (user_id, api_key_enc, api_secret_enc, size_pct, max_size_pct,
                  max_leverage, scale_with_sqi, tp_mode,
                  size_mode, fixed_size_usd, leverage_mode, sl_mode, sl_pct,
-                 created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 copy_experimental, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 api_key_enc=excluded.api_key_enc,
                 api_secret_enc=excluded.api_secret_enc,
@@ -432,11 +512,12 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
                 leverage_mode=excluded.leverage_mode,
                 sl_mode=excluded.sl_mode,
                 sl_pct=excluded.sl_pct,
+                copy_experimental=excluded.copy_experimental,
                 updated_at=excluded.updated_at
         """, (user_id, encrypt_key(api_key), encrypt_key(api_secret),
               size_pct, max_size_pct, max_leverage,
               int(scale_with_sqi), tp_mode, size_mode, fixed_size_usd,
-              leverage_mode, sl_mode, sl_pct, now, now))
+              leverage_mode, sl_mode, sl_pct, int(copy_experimental), now, now))
         conn.commit()
         _invalidate_client_cache(user_id)  # force fresh client with new keys on next trade
         result = {"success": True, "permissions": validation.get("permissions", {})}
@@ -764,7 +845,8 @@ def update_settings(user_id: int, size_pct: float = None, max_size_pct: float = 
                     scale_with_sqi: bool = None, tp_mode: str = None,
                     size_mode: str = None, fixed_size_usd: float = None,
                     leverage_mode: str = None, sl_mode: str = None,
-                    sl_pct: float = None) -> Dict:
+                    sl_pct: float = None,
+                    copy_experimental: bool = None) -> Dict:
     """Update copy-trading settings without re-entering keys."""
     conn = _get_db()
     row = conn.execute(
@@ -817,6 +899,9 @@ def update_settings(user_id: int, size_pct: float = None, max_size_pct: float = 
     if sl_pct is not None:
         updates.append("sl_pct=?")
         params.append(max(0.1, min(float(sl_pct), 50.0)))
+    if copy_experimental is not None:
+        updates.append("copy_experimental=?")
+        params.append(int(copy_experimental))
 
     if not updates:
         conn.close()
@@ -1160,6 +1245,7 @@ def _invalidate_client_cache(user_id: int):
     _CLIENT_TS.pop(user_id, None)
     _HEDGE_CACHE.pop(user_id, None)
     _HEDGE_TS.pop(user_id, None)
+    _invalidate_leverage_margin_caches(user_id)
 
 
 def _get_futures_client_fresh(user_id: int):
@@ -1201,6 +1287,7 @@ async def execute_copy_trades(signal_data: Dict):
     targets = signal_data.get('targets', [])
     leverage = int(signal_data.get('leverage', 5))
     sqi_score = float(signal_data.get('sqi_score', 50))
+    signal_tier = str(signal_data.get('signal_tier', 'production') or 'production').lower()
 
     if not all([signal_id, pair, direction, entry_price, stop_loss]):
         log.warning(f"Copy-trade skipped: incomplete signal data for {signal_id}")
@@ -1254,6 +1341,10 @@ async def execute_copy_trades(signal_data: Dict):
             continue
         if cfg.get('tier_expires', 0) and time.time() > cfg['tier_expires']:
             log.info(f"Copy-trade skip user {uid}: tier expired")
+            continue
+
+        if signal_tier == 'experimental' and not bool(cfg.get('copy_experimental', 0)):
+            log.info(f"Copy-trade skip user {uid}: experimental signal {signal_id} not enabled")
             continue
 
         # B4: TradFi pre-flight — skip pairs that previously failed with
@@ -1567,31 +1658,19 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
                                  leverage, size_usd, 'error',
                                  error_msg='Calculated quantity is 0')
 
-        # Set leverage — if rejected, clamp to pair's actual Binance maximum and recalculate
-        try:
-            client.futures_change_leverage(symbol=pair, leverage=leverage)
-        except Exception as e:
-            log.warning(f"Leverage change failed for {pair}: {e} — fetching pair max")
-            try:
-                brackets = client.futures_leverage_bracket(symbol=pair)
-                pair_max_lev = int(brackets[0]['brackets'][0]['initialLeverage'])
-                leverage = min(leverage, pair_max_lev)
-                client.futures_change_leverage(symbol=pair, leverage=leverage)
-                # Recalculate notional and quantity with the clamped leverage
-                notional = size_usd * leverage
-                quantity = round(notional / entry_price, qty_precision)
-                if min_qty > 0 and quantity < min_qty:
-                    quantity = round(min_qty, qty_precision)
-                    size_usd = (quantity * entry_price) / leverage
-                log.info(f"Clamped leverage to pair max {leverage}x for {pair}, qty={quantity}")
-            except Exception as e2:
-                log.warning(f"Could not clamp leverage for {pair}: {e2}")
+        # Set leverage — cached: only fires REST when leverage changes vs last trade.
+        actual_leverage = _ensure_leverage_cached(client, user_id, pair, leverage)
+        if actual_leverage != leverage:
+            # Leverage was clamped to pair max — recalculate notional + qty
+            leverage = actual_leverage
+            notional = size_usd * leverage
+            quantity = round(notional / entry_price, qty_precision)
+            if min_qty > 0 and quantity < min_qty:
+                quantity = round(min_qty, qty_precision)
+                size_usd = (quantity * entry_price) / leverage
 
-        # Set margin type to CROSS
-        try:
-            client.futures_change_margin_type(symbol=pair, marginType='CROSSED')
-        except Exception:
-            pass  # Already cross or position open
+        # Set margin type to CROSS — cached: only fires once per TTL
+        _ensure_margin_cross_cached(client, user_id, pair)
 
         # Place market order (WS API preferred, REST fallback on any failure)
         side = 'BUY' if direction == 'LONG' else 'SELL'
@@ -2620,21 +2699,13 @@ def _sync_user_positions(user_id: int):
 
 
 def _feed_copy_result_to_registry(signal_id: str, pnl_pct: float, pnl_usd: float):
-    """Write copy-trade outcome back to main signal_registry.db so self-learning picks it up."""
-    if not signal_id:
-        return
-    try:
-        reg_conn = sqlite3.connect(_SIGNAL_DB_PATH)
-        new_status = 'WIN' if pnl_pct > 0 else 'LOSS'
-        reg_conn.execute(
-            "UPDATE signals SET pnl=?, status=?, closed_timestamp=? WHERE signal_id=?",
-            (pnl_pct, new_status, time.time(), signal_id)
-        )
-        reg_conn.commit()
-        reg_conn.close()
-        log.info(f"[ct_monitor] Signal {signal_id[:8]} outcome recorded: {new_status} {pnl_pct:+.2f}%")
-    except Exception as e:
-        log.warning(f"[ct_monitor] Could not update signal registry: {e}")
+    """
+    Write copy-trade outcome back to main signal_registry.db so self-learning picks it up.
+    DISABLED: This was blindly overwriting the canonical signal PnL and status with
+    individual user execution results, causing the dashboard to show 'LOSS' with 0% PnL
+    and ignoring targets_hit. Canonical performance is handled by performance_tracker.py.
+    """
+    pass
 
 
 # ── SL/TP Recovery: Place missing orders on open positions ──────────

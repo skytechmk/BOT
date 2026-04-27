@@ -102,6 +102,16 @@ def get_performance_summary(days: int = 30) -> dict:
     long_wins = [r for r in long_signals if r['pnl'] > 0]
     short_wins = [r for r in short_signals if r['pnl'] > 0]
 
+    # TP and SL hit percentages
+    tp1_hit = sum(1 for r in closed if r['targets_hit'] >= 1)
+    tp2_hit = sum(1 for r in closed if r['targets_hit'] >= 2)
+    tp3_hit = sum(1 for r in closed if r['targets_hit'] == 3)
+    sl_hit = sum(1 for r in closed if r['close_reason'] and 'SL_HIT' in r['close_reason'])
+    tp1_hit_pct = round((tp1_hit / len(closed) * 100) if closed else 0, 1)
+    tp2_hit_pct = round((tp2_hit / len(closed) * 100) if closed else 0, 1)
+    tp3_hit_pct = round((tp3_hit / len(closed) * 100) if closed else 0, 1)
+    sl_hit_pct = round((sl_hit / len(closed) * 100) if closed else 0, 1)
+
     return {
         "period_days": days,
         "total_signals": total,
@@ -126,6 +136,14 @@ def get_performance_summary(days: int = 30) -> dict:
         "long_win_rate": round(len(long_wins) / len(long_signals) * 100, 1) if long_signals else 0,
         "short_signals": len(short_signals),
         "short_win_rate": round(len(short_wins) / len(short_signals) * 100, 1) if short_signals else 0,
+        "tp1_hit": tp1_hit,
+        "tp2_hit": tp2_hit,
+        "tp3_hit": tp3_hit,
+        "sl_hit": sl_hit,
+        "tp1_hit_pct": tp1_hit_pct,
+        "tp2_hit_pct": tp2_hit_pct,
+        "tp3_hit_pct": tp3_hit_pct,
+        "sl_hit_pct": sl_hit_pct,
     }
 
 
@@ -198,6 +216,73 @@ def get_pair_performance(days: int = 30) -> list:
 
     result.sort(key=lambda x: x['total_pnl'], reverse=True)
     return result
+
+
+def get_public_pair_summary(pair: str, limit: int = 8) -> dict:
+    """Public-safe aggregate summary for a single pair.
+
+    Designed for SEO pages only. Returns historical / aggregate data and does
+    not expose live premium entry, TP, or stop-loss levels.
+    """
+    conn = _get_signal_db()
+    if not conn:
+        return {"exists": False, "pair": pair}
+
+    try:
+        live_rows = conn.execute(
+            "SELECT signal_id, pair, signal, confidence, timestamp, status, pnl, targets_hit "
+            "FROM signals WHERE pair=? AND COALESCE(signal_tier,'production')='production'",
+            (pair,)
+        ).fetchall()
+        try:
+            archived_rows = conn.execute(
+                "SELECT signal_id, pair, signal, confidence, timestamp, status, pnl, targets_hit "
+                "FROM archived_signals WHERE pair=? AND COALESCE(signal_tier,'production')='production'",
+                (pair,)
+            ).fetchall()
+        except sqlite3.Error:
+            archived_rows = []
+    finally:
+        conn.close()
+
+    rows = sorted(list(live_rows) + list(archived_rows), key=lambda r: r['timestamp'], reverse=True)
+    if not rows:
+        return {"exists": False, "pair": pair}
+
+    closed = [r for r in rows if r['status'] == 'CLOSED' and r['pnl'] is not None]
+    wins = [r for r in closed if r['pnl'] > 0]
+    best_trade = max(closed, key=lambda r: r['pnl']) if closed else None
+    worst_trade = min(closed, key=lambda r: r['pnl']) if closed else None
+    latest = rows[0]
+
+    recent_closed = []
+    for r in closed[:limit]:
+        ts_utc = datetime.fromtimestamp(r['timestamp'], tz=timezone.utc)
+        recent_closed.append({
+            "direction": r['signal'],
+            "timestamp": r['timestamp'],
+            "time_local": ts_utc.strftime('%d %b %H:%M UTC'),
+            "pnl": round(r['pnl'], 2),
+            "targets_hit": int(r['targets_hit']) if isinstance(r['targets_hit'], (int, float)) else 0,
+        })
+
+    return {
+        "exists": True,
+        "pair": pair,
+        "total_signals": len(rows),
+        "closed_signals": len(closed),
+        "win_rate": round(len(wins) / len(closed) * 100, 1) if closed else 0,
+        "avg_pnl": round(sum(r['pnl'] for r in closed) / len(closed), 2) if closed else 0,
+        "best_trade": round(best_trade['pnl'], 2) if best_trade else None,
+        "worst_trade": round(worst_trade['pnl'], 2) if worst_trade else None,
+        "last_signal": {
+            "direction": latest['signal'],
+            "status": latest['status'],
+            "timestamp": latest['timestamp'],
+            "confidence": round((latest['confidence'] or 0) * 100, 1),
+        },
+        "recent_closed": recent_closed,
+    }
 
 
 def get_hourly_heatmap(days: int = 30) -> list:

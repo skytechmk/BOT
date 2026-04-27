@@ -1,0 +1,455 @@
+"""
+RealTimeSignalMonitor
+=====================
+Single combined Binance futures mark-price WebSocket stream for all open signals.
+Uses @markPrice@1s (1-second updates) — identical to how Binance calculates SL/TP
+liquidations on futures positions.
+
+Architecture
+------------
+- One multiplexed WS: fstream.binance.com/stream?streams=pair1@markPrice@1s/pair2@...
+- Reconnects automatically when open-signal set changes (new signal added/removed)
+- On SL or TP hit → immediately:
+    1. Writes to signal_registry.db (SQLite) with pnl + targets_hit + closed_timestamp
+    2. Calls close_open_signal()  → Circuit Breaker + Auto-Blacklist + RL Sizer
+    3. Calls track_signal_performance() → PERFORMANCE_HISTORY + ML self-learning
+    4. Removes from OPEN_SIGNALS_TRACKER
+"""
+
+import asyncio
+import json
+import sqlite3
+import time
+import logging
+from typing import Dict, List, Optional
+import websockets
+
+_WS_BASE = "wss://fstream.binance.com/market/stream"
+_MARK_STREAM = "@markPrice@1s"   # 1-second mark price updates (futures)
+
+class RealTimeSignalMonitor:
+    """
+    Single-stream real-time signal monitor using Binance futures mark-price WebSocket.
+    Replaces per-pair individual connections with one multiplexed combined stream.
+    """
+
+    # ── trailing stop tiers (profit % threshold → lock-in fraction) ──────────
+    TRAIL_TIERS = [
+        (5.0, 0.60),   # +5 % profit → lock in 60 % of gains
+        (2.0, 0.40),   # +2 % profit → lock in 40 % of gains
+    ]
+    DB_PATH = "signal_registry.db"
+
+    def __init__(self, telegram_sender, closed_signals_sender, open_signals_tracker, signal_registry):
+        self.telegram_sender       = telegram_sender
+        self.closed_signals_sender = closed_signals_sender
+        self.open_signals_tracker  = open_signals_tracker
+        self.signal_registry       = signal_registry
+        
+        self.logger  = logging.getLogger(__name__)
+        self.running = False
+
+        # Combined WS state
+        self._ws_task: Optional[asyncio.Task] = None
+        self._active_pairs: set = set()       # pairs currently subscribed
+        self._needs_reconnect: bool = False   # flag set when pair set changes
+        self._price_cache: Dict[str, float] = {}
+
+        # Per-signal trailing-stop state (signal_id → current sl price)
+        self._trailing_sl: Dict[str, float] = {}
+
+        # Stats
+        self.monitoring_stats = {
+            'signals_checked': 0,
+            'targets_hit': 0,
+            'stop_losses_hit': 0,
+            'ws_reconnects': 0,
+        }
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  PUBLIC API
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def initialize(self, api_key=None, api_secret=None):
+        """Compatibility shim – no async client needed."""
+        pass
+
+    async def start_monitoring(self):
+        """Start the combined stream + reconciliation loop."""
+        self.running = True
+        self._ws_task = asyncio.create_task(self._combined_stream_loop())
+        asyncio.create_task(self._sync_pairs_loop())
+        asyncio.create_task(self._rest_fallback_loop())
+        self.logger.info("📡 RealTimeSignalMonitor started (combined markPrice stream)")
+
+    async def stop_monitoring(self):
+        """Graceful shutdown."""
+        self.running = False
+        if self._ws_task and not self._ws_task.done():
+            self._ws_task.cancel()
+        self.logger.info("📡 RealTimeSignalMonitor stopped")
+
+    async def add_pair_monitoring(self, pair: str, signal_data: Dict = None):
+        """Add a pair to the combined stream (triggers reconnect if new)."""
+        if pair not in self._active_pairs:
+            self._active_pairs.add(pair)
+            self._needs_reconnect = True
+            self.logger.info(f"📌 Added {pair} to mark-price stream")
+
+    async def remove_pair_monitoring(self, pair: str):
+        """Remove pair from stream when no open signals remain."""
+        if pair in self._active_pairs:
+            self._active_pairs.discard(pair)
+            self._needs_reconnect = True
+
+    async def get_monitoring_status(self) -> Dict:
+        return {
+            'running':         self.running,
+            'monitored_pairs': list(self._active_pairs),
+            'open_signals':    len(self.open_signals_tracker),
+            'stats':           self.monitoring_stats.copy(),
+        }
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  STREAM LOOPS
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def _combined_stream_loop(self):
+        """
+        Maintain a single persistent combined-stream WebSocket and use the
+        SUBSCRIBE/UNSUBSCRIBE JSON-RPC protocol to dynamically add/remove
+        pairs without reconnecting.
+
+        Why: previously we tore the connection down every time a signal
+        opened or closed, which created brief blind-spots and caused
+        ~5–10 reconnects/day. With dynamic subscribe we get a single
+        long-lived connection.
+
+        On WS drop, we reconnect and re-subscribe to all current pairs.
+        """
+        sub_id_counter = 1
+        # Connection URL has no `?streams=` param — we send subscriptions
+        # via JSON-RPC after open.
+        url = _WS_BASE   # "wss://fstream.binance.com/market/stream"
+
+        while self.running:
+            # Wait until at least one pair is wanted before opening the WS.
+            if not self._active_pairs:
+                await asyncio.sleep(2)
+                continue
+
+            try:
+                async with websockets.connect(
+                    url,
+                    ping_interval=20,
+                    ping_timeout=30,
+                    close_timeout=5,
+                ) as ws:
+                    # Subscribe to all currently-active pairs in one batch.
+                    subscribed: set = set()
+                    if self._active_pairs:
+                        params = [f"{p.lower()}{_MARK_STREAM}" for p in self._active_pairs]
+                        await ws.send(json.dumps({
+                            "method": "SUBSCRIBE",
+                            "params": params,
+                            "id":     sub_id_counter,
+                        }))
+                        sub_id_counter += 1
+                        subscribed.update(self._active_pairs)
+                        self.logger.info(
+                            f"🔗 Combined markPrice stream opened — SUBSCRIBE {len(params)} pairs"
+                        )
+
+                    self._needs_reconnect = False
+
+                    while self.running:
+                        # Diff current active set vs subscribed and emit
+                        # SUBSCRIBE/UNSUBSCRIBE for the deltas.
+                        if self._needs_reconnect:
+                            self._needs_reconnect = False
+                            wanted = set(self._active_pairs)
+                            to_add = wanted - subscribed
+                            to_rm  = subscribed - wanted
+                            if to_add:
+                                await ws.send(json.dumps({
+                                    "method": "SUBSCRIBE",
+                                    "params": [f"{p.lower()}{_MARK_STREAM}" for p in to_add],
+                                    "id":     sub_id_counter,
+                                }))
+                                sub_id_counter += 1
+                                subscribed.update(to_add)
+                                self.logger.info(f"➕ SUBSCRIBE {len(to_add)} pairs: {sorted(to_add)}")
+                            if to_rm:
+                                await ws.send(json.dumps({
+                                    "method": "UNSUBSCRIBE",
+                                    "params": [f"{p.lower()}{_MARK_STREAM}" for p in to_rm],
+                                    "id":     sub_id_counter,
+                                }))
+                                sub_id_counter += 1
+                                subscribed.difference_update(to_rm)
+                                self.logger.info(f"➖ UNSUBSCRIBE {len(to_rm)} pairs: {sorted(to_rm)}")
+
+                        # Read next message (with timeout so we can re-check
+                        # the diff loop above periodically).
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=5)
+                        except asyncio.TimeoutError:
+                            continue
+
+                        if not self.running:
+                            break
+                        try:
+                            msg = json.loads(raw)
+                            # Subscribe/unsubscribe ACKs come back as {"result":null,"id":N}
+                            if isinstance(msg, dict) and 'result' in msg and 'id' in msg:
+                                continue
+                            data = msg.get("data", msg)
+                            pair = data.get("s", "")     # symbol field in markPrice
+                            mark = data.get("p")          # mark price (string)
+                            if pair and mark:
+                                price = float(mark)
+                                self._price_cache[pair] = price
+                                await self._check_pair(pair, price)
+                        except Exception as e:
+                            self.logger.debug(f"Stream parse error: {e}")
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.monitoring_stats['ws_reconnects'] += 1
+                self.logger.warning(f"⚠️ markPrice stream error ({e}), reconnecting in 5s…")
+                await asyncio.sleep(5)
+
+    async def _sync_pairs_loop(self):
+        """Keep _active_pairs in sync with OPEN_SIGNALS_TRACKER every 5 seconds."""
+        while self.running:
+            await asyncio.sleep(5)
+            wanted = {v['pair'] for v in self.open_signals_tracker.values()}
+            if wanted != self._active_pairs:
+                self._active_pairs = wanted
+                self._needs_reconnect = True
+
+    async def _rest_fallback_loop(self):
+        """
+        REST fallback: if price cache is stale (>30 s) for any monitored pair,
+        fetch via futures_symbol_ticker and check signals.
+        Runs every 15 seconds.
+        """
+        while self.running:
+            await asyncio.sleep(15)
+            try:
+                from data_fetcher import client as _bc
+                now = time.time()
+                for sid, sig in list(self.open_signals_tracker.items()):
+                    pair = sig['pair']
+                    cached = self._price_cache.get(pair)
+                    if cached is None:
+                        try:
+                            t = _bc.futures_symbol_ticker(symbol=pair)
+                            price = float(t['price'])
+                            self._price_cache[pair] = price
+                            await self._check_pair(pair, price)
+                            self.monitoring_stats['signals_checked'] += 1
+                        except Exception:
+                            pass
+            except Exception as e:
+                self.logger.debug(f"REST fallback error: {e}")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  SIGNAL EVALUATION
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def _check_pair(self, pair: str, mark_price: float):
+        """Evaluate every open signal for this pair against SL/TP."""
+        for sid, sig in list(self.open_signals_tracker.items()):
+            if sig.get('pair') != pair:
+                continue
+            try:
+                await self._evaluate_signal(sid, sig, mark_price)
+                self.monitoring_stats['signals_checked'] += 1
+            except Exception as e:
+                self.logger.error(f"Eval error {sid}: {e}")
+
+    async def _evaluate_signal(self, sid: str, sig: Dict, mark: float):
+        """
+        Check a single signal against its SL and targets.
+        Uses mark price (not last price) — correct for Binance futures.
+        """
+        # Pull data from OPEN_SIGNALS_TRACKER (has stop_loss/targets from add_open_signal)
+        entry     = float(sig.get('entry_price', 0))
+        sl        = float(sig.get('stop_loss') or 0)
+        targets   = sig.get('targets') or []
+        direction = sig.get('signal_type', 'LONG').upper()
+        leverage  = int(sig.get('leverage', 1))
+
+        if not entry or not sl or not targets:
+            return
+
+        is_long = direction in ('LONG', 'BUY')
+
+        # ── peak / trough tracking ─────────────────────────────────────────
+        # We need this to record the *highest TP actually pierced* during the
+        # signal's life, even if the bot was restarted after partial hits or
+        # the trailing SL fires before the final TP. Without it, an SL_HIT
+        # after TP2 was reached would persist `targets_hit=0`, hiding the
+        # real outcome.
+        if is_long:
+            peak = sig.get('_extreme_price') or mark
+            if mark > peak:
+                peak = mark
+            sig['_extreme_price'] = peak
+        else:
+            trough = sig.get('_extreme_price') or mark
+            if mark < trough:
+                trough = mark
+            sig['_extreme_price'] = trough
+        extreme = sig['_extreme_price']
+
+        # Highest TP index pierced *ever* by the extreme (1-indexed; 0 = none).
+        highest_pierced = 0
+        for i, tp in enumerate(targets):
+            pierced = (is_long and extreme >= tp) or (not is_long and extreme <= tp)
+            if pierced:
+                highest_pierced = i + 1
+            else:
+                break  # targets are ordered; stop on first miss
+
+        # ── trailing stop update ───────────────────────────────────────────
+        sl = self._update_trailing_sl(sid, sig, entry, sl, mark, is_long)
+
+        # ── targets already hit (stored in sig dict) ───────────────────────
+        hits = sig.setdefault('_targets_hit', [])
+
+        # ── SL check ──────────────────────────────────────────────────────
+        sl_triggered = (is_long and mark <= sl) or (not is_long and mark >= sl)
+        if sl_triggered:
+            raw_pnl = ((sl - entry) / entry * 100) if is_long else ((entry - sl) / entry * 100)
+            lev_pnl = round(raw_pnl * leverage, 2)
+            # Pass highest_pierced so a trailing-SL exit after TPs were
+            # reached records the real outcome (e.g. SL after TP2 → targets_hit=2).
+            await self._on_close(sid, sig, mark, lev_pnl, 'SL_HIT', targets_hit=highest_pierced)
+            return
+
+        # ── TP check ───────────────────────────────────────────────────────
+        # Walk *every* unhit TP that has been pierced (not just one per tick).
+        # Handles price gaps that jump multiple TPs in a single tick.
+        new_hits = [n for n in range(1, highest_pierced + 1) if n not in hits]
+        for tn in new_hits:
+            tp = targets[tn - 1]
+            hits.append(tn)
+            raw_pnl = ((tp - entry) / entry * 100) if is_long else ((entry - tp) / entry * 100)
+            lev_pnl = round(raw_pnl * leverage, 2)
+            is_final = (tn == len(targets))
+            reason   = f'TP{tn}_HIT'
+            self.monitoring_stats['targets_hit'] += 1
+            if is_final:
+                await self._on_close(sid, sig, mark, lev_pnl, reason, targets_hit=tn)
+                return  # signal is closed
+            # Partial TP — persist hit but keep signal active
+            self._db_write(sid, pnl=lev_pnl, targets_hit=tn, close=False)
+            self.logger.info(f"🎯 {sig['pair']} TP{tn} hit @ {mark:.6f} (+{lev_pnl:.2f}%)")
+
+    def _update_trailing_sl(self, sid, sig, entry, sl, mark, is_long):
+        """Apply trailing-stop tiers; update sig dict in-place."""
+        pnl_pct = ((mark - entry) / entry * 100) if is_long else ((entry - mark) / entry * 100)
+        for threshold, lock in self.TRAIL_TIERS:
+            if pnl_pct > threshold:
+                locked = pnl_pct * lock
+                new_sl = (entry * (1 + locked / 100)) if is_long else (entry * (1 - locked / 100))
+                old_sl = self._trailing_sl.get(sid, sl)
+                if (is_long and new_sl > old_sl) or (not is_long and new_sl < old_sl):
+                    self._trailing_sl[sid] = new_sl
+                    sig['stop_loss'] = new_sl
+                    self.logger.info(f"📈 Trailing SL {sid}: {new_sl:.6f} ({lock:.0%} lock)")
+                return self._trailing_sl.get(sid, sl)
+        return self._trailing_sl.get(sid, sl)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  CLOSURE — persistence + feedback loops
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def _on_close(self, sid: str, sig: Dict, exit_price: float,
+                        lev_pnl: float, reason: str, targets_hit: int):
+        """
+        Immediate full-close pipeline:
+          1. SQLite write
+          2. close_open_signal()  → Circuit Breaker + Auto-Blacklist + RL
+          3. track_signal_performance() → PERFORMANCE_HISTORY + ML learning
+          4. Remove from OPEN_SIGNALS_TRACKER + cleanup
+          5. Send Telegram notification to closed-signals channel
+        """
+        pair      = sig['pair']
+        direction = sig.get('signal_type', 'LONG').upper()
+        entry     = float(sig.get('entry_price', 0))
+
+        self.logger.info(
+            f"{'🛑' if 'SL' in reason else '🎯'} {pair} {reason} "
+            f"@ {exit_price:.6f} | PnL={lev_pnl:+.2f}% | sid={sid}"
+        )
+
+        # 1. SQLite ────────────────────────────────────────────────────────
+        self._db_write(sid, pnl=lev_pnl, targets_hit=targets_hit, close=True)
+
+        # 2. close_open_signal → CB + BL + RL ─────────────────────────────
+        try:
+            from performance_tracker import close_open_signal
+            close_open_signal(sid, close_reason=reason, pnl=lev_pnl)
+        except Exception as e:
+            self.logger.error(f"close_open_signal error: {e}")
+
+        # 3. track_signal_performance → PERFORMANCE_HISTORY + ML ───────────
+        try:
+            from performance_tracker import track_signal_performance
+            track_signal_performance(pair, sig, exit_price)
+        except Exception as e:
+            self.logger.error(f"track_signal_performance error: {e}")
+
+        # 4. Remove from in-memory tracker ─────────────────────────────────
+        self.open_signals_tracker.pop(sid, None)
+        self._trailing_sl.pop(sid, None)
+        if 'SL' in reason:
+            self.monitoring_stats['stop_losses_hit'] += 1
+
+        # Cleanup stream subscription if no signals remain for this pair
+        remaining = [s for s in self.open_signals_tracker.values() if s.get('pair') == pair]
+        if not remaining:
+            self._active_pairs.discard(pair)
+            self._needs_reconnect = True
+
+        # 5. Telegram closed-signals notification ──────────────────────────
+        try:
+            duration_h = (time.time() - float(sig.get('timestamp', time.time()))) / 3600
+            emoji = "🛑" if 'SL' in reason else "🎯"
+            msg = (
+                f"{emoji} **{reason.replace('_', ' ')}**\n"
+                f"💰 {pair} {direction}\n"
+                f"📥 Entry: {entry:.6f}  |  📤 Exit: {exit_price:.6f}\n"
+                f"📊 PnL: {lev_pnl:+.2f}% (leveraged)\n"
+                f"⏱ Duration: {duration_h:.1f}h\n"
+                f"🔍 Source: RealTime MarkPrice Stream"
+            )
+            await self.closed_signals_sender(msg)
+        except Exception as e:
+            self.logger.debug(f"Notification error: {e}")
+
+    def _db_write(self, sid: str, pnl: float, targets_hit: int, close: bool):
+        """Write outcome to signal_registry.db immediately."""
+        try:
+            now = time.time()
+            con = sqlite3.connect(self.DB_PATH, timeout=5)
+            if close:
+                con.execute(
+                    "UPDATE signals SET status='CLOSED', pnl=?, targets_hit=?, "
+                    "closed_timestamp=? WHERE signal_id=?",
+                    (pnl, targets_hit, now, sid)
+                )
+            else:
+                con.execute(
+                    "UPDATE signals SET pnl=?, targets_hit=? WHERE signal_id=?",
+                    (pnl, targets_hit, sid)
+                )
+            con.commit()
+            con.close()
+        except Exception as e:
+            self.logger.error(f"DB write error for {sid}: {e}")
+        

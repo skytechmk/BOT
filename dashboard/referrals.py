@@ -153,7 +153,7 @@ def credit_referral(referred_id: int, payment_id: str,
     Only fires on the FIRST confirmed payment (status='pending' event required).
 
     Credits:
-      - Referrer: 20% of payment → bonus days on their subscription
+      - Referrer: 7 free bonus days added to their subscription
       - Referred: 7 free bonus days added to their subscription
     Returns dict with credit details, or None if no referral on record.
     """

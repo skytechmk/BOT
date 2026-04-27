@@ -71,11 +71,28 @@ class SignalRegistryDB:
                 cur.execute(f'ALTER TABLE {tbl} ADD COLUMN targets_hit TEXT DEFAULT "[]"')
             except Exception:
                 pass  # column already exists
+            # signal_tier: 'production' (clean OS_L2_ARMED / OB_L2_ARMED path, public)
+            #              'experimental' (the 6 short-circuit RH paths, admin-only Lab tab)
+            try:
+                cur.execute(f'ALTER TABLE {tbl} ADD COLUMN signal_tier TEXT DEFAULT "production"')
+            except Exception:
+                pass
+            # zone_used: copy of features.zone_used hoisted to top-level for fast filtering
+            try:
+                cur.execute(f'ALTER TABLE {tbl} ADD COLUMN zone_used TEXT')
+            except Exception:
+                pass
+            # close_reason: why the signal was closed (SL_HIT, TP1_HIT, TP2_HIT, TP3_HIT, MANUAL, EXPIRED, etc.)
+            try:
+                cur.execute(f'ALTER TABLE {tbl} ADD COLUMN close_reason TEXT')
+            except Exception:
+                pass
 
         # Indices
         cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_pair ON signals(pair)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_status ON signals(status)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_timestamp ON signals(timestamp)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_tier ON signals(signal_tier)')
         
         conn.commit()
         conn.close()
@@ -165,11 +182,16 @@ class SignalRegistryDB:
             conn = self.get_conn()
             cur = conn.cursor()
             
+            features = data.get('features', {}) or {}
+            # Hoist zone_used from features for indexed filtering. Fallback to top-level.
+            zone_used = data.get('zone_used') or features.get('zone_used')
+            signal_tier = data.get('signal_tier') or features.get('signal_tier') or 'production'
             cur.execute('''
                 INSERT OR REPLACE INTO signals 
                 (signal_id, pair, signal, price, confidence, targets_json, stop_loss, leverage, 
-                 features_json, timestamp, status, telegram_message_id, pnl) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 features_json, timestamp, status, telegram_message_id, pnl,
+                 signal_tier, zone_used) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 signal_id,
                 data.get('pair', 'UNKNOWN'),
@@ -179,11 +201,13 @@ class SignalRegistryDB:
                 json.dumps(data.get('targets', [])),
                 data.get('stop_loss', 0.0),
                 data.get('leverage', 1),
-                json.dumps(data.get('features', {})),
+                json.dumps(features),
                 data.get('timestamp', time.time()),
                 data.get('status', 'OPEN'),
                 data.get('telegram_message_id'),
-                data.get('pnl', 0.0)
+                data.get('pnl', 0.0),
+                signal_tier,
+                zone_used,
             ))
             conn.commit()
         except Exception as e:

@@ -321,6 +321,21 @@ def calculate_sqi(df, entry_price, stop_loss, targets, signal_direction,
                     ml_score = int(round(ml_score / 2))
                     flags.append(f'ML_UNCERTAIN:set={"+".join(pred_set)}')
 
+                # Phase 7: MC-Dropout for close-call signals
+                if os.getenv('ML_USE_MC_DROPOUT', 'true').lower() == 'true':
+                    if 0.40 < ml_conf < 0.60:
+                        try:
+                            from ml_engine_archive.models import get_ensemble
+                            _ens = get_ensemble()
+                            if _ens and hasattr(_ens, 'predict_with_uncertainty'):
+                                mc_result = _ens.predict_with_uncertainty(feat_row.values.reshape(1, -1), n_samples=int(os.getenv('ML_MC_DROPOUT_SAMPLES', '30')))
+                                mc_unc = mc_result.get('uncertainty', 0)
+                                if mc_unc > float(os.getenv('ML_MC_UNCERTAINTY_THRESHOLD', '0.15')):
+                                    ml_score = int(round(ml_score / 2))
+                                    flags.append(f"MC_UNCERTAIN:{mc_unc:.3f}")
+                        except Exception as mc_e:
+                            pass
+
                 if ml_aligned and ml_conf >= 0.50:
                     flags.append(f'ML_CONFIRM:{ml_sig}({ml_conf:.2f})')
                 elif not ml_aligned and ml_conf >= 0.45 and ml_sig != 'NEUTRAL':
@@ -345,6 +360,7 @@ def calculate_sqi(df, entry_price, stop_loss, targets, signal_direction,
                     'prediction_set':    pred_set,
                     'shap_top':          _p.get('shap', []),
                     'text_explanation':  _p.get('text_explanation', ''),
+                    '_raw_features_array': feat_row.values,  # Pass down for Meta-Labeler
                 }
             else:
                 # Fallback to legacy predictor if Ultra surface unavailable

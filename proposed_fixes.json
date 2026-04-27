@@ -1276,5 +1276,29 @@
     "explanation": "Raw text fallback, cannot be automatically applied.",
     "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
     "type": "STRATEGY_RAW"
+  },
+  "STRAT-95CC3A": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-07EDED": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-84A4D8": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
+  },
+  "STRAT-FA3B85": {
+    "file": "signal_generator.py",
+    "explanation": "Raw text fallback, cannot be automatically applied.",
+    "new_code": "# JSON parse failed\nAI service temporarily unavailable. Please try again.",
+    "type": "STRATEGY_RAW"
   }
 }

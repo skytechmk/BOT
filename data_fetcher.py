@@ -655,16 +655,38 @@ def get_order_book_depth(pair, depth=100):
         return {'imbalance': 1.0, 'buy_walls': [], 'sell_walls': []}
 
 def get_funding_rate(pair):
-    """Get current funding rate for the pair with caching"""
+    """Get current funding rate for the pair.
+
+    Resolution order:
+      1. LIVE_FEED (markPrice@1s WS stream) — zero weight, always preferred.
+      2. In-memory TTL cache (REST result reuse).
+      3. REST `futures_funding_rate` (last resort, costs weight + IP-ban risk).
+    """
     import time as _time
     now = _time.time()
-    
-    # Check cache
+
+    # ── 1. WS LIVE_FEED (preferred) ─────────────────────────────────────
+    try:
+        from live_price_feed import LIVE_FEED
+        ws_pkg = LIVE_FEED.get_funding_rate(pair)
+        if ws_pkg is not None:
+            rate, next_T = ws_pkg
+            # next_funding_ts in markPrice is the *next* settlement; the historical
+            # API returns the *previous* settlement timestamp. Approximate the
+            # previous settlement as next - 8h (Binance default funding interval).
+            funding_time_ms = next_T - 8 * 3600 * 1000 if next_T else 0
+            _FUNDING_CACHE['current'][pair] = ((rate, funding_time_ms), now)
+            return rate, funding_time_ms
+    except Exception:
+        pass
+
+    # ── 2. Cache ───────────────────────────────────────────────────────
     if pair in _FUNDING_CACHE['current']:
         cached_data, cached_time = _FUNDING_CACHE['current'][pair]
         if now - cached_time < _FUNDING_TTL:
             return cached_data
-            
+
+    # ── 3. REST fallback ───────────────────────────────────────────────
     try:
         rate_limit()
         funding_rate_info = client.futures_funding_rate(symbol=pair, limit=1)
@@ -684,17 +706,36 @@ def get_funding_rate(pair):
         return 0.0, 0
 
 def get_funding_rate_history(pair, limit=10):
-    """Get historical funding rates for trend analysis with caching"""
+    """Get historical funding rates for trend analysis.
+
+    Resolution order:
+      1. LIVE_FEED rolling history (built up from observed WS settlements).
+         Used only if WS has accumulated >= `limit` entries.
+      2. In-memory TTL cache (REST result reuse).
+      3. REST `futures_funding_rate` (last resort).
+    """
     import time as _time
     now = _time.time()
-    
-    # Check cache
+
+    # ── 1. WS LIVE_FEED rolling history (preferred when deep enough) ───
+    try:
+        from live_price_feed import LIVE_FEED
+        ws_hist = LIVE_FEED.get_funding_history(pair, limit=limit)
+        if ws_hist and len(ws_hist) >= limit:
+            rates = [r for _t, r in ws_hist]
+            times = [t for t, _r in ws_hist]
+            return rates, times
+    except Exception:
+        pass
+
+    # ── 2. Cache ───────────────────────────────────────────────────────
     cache_key = f"{pair}_{limit}"
     if cache_key in _FUNDING_CACHE['history']:
         cached_data, cached_time = _FUNDING_CACHE['history'][cache_key]
         if now - cached_time < _FUNDING_TTL:
             return cached_data
-            
+
+    # ── 3. REST fallback ───────────────────────────────────────────────
     try:
         rate_limit()
         funding_history = client.futures_funding_rate(symbol=pair, limit=limit)

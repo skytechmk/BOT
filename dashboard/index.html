@@ -18,7 +18,7 @@
     <meta property="og:site_name"   content="Anunnaki World Signals">
     <meta property="og:title"       content="Anunnaki World Signals — We do the math. You make the move.">
     <meta property="og:description" content="Institutional-grade AI scanning 200+ Binance USDT perp pairs in real time. Liquidation heatmap, copy-trading, market screener & AI signals. We crunch the math — you make the move. Free to start.">
-    <meta property="og:image"       content="https://anunnakiworld.com/static/og-banner.png">
+    <meta property="og:image"       content="https://anunnakiworld.com/static/og-banner.jpeg">
     <meta property="og:image:width"  content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:locale"      content="en_US">
@@ -28,7 +28,7 @@
     <meta name="twitter:site"        content="@AnunnakiSignals">
     <meta name="twitter:title"       content="Anunnaki World Signals — We do the math. You make the move.">
     <meta name="twitter:description" content="Institutional-grade AI scanning 200+ Binance USDT perp pairs in real time. We crunch the math — you make the move. Start free.">
-    <meta name="twitter:image"       content="https://anunnakiworld.com/static/og-banner.png">
+    <meta name="twitter:image"       content="https://anunnakiworld.com/static/og-banner.jpeg">
 
     <!-- ═══ ICONS & PWA ═══ -->
     <link rel="icon" type="image/jpeg" href="/static/logo.jpeg">
@@ -177,6 +177,9 @@
         </div>
         <div class="nav-tab" data-page="backtest" onclick="switchPage('backtest')" id="nav-backtest" style="display:none">
             🧪 Backtest <span style="font-size:10px;color:var(--purple);font-weight:700">PRO</span>
+        </div>
+        <div class="nav-tab" data-page="lab" onclick="switchPage('lab')" id="nav-lab" style="display:none">
+            🔬 Lab <span style="font-size:10px;color:#ff6b9d;font-weight:700">ADMIN</span>
         </div>
         <a class="nav-tab" href="/admin" target="_blank" rel="noopener" id="nav-admin" style="display:none;text-decoration:none">⚙️ Admin</a>
         <div class="nav-tab" data-page="account" onclick="switchPage('account')" id="nav-account" style="display:none">
@@ -635,13 +638,35 @@
             <div id="backtest-content"></div>
         </div>
 
+        <!-- ═══ LAB SIGNALS PAGE (admin-only) ═══
+             The 6 short-circuit RH paths (PROLONGED_*, EXTREME_*_L2,
+             CE_MOMENTUM_*, *_ARMED_IMM, PERSISTENT_*) are routed here
+             instead of the public Telegram channel. Admins can study
+             per-path win-rate / avg-PnL before deciding to promote any
+             experimental path to Production. -->
+        <div class="page" id="page-lab">
+            <div class="section-header">
+                <h2>🔬 Lab Signals <span style="font-size:11px;color:#ff6b9d;font-weight:700;background:rgba(255,107,157,0.12);padding:3px 8px;border-radius:6px;margin-left:8px;letter-spacing:.06em;text-transform:uppercase">Admin Only</span></h2>
+                <p style="color:var(--text-dim);font-size:13px;margin:4px 0 0;max-width:780px;line-height:1.6">
+                    Experimental signals from the 6 short-circuit Reverse Hunt paths.
+                    These bypass the clean <code style="background:var(--surface);padding:2px 6px;border-radius:4px;font-size:12px">OS_L2_ARMED</code>/<code style="background:var(--surface);padding:2px 6px;border-radius:4px;font-size:12px">OB_L2_ARMED</code>
+                    state-machine flow and are <strong>NOT</strong> sent to public Telegram or
+                    copy-traded. Use the per-path stats below to decide whether any
+                    experimental path earns a promotion to Production.
+                </p>
+            </div>
+            <div id="lab-content">
+                <div class="loading"><div class="spinner"></div>Loading Lab signals…</div>
+            </div>
+        </div>
+
         <!-- ═══ REFERRAL PAGE ═══ -->
         <div class="page" id="page-refer">
             <div class="section-header"><h2>🔗 Refer &amp; Earn</h2></div>
             <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.7;max-width:640px">
                 Share your unique referral link. When someone subscribes using your link,
-                <strong style="color:var(--text)">you earn 20% of their first payment</strong> as bonus subscription days,
-                and <strong style="color:var(--text)">they get 7 free days</strong> on top of their plan.
+                and completes a <strong style="color:var(--text)">first verified payment</strong>,
+                <strong style="color:var(--text)">you both receive 7 bonus days</strong> on your subscriptions.
             </p>
 
             <!-- How it works -->
@@ -654,12 +679,12 @@
                 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
                     <div style="font-size:28px;margin-bottom:10px">💳</div>
                     <div style="font-weight:700;margin-bottom:6px">They Subscribe</div>
-                    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">When they register &amp; purchase any paid plan, your referral is automatically tracked.</div>
+                    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">When they register and complete a first verified payment, your referral is automatically tracked and credited.</div>
                 </div>
                 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
                     <div style="font-size:28px;margin-bottom:10px">🎁</div>
                     <div style="font-weight:700;margin-bottom:6px">Both Earn Days</div>
-                    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">You earn 20% commission as bonus days. They get 7 free days added automatically.</div>
+                    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">You get 7 bonus days added automatically. They also get 7 bonus days added automatically.</div>
                 </div>
             </div>
 
@@ -1725,10 +1750,10 @@
     <div class="skytech-credit">Developed &amp; hosted by <a href="https://skytech.mk" target="_blank" rel="noopener">skytech.mk</a></div>
 
     <!-- ═══ JS MODULES ═══ -->
-    <script src="/static/js/client-security.js?v=20260421g"></script>
+    <script src="/static/js/client-security.js?v=20260425-reboot"></script>
     <script src="/static/js/app-r7.js?v=20260423-motto"></script>
     <script src="/static/js/lounge.js?v=3"></script>
-    <script src="/static/js/signals.js?v=20260422-zonefilter2"></script>
+    <script src="/static/js/signals.js?v=20260427-closereason"></script>
     <script src="/static/js/charts.js?v=20260422-multi2"></script>
     <script src="/static/js/analytics.js?v=4"></script>
     <script src="/static/js/screener.js?v=7"></script>

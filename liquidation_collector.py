@@ -32,7 +32,7 @@ except ImportError:
     websockets = None
 
 # ── Config ──────────────────────────────────────────────────────────────
-_WS_URL = "wss://fstream.binance.com/ws/!forceOrder@arr"
+_WS_URL = "wss://fstream.binance.com/market/ws/!forceOrder@arr"
 _BUCKET_PCT = 0.0025      # 0.25% price bands
 _WINDOW_HOURS = 24        # Rolling window
 _PRUNE_INTERVAL = 3600    # Prune old events every 1h
