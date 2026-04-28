@@ -195,7 +195,7 @@ function renderPairs(pairs, tier) {
         <div class="pair-card ${_currentPair === p.pair ? 'active' : ''}"
              onclick="${isPro ? `selectPairChart('${p.pair}')` : `switchPage('pricing')`}" id="card-${p.pair}">
             <div class="zone-badge ${p.zone}">${p.zone}${hookBadge}</div>
-            <div class="pair-name">${p.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400">/USDT</span></div>
+            <div class="pair-name">${p.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400">/USDT</span>${p.exchanges === 'both' ? '<span style="font-size:8px;font-weight:800;color:#7dd3fc;background:#7dd3fc18;border:1px solid #7dd3fc44;border-radius:6px;padding:1px 5px;margin-left:4px;vertical-align:middle">Both</span>' : p.exchanges === 'mexc' ? '<span style="font-size:8px;font-weight:800;color:#f0b429;background:#f0b42918;border:1px solid #f0b42944;border-radius:6px;padding:1px 5px;margin-left:4px;vertical-align:middle">MEXC</span>' : ''}</div>
             <div class="pair-price">${formatPrice(p.price)}</div>
             <div class="pair-change ${p.change_pct >= 0 ? 'positive' : 'negative'}">
                 ${p.change_pct >= 0 ? '+' : ''}${p.change_pct.toFixed(2)}% (24h)
@@ -209,10 +209,40 @@ function renderPairs(pairs, tier) {
 // ═══════════════════════════════════════════════════════════════
 //  SIGNALS
 // ═══════════════════════════════════════════════════════════════
+var _signalExchangeFilter = '';  // '' = all, 'binance', 'mexc'
+
+function _renderExchangeTabs() {
+    var el = document.getElementById('signal-exchange-tabs');
+    if (!el) return;
+    var tabs = [
+        ['', 'All'],
+        ['binance', '🔵 Binance'],
+        ['mexc', '🟡 MEXC'],
+    ];
+    var html = '<div style="display:flex;gap:4px;margin-bottom:12px">';
+    tabs.forEach(function(t) {
+        var active = _signalExchangeFilter === t[0];
+        html += '<button onclick="_setSignalExchange(\'' + t[0] + '\')" style="padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;'
+            + 'border:2px solid ' + (active ? 'var(--gold)' : 'var(--border)') + ';'
+            + 'background:' + (active ? 'var(--gold-bg,#f0b4291a)' : 'var(--bg)') + ';'
+            + 'color:' + (active ? 'var(--gold,#f0b429)' : 'var(--text-dim)') + '">' + t[1] + '</button>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+function _setSignalExchange(ex) {
+    _signalExchangeFilter = ex;
+    _renderExchangeTabs();
+    loadSignals();
+}
+
 async function loadSignals() {
     try {
-        const res = await fetch('/api/signals', { headers: authHeaders() });
+        var qp = _signalExchangeFilter ? '?exchange=' + _signalExchangeFilter : '';
+        const res = await fetch('/api/signals' + qp, { headers: authHeaders() });
         const data = await res.json();
+        _renderExchangeTabs();
         renderSignals(data);
     } catch(e) {
         document.getElementById('signals-container').innerHTML = '<div class="no-data">Failed to load signals</div>';
@@ -327,18 +357,22 @@ function renderSignals(data) {
             let outcomeHtml = '';
             if (!isOpen) {
                 const numTargets = (s.targets || []).length;
-                const th = s.targets_hit || 0;
+                let th = s.targets_hit || 0;
+                if (Array.isArray(th)) th = th.length;
                 const reason = (s.close_reason || '').toUpperCase();
-                const isSL = reason.includes('SL_HIT') || (s.status||'').toUpperCase().includes('SL') || s.pnl < 0;
+                // Extract TP number from close_reason if targets_hit is 0
+                const reasonTpMatch = reason.match(/TP(\d+)/);
+                if (th === 0 && reasonTpMatch) th = parseInt(reasonTpMatch[1], 10);
+                const isSL = reason.includes('SL') || (s.status||'').toUpperCase().includes('SL') || (s.pnl < 0 && th === 0);
                 if (isSL) {
-                    outcomeHtml = `<span class="tp-outcome loss">🛑 SL HIT &nbsp;${s.pnl > 0 ? '+' : ''}${s.pnl}%</span>`;
-                } else if (th > 0 || reason.includes('TP')) {
-                    const tpNum = th > 0 ? th : (reason.match(/TP(\d)/)?.[1] || '');
+                    outcomeHtml = `<span class="tp-outcome loss">🛑 SL HIT &nbsp;${s.pnl}%</span>`;
+                } else if (th > 0 || reason.includes('TP') || s.pnl > 0) {
+                    const tpNum = th > 0 ? th : (reasonTpMatch ? reasonTpMatch[1] : '');
                     const allHit = th >= numTargets && numTargets > 0;
                     const label = allHit ? `ALL TPs ✅` : (tpNum ? `TP${tpNum} ✅` : `TP ✅`);
-                    outcomeHtml = `<span class="tp-outcome win">${label} &nbsp;${s.pnl > 0 ? '+' : ''}${s.pnl}%</span>`;
+                    outcomeHtml = `<span class="tp-outcome win">${label} &nbsp;+${s.pnl}%</span>`;
                 } else {
-                    const reasonLabel = reason === 'CLOSED_EVEN' ? 'EXPIRED' : reason === 'CLOSED_WIN' ? 'CLOSED' : (reason || 'CLOSED');
+                    const reasonLabel = reason === 'EXPIRED' ? 'EXPIRED' : reason === 'CLOSED_EVEN' ? 'EXPIRED' : (reason || 'CLOSED');
                     outcomeHtml = `<span class="tp-outcome age">${reasonLabel} &nbsp;${s.pnl !== 0 ? (s.pnl > 0 ? '+' : '') + s.pnl + '%' : '—'}</span>`;
                 }
             }
@@ -353,7 +387,7 @@ function renderSignals(data) {
                 : '';
             html += `<div class="signal-card${s.entry_drift_alert ? ' has-drift-alert' : ''}">
                 <div class="sc-header">
-                    <span class="sc-pair">${s.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400;font-size:14px">/USDT</span>${expBadge}</span>
+                    <span class="sc-pair">${s.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400;font-size:14px">/USDT</span>${s.exchanges === 'both' ? '<span style="font-size:9px;font-weight:800;color:#7dd3fc;background:#7dd3fc18;border:1px solid #7dd3fc44;border-radius:8px;padding:1px 6px;margin-left:6px">🔵🟡 Both</span>' : s.exchanges === 'mexc' ? '<span style="font-size:9px;font-weight:800;color:#f0b429;background:#f0b42918;border:1px solid #f0b42944;border-radius:8px;padding:1px 6px;margin-left:6px">🟡 MEXC</span>' : ''}${expBadge}</span>
                     <span class="sc-dir ${dirLower}">${dirIcon} ${s.direction}</span>
                 </div>
                 ${driftBanner}
@@ -369,6 +403,7 @@ function renderSignals(data) {
                     <span class="${statusClass}" style="font-weight:600;font-size:12px">${s.close_reason ? s.close_reason.replace('_',' ') : s.status}</span>
                     ${livePnlHtml}
                     ${chartBtn}
+                    ${window._user && window._user.is_admin ? `<span class="sc-share-btn" title="Share signal card" onclick='generateShareCard(${JSON.stringify(s).replace(/'/g,"&#39;")})'>📤</span>` : ''}
                 </div>
             </div>`;
         }

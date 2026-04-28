@@ -354,9 +354,15 @@ function renderPreSignals(items) {
               🔒 Quick Entry
             </button>`;
 
+        const _exBadge = p.exchanges === 'both'
+            ? '<span style="font-size:9px;font-weight:800;color:#7dd3fc;background:#7dd3fc18;border:1px solid #7dd3fc44;border-radius:8px;padding:1px 6px;margin-left:6px">🔵🟡 Both</span>'
+            : p.exchanges === 'mexc'
+            ? '<span style="font-size:9px;font-weight:800;color:#f0b429;background:#f0b42918;border:1px solid #f0b42944;border-radius:8px;padding:1px 6px;margin-left:6px">🟡 MEXC</span>'
+            : '';
+
         return `<div class="presignal-card" style="border-color:${rc}40">
             <div class="readiness" style="color:${rc};border-color:${rc}">${p.readiness}</div>
-            <div class="pair-name" style="font-size:16px;font-weight:700;margin-bottom:4px">${p.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400">/USDT</span> ${chg}</div>
+            <div class="pair-name" style="font-size:16px;font-weight:700;margin-bottom:4px">${p.pair.replace('USDT','')}<span style="color:var(--text-dim);font-weight:400">/USDT</span>${_exBadge} ${chg}</div>
             <div class="expected ${p.expected_signal.toLowerCase()}">Expected: ${isLong ? '🚀' : '📉'} ${p.expected_signal}</div>
             <div class="pair-meta" style="margin-top:10px">
                 <div class="meta-item"><span>Zone</span><span class="meta-val">${p.zone}</span></div>

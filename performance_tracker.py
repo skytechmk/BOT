@@ -102,7 +102,7 @@ def check_signal_limit():
         return True, "Limit check failed - allowing signal"
 
 def add_open_signal(signal_id, pair, signal_type, entry_price, timestamp=None,
-                    stop_loss=None, targets=None, leverage=1):
+                    stop_loss=None, targets=None, leverage=1, exchange='binance'):
     """Add a signal to the open signals tracker"""
     try:
         if timestamp is None:
@@ -119,6 +119,7 @@ def add_open_signal(signal_id, pair, signal_type, entry_price, timestamp=None,
             'timestamp':   timestamp,
             'status':      'OPEN',
             'last_updated': timestamp,
+            'exchange':    exchange,
         }
         
         OPEN_SIGNALS_TRACKER[signal_id] = signal_entry
@@ -1061,14 +1062,15 @@ def _reconcile_sent_signals(max_age_hours=72):
     cur.execute(
         "SELECT signal_id, pair, signal, price, targets_json, stop_loss, leverage, "
         "timestamp, targets_hit, "
-        "COALESCE(trail_sl, 0) AS trail_sl "
+        "COALESCE(trail_sl, 0) AS trail_sl, "
+        "COALESCE(exchange, 'binance') AS exchange "
         "FROM signals WHERE status IN ('SENT','OPEN') ORDER BY timestamp DESC"
     )
     rows = cur.fetchall()
 
     now = _t.time()
     age_cutoff = now - max_age_hours * 3600
-    updates          = []       # (pnl, targets_hit, closed_ts, sid, pair) for close
+    updates          = []       # (pnl, targets_hit, closed_ts, close_reason, sid, pair, sig) for close
     partial_updates  = []       # (targets_hit, sid) for partial TP only
     void_updates     = []       # (closed_ts, sid) for instant-fake-win voids
     sl_count = tp_count = age_count = void_count = 0
@@ -1128,7 +1130,14 @@ def _reconcile_sent_signals(max_age_hours=72):
                             else:
                                 break
                 _existing_th = _calc_th
-            updates.append((aged_pnl, _existing_th, now, sid, r['pair'], r['signal']))
+            # Derive close_reason from targets_hit and PnL for aged signals
+            if _existing_th > 0:
+                _aged_reason = f'TP{_existing_th}_HIT'
+            elif aged_pnl <= -0.01:
+                _aged_reason = 'SL_HIT'
+            else:
+                _aged_reason = 'EXPIRED'
+            updates.append((aged_pnl, _existing_th, now, _aged_reason, sid, r['pair'], r['signal']))
             age_count += 1
             continue
         targets = _json.loads(r['targets_json']) if r['targets_json'] else []
@@ -1158,15 +1167,38 @@ def _reconcile_sent_signals(max_age_hours=72):
         # ── Fetch 1m klines from signal timestamp → now ───────────────────
         start_ms = int(r['timestamp'] * 1000)
         end_ms   = int(now * 1000)
+        _sig_exchange = r['exchange'] if 'exchange' in r.keys() else 'binance'
         try:
-            klines = _client.futures_klines(
-                symbol=r['pair'], interval='1m',
-                startTime=start_ms, endTime=end_ms, limit=1500
-            )
+            if _sig_exchange == 'mexc':
+                # MEXC kline fetch — returns {time:[], open:[], high:[], low:[], close:[], vol:[]}
+                import requests as _mreq
+                from mexc_data_fetcher import _to_mexc
+                _mexc_sym = _to_mexc(r['pair'])
+                _mr = _mreq.get(
+                    f'https://api.mexc.com/api/v1/contract/kline/{_mexc_sym}',
+                    params={'interval': 'Min1', 'start': int(start_ms / 1000), 'end': int(end_ms / 1000)},
+                    timeout=15
+                )
+                _mr.raise_for_status()
+                _mkd = _mr.json().get('data', {})
+                # Convert to Binance kline format: [[open_time, o, h, l, c, v, ...], ...]
+                _times = _mkd.get('time', [])
+                _opens = _mkd.get('open', [])
+                _highs = _mkd.get('high', [])
+                _lows = _mkd.get('low', [])
+                _closes = _mkd.get('close', [])
+                _vols = _mkd.get('vol', [])
+                klines = []
+                for _ki in range(min(len(_times), len(_opens), len(_highs), len(_lows), len(_closes))):
+                    klines.append([int(_times[_ki]) * 1000, _opens[_ki], _highs[_ki], _lows[_ki], _closes[_ki], _vols[_ki] if _ki < len(_vols) else 0])
+            else:
+                klines = _client.futures_klines(
+                    symbol=r['pair'], interval='1m',
+                    startTime=start_ms, endTime=end_ms, limit=1500
+                )
         except Exception as e:
             _err_str = str(e)
             if 'restricted location' in _err_str.lower():
-                # Proxy IP geo-restricted — retry via direct server IP (no proxy)
                 try:
                     import requests as _req
                     _r = _req.get(
@@ -1243,7 +1275,7 @@ def _reconcile_sent_signals(max_age_hours=72):
             raw_pct = ((sl - entry) / entry * 100) if is_long else ((entry - sl) / entry * 100)
             pnl = round(raw_pct * lev, 2)
             # Preserve highest TP pierced before SL (e.g. trailing-SL after TP2 → targets_hit=2)
-            updates.append((pnl, partial_tp_hit, hit_ts or now, sid, r['pair'], r['signal']))
+            updates.append((pnl, partial_tp_hit, hit_ts or now, 'SL_HIT', sid, r['pair'], r['signal']))
             sl_count += 1
         elif reason and reason.startswith('TP') and tp_hit == len(targets):
             # Final TP hit — check for instant fake-win before counting it.
@@ -1263,7 +1295,7 @@ def _reconcile_sent_signals(max_age_hours=72):
                 continue
             raw_pct  = ((tp_price - entry) / entry * 100) if is_long else ((entry - tp_price) / entry * 100)
             pnl = round(raw_pct * lev, 2)
-            updates.append((pnl, tp_hit, hit_ts or now, sid, r['pair'], r['signal']))
+            updates.append((pnl, tp_hit, hit_ts or now, f'TP{tp_hit}_HIT', sid, r['pair'], r['signal']))
             tp_count += 1
         elif tp_hit > 0:
             # Partial TP only — update progress, don't close
@@ -1281,8 +1313,8 @@ def _reconcile_sent_signals(max_age_hours=72):
 
     if updates:
         cur.executemany(
-            "UPDATE signals SET status='CLOSED', pnl=?, targets_hit=?, closed_timestamp=? WHERE signal_id=?",
-            [(pnl, th, ts, sid) for pnl, th, ts, sid, _pair, _sig in updates],
+            "UPDATE signals SET status='CLOSED', pnl=?, targets_hit=?, closed_timestamp=?, close_reason=? WHERE signal_id=?",
+            [(pnl, th, ts, cr, sid) for pnl, th, ts, cr, sid, _pair, _sig in updates],
         )
         con.commit()
         log_message(
@@ -1294,7 +1326,7 @@ def _reconcile_sent_signals(max_age_hours=72):
         # AUTO_BLACKLIST is ALWAYS updated — even after a restart when the
         # signal is no longer in OPEN_SIGNALS_TRACKER.  close_open_signal()
         # is only called when the signal is still in-memory (for CB + RL).
-        for pnl_val, _th, _close_ts, sid, pair, sig_dir in updates:
+        for pnl_val, _th, _close_ts, _cr, sid, pair, sig_dir in updates:
             is_win = pnl_val > 0
             # ── Meta-Labeler outcome logging ────────
             try:

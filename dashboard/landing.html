@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#05080F">
+{% if robots_noindex %}<meta name="robots" content="noindex,nofollow">{% endif %}
 
 <title>Anunnaki World — We do the math. You make the move.</title>
 <meta name="description" content="We do the math. You make the move. Institutional-grade AI signals scanning 200+ Binance USDT perps in real time. Live liquidation heatmap, copy-trading, dynamic trailing SL. Free to start.">
@@ -78,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function () {
 :root{
     --text:        #E5E7EB;
     --text-dim:    #94A3B8;
-    --text-faint:  #64748B;
+    --text-faint:  #8E99A4;
     --hairline:    rgba(255,255,255,0.06);
     --neon-gold:   #E4C375;
     --neon-purple: #B794F6;
@@ -292,7 +293,7 @@ body::after{
     -webkit-background-clip:text;background-clip:text;color:transparent}
 .hero-trust-note{display:block;margin-top:6px;font-size:9.5px;
     letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);
-    opacity:.65;font-weight:500;font-family:'Inter',sans-serif}
+    opacity:1;font-weight:500;font-family:'Inter',sans-serif}
 
 /* ═══ Section scaffolding ═══ */
 .section{padding:100px 0;position:relative}
@@ -326,6 +327,8 @@ body::after{
     text-shadow:0 0 20px rgba(212,168,74,0.3)}
 .stat .lbl{font-size:11px;color:var(--text-faint);text-transform:uppercase;
     letter-spacing:.12em;margin-top:10px;font-weight:600}
+.stats-scope{margin-top:14px;text-align:center;font-size:11px;letter-spacing:.08em;
+    color:var(--text-faint);text-transform:uppercase}
 
 /* ═══ Feature grid ═══ */
 .feature-grid{display:grid;grid-template-columns:1fr;gap:22px}
@@ -937,13 +940,13 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
             <a class="btn btn-lg btn-ghost" href="#how">See how it works</a>
         </div>
         <div class="hero-trust" aria-label="Platform statistics">
-            <div><strong class="live-pairs-count" data-count="566">0</strong>USDT perps covered</div>
+            <div><strong class="live-pairs-count" data-count="566" data-server="{{ pairs_monitored|default(200, true)|int }}">0</strong>USDT perps covered</div>
             <div><strong>30 s</strong>Scan cadence</div>
             <div>
                 <strong id="hero-signals-fired" data-live-signals="1"
-                        title="Live count of every signal ever written to our registry — including the testing &amp; development phase. Refreshes every 15 s.">0</strong>
-                Signals fired (all-time)
-                <small class="hero-trust-note">incl. testing phase · live</small>
+                        title="Live count of production signals opened since Apr 16, 2026. Refreshes every 15 s.">0</strong>
+                Opened since Apr 16, 2026
+                <small class="hero-trust-note">production scope · live</small>
             </div>
             <div><strong>24 / 7</strong>Auto-managed</div>
         </div>
@@ -953,11 +956,12 @@ footer{padding:64px 0 36px;border-top:1px solid var(--hairline);margin-top:80px;
 <!-- ══════════════════════ STATS STRIP ══════════════════════ -->
 <section class="stats-strip">
     <div class="container stats-grid">
-        <div class="stat"><div class="val live-pairs-count" data-count="566">0</div><div class="lbl">USDT perps</div></div>
-        <div class="stat"><div class="val" data-count="9">0</div><div class="lbl">Technical regimes</div></div>
-        <div class="stat"><div class="val" data-count="2">0</div><div class="lbl">ML models ensembled</div></div>
-        <div class="stat"><div class="val">1 s</div><div class="lbl">Mark-price updates</div></div>
+        <div class="stat"><div class="val" data-kpi="total_signals" data-server="{{ total_signals|default(0, true)|int }}">0</div><div class="lbl">Opened Since Apr 16, 2026</div></div>
+        <div class="stat"><div class="val" data-kpi="win_rate" data-server="{{ "%.2f"|format(win_rate|default(0.0, true)|float) }}">0.00%</div><div class="lbl">Overall Win Rate</div></div>
+        <div class="stat"><div class="val" data-kpi="total_pnl" data-server="{{ "%+.2f"|format(total_pnl|default(0.0, true)|float) }}">+0.00%</div><div class="lbl">Cumulative PnL</div></div>
+        <div class="stat"><div class="val" data-kpi="open_positions" data-server="{{ open_positions|default(0, true)|int }}">0</div><div class="lbl">Active Open Signals</div></div>
     </div>
+    <div class="stats-scope">{{ stats_scope_label|default('Production since Apr 16, 2026 (UTC)', true) }}</div>
 </section>
 
 <!-- ══════════════════════ FEATURES ══════════════════════ -->
@@ -1700,7 +1704,49 @@ const countIO = new IntersectionObserver(entries => {
 }, {threshold: 0.5});
 document.querySelectorAll('[data-count]').forEach(el => countIO.observe(el));
 
-/* ═══ 4a. PP2 · Hydrate USDT-perps count from /api/public/stats ═══
+/* ═══ 4a. Seed KPI cards from server-rendered attributes ═══
+   If the landing route is templated, data-server carries immediate values;
+   if not, we gracefully fall back to 0/static defaults and let API hydrate. */
+(function seedLandingKpis() {
+    try {
+        const fmtInt = (n) => Number(n).toLocaleString();
+        const fmtPct = (n) => `${Number(n).toFixed(2)}%`;
+        const fmtSignedPct = (n) => `${Number(n) >= 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
+
+        document.querySelectorAll('.live-pairs-count').forEach(el => {
+            const raw = parseInt(el.getAttribute('data-server') || el.getAttribute('data-count') || '0', 10);
+            if (Number.isFinite(raw) && raw > 0) {
+                el.setAttribute('data-count', String(raw));
+            }
+        });
+
+        document.querySelectorAll('[data-kpi]').forEach(el => {
+            const k = el.getAttribute('data-kpi');
+            const raw = el.getAttribute('data-server');
+            if (raw == null) return;
+            const n = Number(raw);
+            if (!Number.isFinite(n)) return;
+
+            if (k === 'total_signals' || k === 'open_positions') {
+                el.textContent = fmtInt(Math.max(0, Math.trunc(n)));
+            } else if (k === 'win_rate') {
+                el.textContent = fmtPct(n);
+            } else if (k === 'total_pnl') {
+                el.textContent = fmtSignedPct(n);
+            }
+        });
+
+        const seededPairs = document.querySelector('.live-pairs-count')?.getAttribute('data-count');
+        const seededNum = parseInt(seededPairs || '0', 10);
+        if (Number.isFinite(seededNum) && seededNum > 0) {
+            document.querySelectorAll('[data-live-pairs-text]').forEach(el => {
+                el.textContent = String(seededNum);
+            });
+        }
+    } catch (_) {}
+})();
+
+/* ═══ 4b. PP2 · Hydrate USDT-perps count from /api/public/stats ═══
    Replaces the hardcoded "566" with the actual live count before the
    counters animate. Elements opt in via class="live-pairs-count". If
    the fetch fails, the static data-count fallback still animates —
@@ -1727,8 +1773,41 @@ document.querySelectorAll('[data-count]').forEach(el => countIO.observe(el));
     } catch (e) { /* fall back to static counts */ }
 })();
 
-/* ═══ 4b. LIVE "Signals fired" counter ═══
-   Pulls the authoritative all-time count from /api/public/stats every
+/* ═══ 4c. Hydrate KPI strip from /api/public/stats ═══ */
+(async function hydrateLandingKpis() {
+    try {
+        const res = await fetch('/api/public/stats', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const fmtInt = (n) => Number(n).toLocaleString();
+        const fmtPct = (n) => `${Number(n).toFixed(2)}%`;
+        const fmtSignedPct = (n) => `${Number(n) >= 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
+
+        const total = parseInt(data.total_signals, 10);
+        const open = parseInt(data.open_positions, 10);
+        const wr = Number(data.win_rate);
+        const pnl = Number(data.total_pnl);
+        const scopeLabel = String(data.scope_since_label || '').trim();
+
+        const setKpi = (key, text) => {
+            const el = document.querySelector(`[data-kpi="${key}"]`);
+            if (el) el.textContent = text;
+        };
+
+        if (Number.isFinite(total) && total >= 0) setKpi('total_signals', fmtInt(total));
+        if (Number.isFinite(open) && open >= 0) setKpi('open_positions', fmtInt(open));
+        if (Number.isFinite(wr)) setKpi('win_rate', fmtPct(wr));
+        if (Number.isFinite(pnl)) setKpi('total_pnl', fmtSignedPct(pnl));
+        if (scopeLabel) {
+            const scopeEl = document.querySelector('.stats-scope');
+            if (scopeEl) scopeEl.textContent = `Production since ${scopeLabel} (UTC)`;
+        }
+    } catch (_) {}
+})();
+
+/* ═══ 4d. LIVE "Opened since Apr 16, 2026" counter ═══
+   Pulls the authoritative production-scope count from /api/public/stats every
    15 s and animates a tween between the old and new value so visitors
    literally see the number tick up as new signals hit the registry. */
 (function liveSignalsCounter(){

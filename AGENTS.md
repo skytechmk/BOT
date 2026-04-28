@@ -79,6 +79,36 @@ When you need to write a file, you MUST invoke the `edit_file` tool with the `fi
 
 The same applies to ALL tools — always invoke them, never simulate their output.
 
+## Systemd Services
+
+All processes are systemd-managed with `Restart=always`. **Code changes require a service restart to take effect.**
+
+| Service | Unit Name | What it runs | Logs |
+|---------|-----------|--------------|------|
+| Trading Bot | `anunnaki-bot.service` | `main.py` (signal pipeline) | `/var/log/anunnaki-bot.log` |
+| Dashboard | `anunnaki-dashboard.service` | `dashboard/app.py` (FastAPI) | `/var/log/anunnaki-dashboard.log` |
+| MCP Server | `mcp-aladdin.service` (user) | `mcp_server.py --transport sse` | journalctl --user |
+| OpenClaw Gateway | `openclaw-gateway.service` (user) | OpenClaw AI gateway | journalctl --user |
+
+### Restart Commands
+
+```bash
+# Dashboard (after editing app.py, copy_trading.py, static JS, etc.)
+sudo systemctl restart anunnaki-dashboard
+
+# Trading Bot (after editing main.py, reverse_hunt.py, predator.py, etc.)
+sudo systemctl restart anunnaki-bot
+
+# MCP Server (after editing mcp_server.py, ai_mcp_bridge.py)
+systemctl --user restart mcp-aladdin
+
+# View logs
+sudo journalctl -u anunnaki-dashboard -f --no-pager
+sudo journalctl -u anunnaki-bot -f --no-pager
+```
+
+**IMPORTANT:** Never `kill` processes manually — systemd will respawn them. Always use `systemctl restart` instead.
+
 ## Maintenance Protocol
 
 When code maintenance is needed:

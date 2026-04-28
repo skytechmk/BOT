@@ -1,10 +1,10 @@
 {
-  "fear_greed": 47,
-  "fear_greed_sentiment": "Neutral",
-  "global_funding_rate": 0.01,
+  "fear_greed": 33,
+  "fear_greed_sentiment": "Fear",
+  "global_funding_rate": 1.2145e-05,
   "liquidity_risk": "Low",
   "market_regime": "STABLE",
-  "risk_score": 0,
-  "last_updated": "2026-04-27T21:03:59.127630",
-  "timestamp": 1777316639.127629
+  "risk_score": 0.2,
+  "last_updated": "2026-04-28T23:30:10.513086",
+  "timestamp": 1777411810.513085
 }

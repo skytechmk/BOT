@@ -162,6 +162,8 @@ function updateUI() {
     updateSubTimer();
     // Email-verification banner
     updateVerifyBanner();
+    // Platform health
+    if (_user) _startPlatformHealth();
 }
 
 function updateSubTimer() {
@@ -816,3 +818,70 @@ async function revokeOwnDevice(deviceId) {
         loadAccountPage();
     } catch (_) { alert('Failed to revoke'); }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  PLATFORM HEALTH
+// ═══════════════════════════════════════════════════════════════
+let _phTimer = null;
+function _startPlatformHealth() {
+    if (_phTimer) return;
+    _fetchPlatformHealth();
+    _phTimer = setInterval(_fetchPlatformHealth, 30000);
+}
+
+async function _fetchPlatformHealth() {
+    const badge = document.getElementById('platform-health-badge');
+    if (!badge || !_user) return;
+    try {
+        const r = await fetch('/api/platform-health', { headers: authHeaders() });
+        if (!r.ok) return;
+        const h = await r.json();
+        _renderPlatformHealth(h);
+    } catch(_) {}
+}
+
+function _renderPlatformHealth(h) {
+    const badge = document.getElementById('platform-health-badge');
+    const label = document.getElementById('ph-label');
+    if (!badge || !label) return;
+
+    badge.style.display = 'inline-flex';
+    badge.className = 'platform-health-badge ' + h.overall;
+
+    const labels = { operational: 'All Systems Go', degraded: 'Degraded', down: 'Offline' };
+    label.textContent = labels[h.overall] || h.overall;
+
+    // Detail panel items
+    function setItem(id, ok, val) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = 'hdp-item ' + (ok ? 'ok' : 'err');
+        const v = document.getElementById(id + '-val');
+        if (v) v.textContent = val;
+    }
+
+    setItem('hdp-binance', h.binance_ws.ok, h.binance_ws.ok ? h.binance_ws.streams + ' streams' : 'Disconnected');
+    setItem('hdp-mexc', h.mexc.ok, h.mexc.ok ? h.mexc.pairs + ' pairs' : 'No data');
+    setItem('hdp-bot', h.bot.alive, h.bot.alive ? _fmtScanAge(h.bot.last_scan_ago_s) : 'Offline');
+    setItem('hdp-signals', true, String(h.signals_open));
+    setItem('hdp-pairs', h.monitored > 0, String(h.monitored) + ' pairs');
+
+    const footer = document.getElementById('hdp-updated');
+    if (footer) footer.textContent = 'Last check: ' + new Date().toLocaleTimeString();
+}
+
+function _fmtScanAge(s) {
+    if (s < 60) return 'Active (' + s + 's ago)';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    return Math.floor(s / 3600) + 'h ago';
+}
+
+// Close health panel on outside click
+document.addEventListener('click', function(e) {
+    const panel = document.getElementById('health-detail-panel');
+    const badge = document.getElementById('platform-health-badge');
+    if (panel && panel.classList.contains('visible') &&
+        !panel.contains(e.target) && !badge.contains(e.target)) {
+        panel.classList.remove('visible');
+    }
+});

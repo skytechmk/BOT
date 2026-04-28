@@ -104,6 +104,10 @@
                     <button class="btn btn-gold btn-sm" onclick="openModal('register')">Register</button>
                 </div>
                 <div id="user-section-loggedin" style="display:none">
+                    <span id="platform-health-badge" class="platform-health-badge" title="Platform Health" style="display:none" onclick="document.getElementById('health-detail-panel').classList.toggle('visible')">
+                        <span id="ph-dot" class="ph-dot"></span>
+                        <span id="ph-label">—</span>
+                    </span>
                     <span class="sub-timer" id="sub-timer"></span>
                     <span class="tier-badge" id="header-tier-badge">FREE</span>
                     <span class="user-info" id="header-user-email"></span>
@@ -113,6 +117,38 @@
                     <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
                 </div>
             </div>
+        </div>
+        <!-- ═══ PLATFORM HEALTH DETAIL PANEL ═══ -->
+        <div id="health-detail-panel" class="health-detail-panel">
+            <div class="hdp-title">Platform Health</div>
+            <div class="hdp-grid">
+                <div class="hdp-item" id="hdp-binance">
+                    <span class="hdp-dot"></span>
+                    <span class="hdp-name">Binance WS</span>
+                    <span class="hdp-val" id="hdp-binance-val">—</span>
+                </div>
+                <div class="hdp-item" id="hdp-mexc">
+                    <span class="hdp-dot"></span>
+                    <span class="hdp-name">MEXC Data</span>
+                    <span class="hdp-val" id="hdp-mexc-val">—</span>
+                </div>
+                <div class="hdp-item" id="hdp-bot">
+                    <span class="hdp-dot"></span>
+                    <span class="hdp-name">Signal Bot</span>
+                    <span class="hdp-val" id="hdp-bot-val">—</span>
+                </div>
+                <div class="hdp-item" id="hdp-signals">
+                    <span class="hdp-dot"></span>
+                    <span class="hdp-name">Open Signals</span>
+                    <span class="hdp-val" id="hdp-signals-val">—</span>
+                </div>
+                <div class="hdp-item" id="hdp-pairs">
+                    <span class="hdp-dot"></span>
+                    <span class="hdp-name">Monitored</span>
+                    <span class="hdp-val" id="hdp-pairs-val">—</span>
+                </div>
+            </div>
+            <div class="hdp-footer" id="hdp-updated">Last check: —</div>
         </div>
         <!-- ═══ DEV TICKER BANNER ═══ -->
         <div id="dev-ticker" style="
@@ -239,6 +275,7 @@
                     <span class="delayed-badge" id="delay-badge" style="display:none">24H DELAYED</span>
                 </div>
             </div>
+            <div id="signal-exchange-tabs"></div>
             <div id="signals-container">
                 <div class="loading"><div class="spinner"></div>Loading signals...</div>
             </div>
@@ -1753,8 +1790,10 @@
     <script src="/static/js/client-security.js?v=20260425-reboot"></script>
     <script src="/static/js/app-r7.js?v=20260423-motto"></script>
     <script src="/static/js/lounge.js?v=3"></script>
-    <script src="/static/js/signals.js?v=20260427-closereason"></script>
-    <script src="/static/js/charts.js?v=20260422-multi2"></script>
+    <script src="/static/js/signals.js?v=20260428-sharecard"></script>
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="/static/js/share-card.js?v=20260428"></script>
+    <script src="/static/js/charts.js?v=20260428-nullguard"></script>
     <script src="/static/js/analytics.js?v=4"></script>
     <script src="/static/js/screener.js?v=7"></script>
     <!-- admin.js is loaded dynamically from app-r7.js only if the current
@@ -1764,7 +1803,7 @@
     <script src="/static/js/payments.js?v=2"></script>
     <script src="/static/js/heatmap.js?v=12"></script>
     <script src="/static/js/order-flow.js?v=3"></script>
-    <script src="/static/js/copytrading.js?v=16"></script>
+    <script src="/static/js/copytrading.js?v=20260428-keyguard"></script>
     <script src="/static/js/backtest.js?v=20260424e"></script>
     <script src="/static/js/macro.js?v=20260423-tvcal4"></script>
     <script src="/static/js/init.js?v=2"></script>

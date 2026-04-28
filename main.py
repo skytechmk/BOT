@@ -151,12 +151,13 @@ def _classify_signal_tier(zone_used: str, pair: str | None = None) -> str:
             pass
     return base_tier
 
-async def process_pair(pair, timeframe='1h', tv_override=None):
+async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance'):
     """
     REVERSE HUNT Strategy — TSI + CE signal pipeline.
     Exclusively uses 1h timeframe for signal generation.
     tv_override: if provided, skip RH engine and use TV's signal direction.
                  dict with keys: 'signal' (LONG|SHORT), 'strategy' (str)
+    exchange: 'binance' or 'mexc' — controls data fetch + signal routing.
     """
     # Guard: if this pair is already being processed (parallel coroutines),
     # skip immediately to prevent duplicate signals.
@@ -169,12 +170,13 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
 
     # ── Delisted-Contract Live Skip (via !contractInfo stream) ─────────
     # Avoids the "Invalid symbol" REST 400s when a pair was just delisted.
-    try:
-        from contract_info_listener import CONTRACT_INFO as _CI
-        if _CI.is_delisted(pair):
-            return
-    except Exception:
-        pass
+    if exchange == 'binance':
+        try:
+            from contract_info_listener import CONTRACT_INFO as _CI
+            if _CI.is_delisted(pair):
+                return
+        except Exception:
+            pass
 
     # ── Equity-Perp Market-Hours Gate ──────────────────────────────────
     # Binance lists perps for US stocks / ETFs whose underlying market is
@@ -191,15 +193,28 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
         # ══════════════════════════════════════════════════════════════════
         #  STEP 1: Fetch 1h data — sole timeframe for Reverse Hunt
         # ══════════════════════════════════════════════════════════════════
-        df_1h = BATCH_PROCESSOR.get_df(pair, '1h')
-        if df_1h is None:
+        if exchange == 'mexc':
             try:
+                from mexc_data_fetcher import fetch_mexc_data
                 df_1h = await asyncio.wait_for(
-                    asyncio.to_thread(fetch_data, pair, '1h'), timeout=10.0
+                    asyncio.to_thread(fetch_mexc_data, pair, '1h'), timeout=15.0
                 )
             except asyncio.TimeoutError:
-                log_message(f"⏱️ fetch_data timeout (10s) for {pair}")
+                log_message(f"⏱️ MEXC fetch_data timeout (15s) for {pair}")
                 return
+            except Exception as _mexc_e:
+                log_message(f"[MEXC] fetch error {pair}: {_mexc_e}")
+                return
+        else:
+            df_1h = BATCH_PROCESSOR.get_df(pair, '1h')
+            if df_1h is None:
+                try:
+                    df_1h = await asyncio.wait_for(
+                        asyncio.to_thread(fetch_data, pair, '1h'), timeout=10.0
+                    )
+                except asyncio.TimeoutError:
+                    log_message(f"⏱️ fetch_data timeout (10s) for {pair}")
+                    return
         if df_1h is None or df_1h.empty or len(df_1h) < 200:
             return  # Silent — insufficient data is normal for new listings
 
@@ -228,7 +243,7 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
         live_bid = live_ask = live_spread_bps = None
         live_price = None
         has_live_price = False
-        _live_px = LIVE_FEED.get(pair)
+        _live_px = LIVE_FEED.get(pair) if exchange == 'binance' else None
         if _live_px is not None:
             live_price      = _live_px['mark']
             _idx            = _live_px['index']
@@ -245,22 +260,32 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
         else:
             # Fallback: REST mark-price (used only during startup warm-up / WS reconnect)
             try:
-                _live = await asyncio.wait_for(
-                    asyncio.to_thread(client.futures_mark_price, symbol=pair), timeout=5.0
-                )
-                _mp = None
-                _idx = 0.0
-                if isinstance(_live, dict):
-                    _mp  = float(_live.get('markPrice') or 0)
-                    _idx = float(_live.get('indexPrice') or 0)
-                elif isinstance(_live, list) and _live:
-                    _mp  = float(_live[0].get('markPrice') or 0)
-                    _idx = float(_live[0].get('indexPrice') or 0)
-                if _mp and _mp > 0:
-                    live_price = _mp
-                    has_live_price = True
-                    if _idx > 0 and abs(_idx - live_price) / live_price > 0.02:
-                        live_price = _idx
+                if exchange == 'mexc':
+                    from mexc_data_fetcher import _to_mexc
+                    import requests as _mreq
+                    _mr = _mreq.get(f'https://api.mexc.com/api/v1/contract/fair_price/{_to_mexc(pair)}', timeout=5)
+                    _mrd = _mr.json().get('data', {})
+                    _mp = float(_mrd.get('fairPrice', 0) or 0)
+                    if _mp > 0:
+                        live_price = _mp
+                        has_live_price = True
+                else:
+                    _live = await asyncio.wait_for(
+                        asyncio.to_thread(client.futures_mark_price, symbol=pair), timeout=5.0
+                    )
+                    _mp = None
+                    _idx = 0.0
+                    if isinstance(_live, dict):
+                        _mp  = float(_live.get('markPrice') or 0)
+                        _idx = float(_live.get('indexPrice') or 0)
+                    elif isinstance(_live, list) and _live:
+                        _mp  = float(_live[0].get('markPrice') or 0)
+                        _idx = float(_live[0].get('indexPrice') or 0)
+                    if _mp and _mp > 0:
+                        live_price = _mp
+                        has_live_price = True
+                        if _idx > 0 and abs(_idx - live_price) / live_price > 0.02:
+                            live_price = _idx
             except (Exception, asyncio.TimeoutError):
                 pass
 
@@ -291,7 +316,10 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
         if entry_drift_alert:
             log_message(f"⚠️ Entry Drift Alert [{pair}]: {drift_pct:.1f}% drift (candle={candle_close:.5g} vs live={live_price:.5g}) — signal fires with caution flag")
 
-        precision = await asyncio.to_thread(get_precision, pair)
+        if exchange == 'mexc':
+            precision = 6  # MEXC default; fine-tune later from contract detail
+        else:
+            precision = await asyncio.to_thread(get_precision, pair)
 
 
         # ══════════════════════════════════════════════════════════════════
@@ -969,15 +997,17 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
             f"\n   CE signal is valid but entry zone has shifted. Manual review advised.\n"
         ) if entry_drift_alert else ""
 
+        _exchange_label = "MEXC Futures" if exchange == 'mexc' else "Binance Futures"
+        _exchange_badge = "🟡 MEXC" if exchange == 'mexc' else "🔵 Binance"
         msg = (
             f"{direction_word} #{pair_cornix} {direction_emoji}\n"
-            f"Exchanges: Binance Futures\n"
+            f"Exchanges: {_exchange_label}\n"
             f"Leverage: Cross {leverage_val}x\n"
             f"{entry_keyword}: {entry_low:.{precision}f} - {entry_high:.{precision}f}\n\n"
             f"{target_lines}\n\n"
             f"Stop: {stop_loss:.{precision}f}\n\n"
             f"— ALADDIN INSIGHTS —\n"
-            f"🆔 {signal_id[:8]} | SQI: {sqi_score}/134 ({sqi_grade}) | Size: {final_size}%\n"
+            f"🆔 {signal_id[:8]} | {_exchange_badge} | SQI: {sqi_score}/134 ({sqi_grade}) | Size: {final_size}%\n"
             f" {regime_name} | Corr: {pearson_corr:.2f}\n"
             f"📊 TSI: {rh_indicators.get('tsi', 0):.2f} | CE: {'🟢' if rh_indicators.get('ce_line_dir') == 1 else '🔴'} | OI: {positioning['oi_divergence']}\n"
             f"⚖️ R:R {risk_adj['rr']}:1 | Risk: {risk_adj['adj_risk_pct']:.1f}%{' (capped)' if risk_adj['sl_capped'] else ''}"
@@ -1136,6 +1166,7 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
         # Tag tier + zone in feature snapshot (also stored as top-level columns).
         feature_snapshot['signal_tier'] = signal_tier
         feature_snapshot['zone_used']   = _zone_used
+        feature_snapshot['exchange']    = exchange
 
         register_signal(
             signal_id, pair, final_signal, current_price, adj_confidence,
@@ -1156,6 +1187,7 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
                     'sqi_grade': sqi_grade,
                     'signal_tier': signal_tier,
                     'zone_used': _zone_used,
+                    'exchange': exchange,
                 })
             except Exception as _ct_exc:
                 log_message(f"[copy_trading] execution error: {_ct_exc}")
@@ -1177,7 +1209,8 @@ async def process_pair(pair, timeframe='1h', tv_override=None):
             log_message(f"[trade_memory] store error: {_mem_exc}")
 
         add_open_signal(signal_id, pair, final_signal, current_price,
-                         stop_loss=stop_loss, targets=targets, leverage=leverage_val)
+                         stop_loss=stop_loss, targets=targets, leverage=leverage_val,
+                         exchange=exchange)
         
         # realtime_monitor disabled — reconciler handles signal closures
             
@@ -1260,8 +1293,34 @@ async def main_async():
         nonlocal _last_ml_retrain
         _last_ml_retrain = time.time()   # stamp BEFORE to avoid re-trigger on error
         try:
+            # Pre-flight: check GPU health before launching training
+            _gpu_ok = False
+            try:
+                import torch as _torch_check
+                if _torch_check.cuda.is_available():
+                    _free, _total = _torch_check.cuda.mem_get_info(0)
+                    _free_gb = _free / (1024**3)
+                    _total_gb = _total / (1024**3)
+                    if _free_gb < 4.0:
+                        log_message(f"⚠️ ML Auto-Retrain: SKIPPED — GPU has only {_free_gb:.1f}GB free (need 4GB+)")
+                        return
+                    _gpu_ok = True
+                    log_message(f"🤖 GPU pre-flight OK: {_free_gb:.1f}/{_total_gb:.1f}GB free")
+                else:
+                    log_message("⚠️ ML Auto-Retrain: GPU unavailable, training on CPU only")
+            except Exception as _gpu_e:
+                log_message(f"⚠️ ML Auto-Retrain: GPU check failed ({_gpu_e}), training on CPU only")
+
             log_message("🤖 ML Auto-Retrain: starting background training...")
             await send_ops_message("🤖 **ML Auto-Retrain Started**\nTraining BiLSTM+TFT+XGBoost+LightGBM ensemble in background (this takes ~20min).")
+
+            # Isolate training in its own CUDA context via env var
+            # If GPU crashed, force CPU-only to prevent cascading failures
+            _train_env = {**os.environ}
+            if not _gpu_ok:
+                _train_env['CUDA_VISIBLE_DEVICES'] = ''
+            _train_env['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
             proc = await asyncio.create_subprocess_exec(
                 "/root/miniconda3/bin/python3", "-m", "ml_engine_archive.train",
                 "--skip-download", "--epochs", "50", "--months", "36",
@@ -1269,6 +1328,7 @@ async def main_async():
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 cwd="/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA",
+                env=_train_env,
             )
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=7200)  # 2h max
             if proc.returncode == 0:
@@ -1381,6 +1441,12 @@ async def main_async():
     _kline_manager = KlineStreamManager(process_pair, top_n=1500)  # stream ALL pairs via WS
     _kline_stream_started = False
 
+    # ── MEXC WebSocket kline stream ───────────────────────────────────────
+    from mexc_kline_stream import MexcKlineStreamManager
+    global _mexc_kline_manager
+    _mexc_kline_manager = MexcKlineStreamManager(process_pair, top_n=300)
+    _mexc_kline_stream_started = False
+
     # ── NEWS MONITOR: RSS macro surveillance ─────────────────────────────
     global _news_monitor
     _news_monitor = NewsMonitor(send_ops_message)
@@ -1395,23 +1461,24 @@ async def main_async():
     except Exception as _fo_err:
         log_message(f"Funding/OI refresher not started: {_fo_err}")
 
-    async def semaphore_process(p, current_time):
-        if _pair_suspended_until.get(p, 0) > current_time:
+    async def semaphore_process(p, current_time, exchange='binance'):
+        _suspend_key = f"{exchange}:{p}"
+        if _pair_suspended_until.get(_suspend_key, 0) > current_time:
             return
             
         async with semaphore:
             try:
-                await process_pair(p)
-                _pair_error_tracker[p] = 0 # reset on success
+                await process_pair(p, exchange=exchange)
+                _pair_error_tracker[_suspend_key] = 0
             except Exception as e:
-                _pair_error_tracker[p] = _pair_error_tracker.get(p, 0) + 1
-                if _pair_error_tracker[p] >= 3:
-                    log_message(f"🚨 Suspending pair {p} for 30m due to repeated errors: {e}")
-                    asyncio.create_task(send_ops_message(f"🚨 **Auto-Suspension**\nPair `{p}` suspended for 30m (3 consecutive errors).\nLast error: `{e}`"))
-                    _pair_suspended_until[p] = current_time + 1800
-                    _pair_error_tracker[p] = 0
+                _pair_error_tracker[_suspend_key] = _pair_error_tracker.get(_suspend_key, 0) + 1
+                if _pair_error_tracker[_suspend_key] >= 3:
+                    log_message(f"🚨 Suspending {exchange}:{p} for 30m due to repeated errors: {e}")
+                    asyncio.create_task(send_ops_message(f"🚨 **Auto-Suspension**\nPair `{exchange}:{p}` suspended for 30m (3 consecutive errors).\nLast error: `{e}`"))
+                    _pair_suspended_until[_suspend_key] = current_time + 1800
+                    _pair_error_tracker[_suspend_key] = 0
                 else:
-                    log_message(f"Error in parallel processing of {p} (strike {_pair_error_tracker[p]}): {e}")
+                    log_message(f"Error in parallel processing of {exchange}:{p} (strike {_pair_error_tracker[_suspend_key]}): {e}")
     
     while True:
         try:
@@ -1552,6 +1619,18 @@ async def main_async():
                     log_message(f"✅ 4h prefetch complete — {len(ap)} pairs in {time.time()-_t0:.1f}s (parked)")
                 asyncio.create_task(_bg_prefetch(active_pairs))
 
+                # ── Start MEXC kline WS stream ─────────────────────────────
+                try:
+                    from mexc_data_fetcher import fetch_mexc_trading_pairs as _fetch_mexc_pairs
+                    _mexc_ws_pairs = await asyncio.to_thread(_fetch_mexc_pairs)
+                    if _mexc_ws_pairs:
+                        _mexc_kline_manager.update_pairs(_mexc_ws_pairs)
+                        asyncio.create_task(_mexc_kline_manager.run(_mexc_ws_pairs))
+                        log_message(f"🟡 MEXC KlineStream started for top {len(_mexc_ws_pairs[:_mexc_kline_manager.top_n])} pairs")
+                        _mexc_kline_stream_started = True
+                except Exception as _mks_err:
+                    log_message(f"⚠️ MEXC KlineStream could not start: {_mks_err}")
+
                 _kline_stream_started = True
             elif pairs:
                 _kline_manager.update_pairs(pairs)
@@ -1613,10 +1692,47 @@ async def main_async():
             except Exception as _pf_err:
                 log_message(f"Batch prefetch skipped: {_pf_err}")
 
-            # Process ALL active pairs every cycle using CACHED data
-            tasks = [semaphore_process(p, current_time) for p in active_pairs]
+            # Process ALL active Binance pairs every cycle using CACHED data
+            tasks = [semaphore_process(p, current_time, exchange='binance') for p in active_pairs]
             await asyncio.gather(*tasks)
-            
+
+            # ── MEXC Scan: smart dedup — exclusive pairs always, overlaps only if Binance didn't signal ──
+            try:
+                from mexc_data_fetcher import fetch_mexc_trading_pairs
+                _mexc_pairs = await asyncio.to_thread(fetch_mexc_trading_pairs)
+                if _mexc_pairs:
+                    _binance_set = set(pairs)
+                    # Collect pairs that Binance signaled this cycle (from open signals tracker)
+                    try:
+                        from performance_tracker import get_open_signals
+                        _recent_signals = get_open_signals()
+                        # Pairs signaled in the last 2 minutes = this cycle's signals
+                        _cycle_cutoff = time.time() - 120
+                        _binance_signaled = {
+                            s.get('pair') for s in _recent_signals.values()
+                            if s.get('timestamp', 0) > _cycle_cutoff
+                            and s.get('exchange', 'binance') == 'binance'
+                        }
+                    except Exception:
+                        _binance_signaled = set()
+
+                    _mexc_exclusive = [p for p in _mexc_pairs if p not in _binance_set]
+                    _mexc_overlap   = [p for p in _mexc_pairs if p in _binance_set and p not in _binance_signaled]
+                    _mexc_to_scan   = _mexc_exclusive + _mexc_overlap
+
+                    if _mexc_to_scan:
+                        _mexc_sem = asyncio.Semaphore(15)  # Lower concurrency for MEXC REST calls
+
+                        async def _mexc_sem_process(p, ct):
+                            async with _mexc_sem:
+                                await semaphore_process(p, ct, exchange='mexc')
+
+                        _mexc_tasks = [_mexc_sem_process(p, current_time) for p in _mexc_to_scan]
+                        await asyncio.gather(*_mexc_tasks)
+                        log_message(f"🟡 MEXC scan: {len(_mexc_exclusive)} exclusive + {len(_mexc_overlap)} overlap = {len(_mexc_to_scan)} pairs")
+            except Exception as _mexc_err:
+                log_message(f"[MEXC] scan error: {_mexc_err}")
+
             # ── Cycle Summary: show what the bot sees ──
             from reverse_hunt import get_pair_status, get_tsi_zone, compute_adaptive_levels, calculate_tsi, LEVEL_OB_L1, LEVEL_OB_L2
             zone_counts = {'OB_L2': [], 'OB_L1': [], 'OS_L1': [], 'OS_L2': [], 'neutral': []}

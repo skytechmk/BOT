@@ -11,6 +11,8 @@ from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 
 _SIGNAL_DB = Path(__file__).resolve().parent.parent / "signal_registry.db"
+_LANDING_STATS_CACHE = {}
+_OPEN_SIGNAL_STATUSES = ('SENT', 'OPEN', 'ACTIVE', 'TP1_HIT', 'TP2_HIT')
 
 
 def _get_signal_db():
@@ -19,6 +21,116 @@ def _get_signal_db():
     conn = sqlite3.connect(f"file:{_SIGNAL_DB}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def get_public_overview_stats(ttl_seconds: float = 15.0, since_ts=None) -> dict:
+    """Fast public KPI snapshot for landing surfaces.
+
+    Returns production-tier aggregate metrics across live + archived signals:
+      - total_signals
+      - open_positions
+      - win_rate
+      - total_pnl
+
+    If `since_ts` is provided, only signals opened at/after that unix timestamp
+    are included (e.g. public production scope since Apr 16, 2026).
+
+    The result is cached in-process for `ttl_seconds` to keep landing-page
+    rendering cheap under traffic spikes.
+    """
+    now = time.time()
+    ttl = max(1.0, float(ttl_seconds or 15.0))
+    scope_key = str(int(float(since_ts or 0.0)))
+    cache_row = _LANDING_STATS_CACHE.get(scope_key)
+    if cache_row and (now - cache_row.get("ts", 0.0)) < ttl:
+        return dict(cache_row.get("data") or {})
+
+    fallback = {
+        "total_signals": 0,
+        "open_positions": 0,
+        "closed_signals": 0,
+        "wins": 0,
+        "losses": 0,
+        "win_rate": 0.0,
+        "total_pnl": 0.0,
+        "scope_since_ts": float(since_ts or 0.0),
+    }
+
+    conn = _get_signal_db()
+    if not conn:
+        _LANDING_STATS_CACHE[scope_key] = {"ts": now, "data": dict(fallback)}
+        return dict(fallback)
+
+    open_statuses_sql = "','".join(_OPEN_SIGNAL_STATUSES)
+    since_filter_sql = ""
+    params = []
+    if since_ts is not None:
+        try:
+            since_ts_val = float(since_ts)
+            since_filter_sql = " AND timestamp >= ?"
+            params.append(since_ts_val)
+        except (TypeError, ValueError):
+            since_filter_sql = ""
+            params = []
+
+    union_sql = f"""
+        WITH all_signals AS (
+            SELECT status, pnl, timestamp, COALESCE(signal_tier,'production') AS signal_tier FROM signals
+            UNION ALL
+            SELECT status, pnl, timestamp, COALESCE(signal_tier,'production') AS signal_tier FROM archived_signals
+        )
+        SELECT
+            COUNT(*) AS total_signals,
+            SUM(CASE WHEN upper(status) IN ('{open_statuses_sql}') THEN 1 ELSE 0 END) AS open_positions,
+            SUM(CASE WHEN pnl IS NOT NULL AND upper(status) NOT IN ('{open_statuses_sql}') THEN 1 ELSE 0 END) AS closed_signals,
+            SUM(CASE WHEN pnl > 0 AND upper(status) NOT IN ('{open_statuses_sql}') THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN pnl IS NOT NULL AND upper(status) NOT IN ('{open_statuses_sql}') THEN pnl ELSE 0 END) AS total_pnl
+        FROM all_signals
+        WHERE signal_tier = 'production'{since_filter_sql}
+    """
+
+    live_only_sql = f"""
+        SELECT
+            COUNT(*) AS total_signals,
+            SUM(CASE WHEN upper(status) IN ('{open_statuses_sql}') THEN 1 ELSE 0 END) AS open_positions,
+            SUM(CASE WHEN pnl IS NOT NULL AND upper(status) NOT IN ('{open_statuses_sql}') THEN 1 ELSE 0 END) AS closed_signals,
+            SUM(CASE WHEN pnl > 0 AND upper(status) NOT IN ('{open_statuses_sql}') THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN pnl IS NOT NULL AND upper(status) NOT IN ('{open_statuses_sql}') THEN pnl ELSE 0 END) AS total_pnl
+        FROM signals
+        WHERE COALESCE(signal_tier,'production') = 'production'{since_filter_sql}
+    """
+
+    try:
+        try:
+            row = conn.execute(union_sql, tuple(params)).fetchone()
+        except sqlite3.Error:
+            row = conn.execute(live_only_sql, tuple(params)).fetchone()
+
+        total_signals = int((row['total_signals'] if row else 0) or 0)
+        open_positions = int((row['open_positions'] if row else 0) or 0)
+        closed_signals = int((row['closed_signals'] if row else 0) or 0)
+        wins = int((row['wins'] if row else 0) or 0)
+        losses = max(closed_signals - wins, 0)
+        win_rate = round((wins / closed_signals) * 100, 2) if closed_signals > 0 else 0.0
+        total_pnl = round(float((row['total_pnl'] if row else 0) or 0.0), 2)
+
+        data = {
+            "total_signals": total_signals,
+            "open_positions": open_positions,
+            "closed_signals": closed_signals,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": win_rate,
+            "total_pnl": total_pnl,
+            "scope_since_ts": float(since_ts or 0.0),
+        }
+    except Exception:
+        data = dict(fallback)
+    finally:
+        conn.close()
+
+    _LANDING_STATS_CACHE[scope_key] = {"ts": now, "data": dict(data)}
+    return data
 
 
 def get_performance_summary(days: int = 30) -> dict:

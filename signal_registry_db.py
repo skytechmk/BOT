@@ -87,12 +87,18 @@ class SignalRegistryDB:
                 cur.execute(f'ALTER TABLE {tbl} ADD COLUMN close_reason TEXT')
             except Exception:
                 pass
+            # exchange: 'binance' or 'mexc' — which exchange this signal targets
+            try:
+                cur.execute(f"ALTER TABLE {tbl} ADD COLUMN exchange TEXT DEFAULT 'binance'")
+            except Exception:
+                pass
 
         # Indices
         cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_pair ON signals(pair)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_status ON signals(status)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_timestamp ON signals(timestamp)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_tier ON signals(signal_tier)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_signals_exchange ON signals(exchange)')
         
         conn.commit()
         conn.close()
@@ -186,12 +192,13 @@ class SignalRegistryDB:
             # Hoist zone_used from features for indexed filtering. Fallback to top-level.
             zone_used = data.get('zone_used') or features.get('zone_used')
             signal_tier = data.get('signal_tier') or features.get('signal_tier') or 'production'
+            exchange = data.get('exchange') or features.get('exchange') or 'binance'
             cur.execute('''
                 INSERT OR REPLACE INTO signals 
                 (signal_id, pair, signal, price, confidence, targets_json, stop_loss, leverage, 
                  features_json, timestamp, status, telegram_message_id, pnl,
-                 signal_tier, zone_used) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 signal_tier, zone_used, exchange) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 signal_id,
                 data.get('pair', 'UNKNOWN'),
@@ -208,6 +215,7 @@ class SignalRegistryDB:
                 data.get('pnl', 0.0),
                 signal_tier,
                 zone_used,
+                exchange,
             ))
             conn.commit()
         except Exception as e:
@@ -248,6 +256,8 @@ class SignalRegistryDB:
                 d['targets_hit'] = []
         elif not isinstance(th, list):
             d['targets_hit'] = []
+        if 'exchange' not in d or not d.get('exchange'):
+            d['exchange'] = 'binance'
         return d
 
 # Dictionary-like wrapper to match existing interface

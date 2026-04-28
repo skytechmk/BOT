@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Res
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -63,13 +64,14 @@ from analytics import (
     get_performance_summary, get_equity_curve, get_pair_performance,
     get_hourly_heatmap, get_daily_pnl, get_signal_breakdown,
     get_indicator_attribution, get_regime_performance,
-    get_public_pair_summary,
+    get_public_pair_summary, get_public_overview_stats,
 )
 from analytics_live import get_live_kpis, run_backtest
 from liquidation_collector import get_collector as _get_liq_collector
 _LIQ_COLLECTOR = _get_liq_collector()
 
 from price_broadcaster import PRICE_BROADCASTER
+from mexc_price_broadcaster import MEXC_PRICE_BROADCASTER
 
 from server_ip import get_cached_server_ip, force_refresh_ip
 from copy_trading import (
@@ -119,7 +121,20 @@ _store = {
     "bootstrapped": False,
     "bootstrap_progress": 0,
     "ws_connected": 0,
+    "binance_pairs": set(),
+    "mexc_pairs": set(),
 }
+
+
+def _pair_exchange(pair: str) -> str:
+    """Return 'both', 'binance', or 'mexc' for a given pair."""
+    on_b = pair in _store["binance_pairs"]
+    on_m = pair in _store["mexc_pairs"]
+    if on_b and on_m:
+        return "both"
+    if on_m:
+        return "mexc"
+    return "binance"
 
 _SCAN_INTERVAL = 5
 _chart_cache = {}
@@ -129,6 +144,17 @@ _TF_CACHE_TTL    = {"5m": 8,    "15m": 15,   "1h": 4,   "4h": 60,  "1d": 300}
 _TF_MAX_BARS     = {"5m": 500,  "15m": 400,  "1h": 1000, "4h": 600, "1d": 500}
 _VALID_TF        = {"5m", "15m", "1h", "4h", "1d"}
 _SIGNAL_DELAY_FREE = 86400  # 24 hours delay for free tier
+
+
+def _load_mexc_cached_ohlcv(pair: str, interval: str) -> pd.DataFrame:
+    try:
+        from data_fetcher import _ohlcv_load as _local_load
+        df = _local_load(f"MEXC_{pair}", interval)
+        if df is not None and not df.empty:
+            return df
+    except Exception:
+        pass
+    return pd.DataFrame()
 
 # ── Stream mode (YouTube/OBS public view) ────────────────────────────
 # Serves /stream with live zones + macro but embargoes signal details
@@ -296,9 +322,41 @@ async def _bootstrap():
             except Exception as _be:
                 print(f"[dashboard] Fallback chunk {chunk_start} error: {_be}")
         print(f"[dashboard] Fallback complete: {len(_store['ohlcv'])}/{total} pairs total")
+    _store["bootstrap_progress"] = 95
+    _store["binance_pairs"] = set(pairs)
+
+    # ── MEXC pair set + OHLCV for MEXC-exclusive pairs ────────────────
+    try:
+        from mexc_data_fetcher import fetch_mexc_trading_pairs as _fetch_mexc_pairs
+        mexc_pairs = await asyncio.to_thread(_fetch_mexc_pairs)
+        _store["mexc_pairs"] = set(mexc_pairs)
+        mexc_exclusive = [p for p in mexc_pairs if p not in _store["binance_pairs"] and p not in _store["ohlcv"]]
+        if mexc_exclusive:
+            print(f"[dashboard] Loading {len(mexc_exclusive)} MEXC-exclusive pairs from cache...")
+            from data_fetcher import _ohlcv_load as _mexc_ohlcv_load
+            def _load_mexc():
+                loaded = {}
+                for p in mexc_exclusive:
+                    try:
+                        df = _mexc_ohlcv_load(f"MEXC_{p}", '1h')
+                        if df is not None and not df.empty and len(df) >= 200:
+                            loaded[p] = df.tail(1000).copy()
+                    except Exception:
+                        continue
+                return loaded
+            mexc_cached = await asyncio.to_thread(_load_mexc)
+            for p, df in mexc_cached.items():
+                _store["ohlcv"][p] = df
+            _store["all_pairs"] = list(set(_store["all_pairs"]) | set(mexc_pairs))
+            print(f"[dashboard] MEXC: {len(mexc_cached)} exclusive pairs loaded, "
+                  f"{len(_store['mexc_pairs'])} total MEXC, "
+                  f"{len(_store['binance_pairs'] & _store['mexc_pairs'])} overlap")
+    except Exception as _mexc_err:
+        print(f"[dashboard] MEXC pair loading skipped: {_mexc_err}")
+
     _store["bootstrap_progress"] = 100
     _store["bootstrapped"] = True
-    print(f"[dashboard] Bootstrap complete: {len(_store['ohlcv'])}/{total} pairs, 1000 candles each")
+    print(f"[dashboard] Bootstrap complete: {len(_store['ohlcv'])}/{len(_store['all_pairs'])} pairs, 1000 candles each")
 
 async def _ws_listener(pairs_chunk, chunk_id):
     streams = "/".join(f"{p.lower()}@kline_1h" for p in pairs_chunk)
@@ -459,6 +517,7 @@ def _compute_monitored() -> list[dict]:
                 "change_pct": round(
                     (price_now / float(df['close'].iloc[-25]) - 1) * 100, 2
                 ) if len(df) > 25 else 0,
+                "exchanges": _pair_exchange(pair),
             })
         except Exception:
             continue
@@ -570,13 +629,49 @@ def _fill_ohlcv_gaps(df: pd.DataFrame, max_gap_hours: int = 6) -> pd.DataFrame:
     return df
 
 
+def _clean_chart_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return df
+    required = ['open', 'high', 'low', 'close']
+    if any(c not in df.columns for c in required):
+        return pd.DataFrame()
+    try:
+        out = df.copy()
+        for c in ['open', 'high', 'low', 'close', 'volume']:
+            if c in out.columns:
+                out[c] = pd.to_numeric(out[c], errors='coerce')
+        out = out.replace([np.inf, -np.inf], np.nan)
+        out = out.dropna(subset=required)
+        out = out[(out[required] > 0).all(axis=1)]
+        if 'volume' not in out.columns:
+            out['volume'] = 0.0
+        out['volume'] = out['volume'].fillna(0.0).clip(lower=0.0)
+        out['high'] = out[['open', 'high', 'low', 'close']].max(axis=1)
+        out['low'] = out[['open', 'high', 'low', 'close']].min(axis=1)
+        out = out.sort_index()
+        out = out[~out.index.duplicated(keep='last')]
+        return out
+    except Exception:
+        return pd.DataFrame()
+
+
 def _compute_chart_data(pair: str, bars: int = 500, interval: str = "1h") -> dict:
     if interval not in _VALID_TF:
         interval = "1h"
 
+    pair_exchanges = _pair_exchange(pair)
+    _is_mexc_only = pair_exchanges == "mexc"
+
     if interval == "1h":
         # ── 1h: hot path — use in-memory WebSocket-fed store ──────────────
         full_df = _store["ohlcv"].get(pair)
+        if (full_df is None or full_df.empty) and not _is_mexc_only:
+            mexc_cached = _load_mexc_cached_ohlcv(pair, '1h')
+            if mexc_cached is not None and not mexc_cached.empty:
+                _store["ohlcv"][pair] = mexc_cached.tail(1000).copy()
+                full_df = _store["ohlcv"][pair]
+                _is_mexc_only = True
+                pair_exchanges = "mexc"
         data_stale = True
         if full_df is not None and not full_df.empty:
             last_ts = full_df.index[-1]
@@ -586,7 +681,11 @@ def _compute_chart_data(pair: str, bars: int = 500, interval: str = "1h") -> dic
             data_stale = hours_stale > 2
         if full_df is None or full_df.empty or len(full_df) < 50 or data_stale:
             try:
-                fresh = fetch_data(pair, '1h')
+                if _is_mexc_only:
+                    from mexc_data_fetcher import fetch_mexc_data as _fetch_mexc_chart
+                    fresh = _fetch_mexc_chart(pair, '1h')
+                else:
+                    fresh = fetch_data(pair, '1h')
                 if fresh is not None and not fresh.empty and len(fresh) >= 50:
                     _store["ohlcv"][pair] = fresh.tail(1000).copy()
                     full_df = _store["ohlcv"][pair]
@@ -598,10 +697,19 @@ def _compute_chart_data(pair: str, bars: int = 500, interval: str = "1h") -> dic
         full_df = _heal_large_gaps(pair, full_df)
         full_df = _fill_ohlcv_gaps(full_df)
     else:
-        # ── Non-1h: SQLite OHLCV cache → Binance REST fallback ─────────────
-        # Read local DB first (zero-latency, already populated by bot scan cycles)
+        # ── Non-1h: SQLite OHLCV cache → Binance/MEXC REST fallback ───────
         from data_fetcher import _ohlcv_load as _local_load
-        full_df = _local_load(pair, interval)
+        # MEXC-only pairs: try MEXC_ prefixed table first
+        if _is_mexc_only:
+            full_df = _load_mexc_cached_ohlcv(pair, interval)
+        else:
+            full_df = _local_load(pair, interval)
+            if full_df is None or full_df.empty:
+                mexc_cached = _load_mexc_cached_ohlcv(pair, interval)
+                if mexc_cached is not None and not mexc_cached.empty:
+                    full_df = mexc_cached
+                    _is_mexc_only = True
+                    pair_exchanges = "mexc"
         stale_threshold = _TF_STALENESS_H.get(interval, 2.0)
         is_stale = True
         if full_df is not None and not full_df.empty and len(full_df) >= 30:
@@ -612,15 +720,21 @@ def _compute_chart_data(pair: str, bars: int = 500, interval: str = "1h") -> dic
             is_stale = hours_stale > stale_threshold
         if full_df is None or full_df.empty or len(full_df) < 30 or is_stale:
             try:
-                # fetch_data handles SQLite cache + incremental Binance REST fetch
-                # with automatic geo-IP fallback to server's direct IP
-                fresh = fetch_data(pair, interval, retries=2, timeout=15)
+                if _is_mexc_only:
+                    from mexc_data_fetcher import fetch_mexc_data as _fetch_mexc_chart
+                    fresh = _fetch_mexc_chart(pair, interval)
+                else:
+                    fresh = fetch_data(pair, interval, retries=2, timeout=15)
                 if fresh is not None and not fresh.empty and len(fresh) >= 30:
                     full_df = fresh
             except Exception:
                 pass
         if full_df is None or full_df.empty or len(full_df) < 30:
             return {}
+
+    full_df = _clean_chart_ohlcv(full_df)
+    if full_df is None or full_df.empty or len(full_df) < 30:
+        return {}
 
     bars = min(bars, len(full_df), _TF_MAX_BARS.get(interval, 1000))
 
@@ -700,6 +814,7 @@ def _compute_chart_data(pair: str, bars: int = 500, interval: str = "1h") -> dic
         "tsi_exit_top_l2": tsi_exits['exit_top_l2'].astype(int).tolist(),
         "tsi_exit_bot_l1": tsi_exits['exit_bot_l1'].astype(int).tolist(),
         "tsi_exit_bot_l2": tsi_exits['exit_bot_l2'].astype(int).tolist(),
+        "exchanges": pair_exchanges,
     }
 
 
@@ -708,9 +823,13 @@ def _compute_chart_data(pair: str, bars: int = 500, interval: str = "1h") -> dic
 # ══════════════════════════════════════════════════════════════════════
 _SIGNAL_DB_PATH = Path(__file__).resolve().parent.parent / "signal_registry.db"
 _SERVER_TZ = timezone(timedelta(hours=2))
+_PUBLIC_PROD_SINCE_DT = datetime(2026, 4, 16, tzinfo=timezone.utc)
+_PUBLIC_PROD_SINCE_TS = float(_PUBLIC_PROD_SINCE_DT.timestamp())
+_PUBLIC_PROD_SINCE_LABEL = _PUBLIC_PROD_SINCE_DT.strftime("Apr %d, %Y")
 
-def _read_signals(limit: int = 50, tier: str = "free") -> list:
-    """Read signals. Free tier: 24h delayed, no entry/targets/SL."""
+def _read_signals(limit: int = 50, tier: str = "free", exchange: str = "") -> list:
+    """Read signals. Free tier: 24h delayed, no entry/targets/SL.
+    exchange: '' = all, 'binance' or 'mexc' to filter."""
     if not _SIGNAL_DB_PATH.exists():
         return []
     try:
@@ -718,28 +837,38 @@ def _read_signals(limit: int = 50, tier: str = "free") -> list:
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
+        _cols = ('signal_id, pair, signal, price, confidence, targets_json, '
+                 'stop_loss, leverage, timestamp, status, pnl, telegram_message_id, '
+                 'targets_hit, features_json, signal_tier, zone_used, close_reason, '
+                 "COALESCE(exchange, 'binance') AS exchange")
+        _exchange_filter = ""
+        _exchange_params = []
+        if exchange and exchange in ('binance', 'mexc'):
+            _exchange_filter = "AND COALESCE(exchange, 'binance') = ? "
+            _exchange_params = [exchange]
+
         if tier == "free":
             # Free: only signals older than 24h
             cutoff_new = time.time() - _SIGNAL_DELAY_FREE
             cutoff_old = time.time() - 7 * 86400
             cur.execute(
-                'SELECT signal_id, pair, signal, price, confidence, targets_json, '
-                'stop_loss, leverage, timestamp, status, pnl, telegram_message_id, targets_hit, features_json, signal_tier, zone_used, close_reason '
-                "FROM signals WHERE timestamp > ? AND timestamp < ? "
-                "AND COALESCE(signal_tier,'production') IN ('production','experimental') "
-                'ORDER BY timestamp DESC LIMIT ?',
-                (cutoff_old, cutoff_new, limit)
+                f'SELECT {_cols} '
+                f"FROM signals WHERE timestamp > ? AND timestamp < ? "
+                f"AND COALESCE(signal_tier,'production') IN ('production','experimental') "
+                f"{_exchange_filter}"
+                f'ORDER BY timestamp DESC LIMIT ?',
+                (cutoff_old, cutoff_new, *_exchange_params, limit)
             )
         else:
             # Plus/Pro: real-time, last 30 days
             cutoff = time.time() - 30 * 86400
             cur.execute(
-                'SELECT signal_id, pair, signal, price, confidence, targets_json, '
-                'stop_loss, leverage, timestamp, status, pnl, telegram_message_id, targets_hit, features_json, signal_tier, zone_used, close_reason '
-                "FROM signals WHERE timestamp > ? "
-                "AND COALESCE(signal_tier,'production') IN ('production','experimental') "
-                'ORDER BY timestamp DESC LIMIT ?',
-                (cutoff, limit)
+                f'SELECT {_cols} '
+                f"FROM signals WHERE timestamp > ? "
+                f"AND COALESCE(signal_tier,'production') IN ('production','experimental') "
+                f"{_exchange_filter}"
+                f'ORDER BY timestamp DESC LIMIT ?',
+                (cutoff, *_exchange_params, limit)
             )
 
         signals = []
@@ -779,6 +908,8 @@ def _read_signals(limit: int = 50, tier: str = "free") -> list:
                 'signal_tier': row['signal_tier'] or 'production',
                 'zone_used': row['zone_used'],
                 'close_reason': row['close_reason'],
+                'exchange': row['exchange'] if 'exchange' in row.keys() else 'binance',
+                'exchanges': _pair_exchange(row['pair']),
             }
 
             # Parse features for drift alert (available to all tiers — it's a safety flag)
@@ -862,6 +993,7 @@ async def lifespan(app):
     _bg_tasks.append(asyncio.create_task(_subscription_checker()))
     _bg_tasks.append(asyncio.create_task(_LIQ_COLLECTOR.run()))
     _bg_tasks.append(asyncio.create_task(PRICE_BROADCASTER.run()))
+    _bg_tasks.append(asyncio.create_task(MEXC_PRICE_BROADCASTER.run()))
     _bg_tasks.append(asyncio.create_task(ct_run_monitor()))
     _bg_tasks.append(asyncio.create_task(ct_run_sl_monitor()))
     _bg_tasks.append(asyncio.create_task(run_market_refresh_loop()))
@@ -930,6 +1062,7 @@ app.add_middleware(CORSMiddleware,
 _STATIC_DIR = Path(__file__).parent / "static"
 _STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+_TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent))
 
 _MOBILE_ASSETS_DIR = Path(__file__).parent.parent / "mobile" / "dist" / "assets"
 if _MOBILE_ASSETS_DIR.exists():
@@ -1213,8 +1346,51 @@ async def sitemap_xml():
     return Response(content='\n'.join(xml), media_type="application/xml")
 
 
+def _build_landing_context() -> dict:
+    """Return landing-page KPI context with safe coercion and fallbacks."""
+    fallback = {
+        "pairs_monitored": 200,
+        "total_signals": 0,
+        "win_rate": 0.0,
+        "total_pnl": 0.0,
+        "open_positions": 0,
+        "stats_scope_label": f"Production since {_PUBLIC_PROD_SINCE_LABEL} (UTC)",
+    }
+
+    try:
+        stats = get_public_overview_stats(ttl_seconds=15.0, since_ts=_PUBLIC_PROD_SINCE_TS) or {}
+    except Exception as e:
+        logger.warning(f"[landing] stats load failed: {e}")
+        stats = {}
+
+    pairs_monitored = len(_store.get("all_pairs", []))
+    if pairs_monitored < 50:
+        pairs_monitored = fallback["pairs_monitored"]
+
+    def _to_int(value, default=0):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _to_float(value, default=0.0):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    return {
+        "pairs_monitored": _to_int(pairs_monitored, fallback["pairs_monitored"]),
+        "total_signals": _to_int(stats.get("total_signals"), fallback["total_signals"]),
+        "win_rate": round(_to_float(stats.get("win_rate"), fallback["win_rate"]), 2),
+        "total_pnl": round(_to_float(stats.get("total_pnl"), fallback["total_pnl"]), 2),
+        "open_positions": _to_int(stats.get("open_positions"), fallback["open_positions"]),
+        "stats_scope_label": fallback["stats_scope_label"],
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
-async def index():
+async def index(request: Request):
     """Root route serves the public marketing landing page.
     The landing page's own JS validates any stored JWT against
     /api/auth/me and redirects authenticated users to /app.
@@ -1224,21 +1400,34 @@ async def index():
     if not html_path.exists():
         # Fallback to SPA if landing is missing so we never 404 the root.
         html_path = Path(__file__).parent / "index.html"
-    return HTMLResponse(content=html_path.read_text(), status_code=200)
+        return HTMLResponse(content=html_path.read_text(), status_code=200)
+
+    return _TEMPLATES.TemplateResponse(
+        "landing.html",
+        {
+            "request": request,
+            "robots_noindex": False,
+            **_build_landing_context(),
+        },
+    )
 
 @app.get("/landing", response_class=HTMLResponse)
-async def landing():
+async def landing(request: Request):
     """Explicit landing-page route (same content as /). Kept so external
     links and ?stay=1 bookmarks continue to resolve even if we ever
     change what `/` serves."""
     html_path = Path(__file__).parent / "landing.html"
     if not html_path.exists():
         return HTMLResponse(content="<h1>Landing page coming soon</h1>", status_code=200)
-    
-    html = html_path.read_text()
-    if "<head>" in html:
-        html = html.replace("<head>", '<head>\n<meta name="robots" content="noindex,nofollow">')
-    return HTMLResponse(content=html, status_code=200)
+
+    return _TEMPLATES.TemplateResponse(
+        "landing.html",
+        {
+            "request": request,
+            "robots_noindex": True,
+            **_build_landing_context(),
+        },
+    )
 
 @app.get("/app", response_class=HTMLResponse)
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -2039,6 +2228,18 @@ async def api_signals_live_pnl(user: Optional[dict] = Depends(get_current_user))
     except Exception as _be:
         print(f"[live_pnl] broadcaster snapshot failed: {_be}")
 
+    # ── Tier 0.5: MEXC price broadcaster (REST-polled, covers MEXC-only pairs) ──
+    _missing_after_binance = pairs_needed - set(prices.keys())
+    if _missing_after_binance:
+        try:
+            _mexc_snap = MEXC_PRICE_BROADCASTER.snapshot()
+            for _p in _missing_after_binance:
+                _v = _mexc_snap.get(_p)
+                if _v and _v > 0:
+                    prices[_p] = _v
+        except Exception as _me:
+            print(f"[live_pnl] MEXC broadcaster snapshot failed: {_me}")
+
     # ── Tier 1: authenticated bulk ticker (fallback for cold-start) ──────────
     if pairs_needed - set(prices.keys()):
         try:
@@ -2276,6 +2477,11 @@ async def api_stream_live_pnl(request: Request, user: Optional[dict] = Depends(g
                 last_reload = now
 
             prices = PRICE_BROADCASTER.snapshot()
+            # Merge MEXC prices — MEXC-only pairs get prices, overlaps prefer Binance
+            _mexc_snap = MEXC_PRICE_BROADCASTER.snapshot()
+            for _mk, _mv in _mexc_snap.items():
+                if _mk not in prices:
+                    prices[_mk] = _mv
             pnl: dict = {}
             _partial_updates: list[tuple] = []   # (targets_hit, signal_id) for DB batch
             for s in signals:
@@ -2401,17 +2607,47 @@ async def api_kpis():
 
 @app.get("/api/public/stats")
 async def api_public_stats():
-    """Public unauthenticated stats for landing page (pairs + signals)."""
-    total = get_live_kpis().get("total_signals", 0)
+    """Public unauthenticated stats for landing page KPIs."""
+    now = time.time()
     try:
-        from market_classifier import get_all_classifications
-        pairs_monitored = len(get_all_classifications())
+        stats = await asyncio.to_thread(get_public_overview_stats, 15.0, _PUBLIC_PROD_SINCE_TS)
+        pairs_monitored = len(_store.get("all_pairs", []))
+        if pairs_monitored < 50:
+            pairs_monitored = 200
+
+        data = {
+            "pairs_monitored": int(pairs_monitored),
+            "total_signals": int(stats.get("total_signals", 0) or 0),
+            "opened_signals": int(stats.get("total_signals", 0) or 0),
+            "open_positions": int(stats.get("open_positions", 0) or 0),
+            "closed_signals": int(stats.get("closed_signals", 0) or 0),
+            "wins": int(stats.get("wins", 0) or 0),
+            "losses": int(stats.get("losses", 0) or 0),
+            "win_rate": round(float(stats.get("win_rate", 0.0) or 0.0), 2),
+            "total_pnl": round(float(stats.get("total_pnl", 0.0) or 0.0), 2),
+            "scope_mode": "production",
+            "scope_since_ts": _PUBLIC_PROD_SINCE_TS,
+            "scope_since_label": _PUBLIC_PROD_SINCE_LABEL,
+            "server_time": now,
+        }
     except Exception:
-        pairs_monitored = 0
-    return JSONResponse({
-        "total_signals": total,
-        "pairs_monitored": pairs_monitored,
-    })
+        data = {
+            "pairs_monitored": 200,
+            "total_signals": 0,
+            "opened_signals": 0,
+            "open_positions": 0,
+            "closed_signals": 0,
+            "wins": 0,
+            "losses": 0,
+            "win_rate": 0.0,
+            "total_pnl": 0.0,
+            "scope_mode": "production",
+            "scope_since_ts": _PUBLIC_PROD_SINCE_TS,
+            "scope_since_label": _PUBLIC_PROD_SINCE_LABEL,
+            "server_time": now,
+        }
+
+    return JSONResponse(data)
 
 
 @app.get("/api/backtest")
@@ -2467,16 +2703,18 @@ def _close_signal_and_feedback(signal_id, pair, direction, entry, sl, targets,
 
 
 @app.get("/api/signals")
-async def api_signals(user: Optional[dict] = Depends(get_current_user)):
-    """Signals — free tier gets 24h delayed with hidden prices."""
+async def api_signals(user: Optional[dict] = Depends(get_current_user), exchange: str = ""):
+    """Signals — free tier gets 24h delayed with hidden prices.
+    ?exchange=binance|mexc to filter by exchange."""
     tier = user.get('_effective_tier', 'free') if user else 'free'
-    signals = await asyncio.to_thread(_read_signals, 50, tier)
+    signals = await asyncio.to_thread(_read_signals, 50, tier, exchange)
     open_count = sum(1 for s in signals if s['status'] in ('SENT', 'OPEN', 'ACTIVE'))
     return JSONResponse(content={
         "signals": signals,
         "open_count": open_count,
         "total": len(signals),
         "tier": tier,
+        "exchange_filter": exchange or "all",
     })
 
 
@@ -2600,6 +2838,7 @@ async def api_presignals(user: dict = Depends(require_tier("pro"))):
                 "price": p["price"],
                 "change_24h": p.get("change_pct"),
                 "readiness": readiness,
+                "exchanges": p.get("exchanges", "binance"),
             })
 
     # Sort: IMMINENT first, then HIGH, MEDIUM, LOW
@@ -3591,17 +3830,31 @@ async def ct_get_server_ip(request: Request, user: dict = Depends(require_tier("
     return JSONResponse(result)
 
 @app.get("/api/copy-trading/config")
-async def ct_get_config(user: dict = Depends(require_tier("pro"))):
+async def ct_get_config(request: Request, user: dict = Depends(require_tier("pro"))):
     """Get user's copy-trading configuration."""
-    cfg = get_ct_config(user['id'])
-    stats = ct_stats(user['id'])
+    ex = request.query_params.get('exchange') or None
+    cfg = get_ct_config(user['id'], exchange=ex)
+    # Use query param, then config's exchange, then default
+    ex = ex or (cfg.get('exchange') if cfg else None) or 'binance'
+    if ex == 'both':
+        stats = ct_stats(user['id'])  # all exchanges combined
+        stats_bn = ct_stats(user['id'], exchange='binance')
+        stats_mx = ct_stats(user['id'], exchange='mexc')
+        stats['per_exchange'] = {'binance': stats_bn, 'mexc': stats_mx}
+    else:
+        stats = ct_stats(user['id'], exchange=ex)
     return JSONResponse({"config": cfg, "stats": stats})
 
 
 @app.post("/api/copy-trading/keys")
 async def ct_save_keys(request: Request, user: dict = Depends(require_tier("pro"))):
-    """Save encrypted Binance API keys."""
+    """Save encrypted exchange API keys (Binance or MEXC)."""
     body = await request.json()
+    exchange = str(body.get('exchange', 'binance')).lower()
+    if exchange not in ('binance', 'mexc'):
+        return JSONResponse({
+            "error": "API keys are saved per exchange. Select Binance or MEXC first."
+        }, status_code=400)
     result = save_api_keys(
         user_id=user['id'],
         api_key=body.get('api_key', ''),
@@ -3617,17 +3870,20 @@ async def ct_save_keys(request: Request, user: dict = Depends(require_tier("pro"
         sl_mode=str(body.get('sl_mode', 'signal')),
         sl_pct=float(body.get('sl_pct', 3.0)),
         copy_experimental=bool(body.get('copy_experimental', False)),
+        exchange=exchange,
     )
     if result.get('error'):
         return JSONResponse(result, status_code=400)
-    # Spawn / restart the user-stream for this user so the dashboard
+    # Spawn / restart the user-stream for Binance users so the dashboard
     # starts receiving push updates immediately (no REST polling).
-    try:
-        import binance_user_stream as _uds
-        await _uds.stop(user['id'])
-        await _uds.start(user['id'])
-    except Exception:
-        pass
+    # MEXC does not use a persistent user stream.
+    if exchange == 'binance':
+        try:
+            import binance_user_stream as _uds
+            await _uds.stop(user['id'])
+            await _uds.start(user['id'])
+        except Exception:
+            pass
     return JSONResponse(result)
 
 
@@ -3667,6 +3923,7 @@ async def ct_update(request: Request, user: dict = Depends(require_tier("pro")))
     if 'sl_mode' in body: kwargs['sl_mode'] = str(body['sl_mode'])
     if 'sl_pct' in body: kwargs['sl_pct'] = float(body['sl_pct'])
     if 'copy_experimental' in body: kwargs['copy_experimental'] = bool(body['copy_experimental'])
+    if 'exchange' in body: kwargs['exchange'] = str(body['exchange'])
     result = ct_update_settings(user['id'], **kwargs)
     if result.get('error'):
         return JSONResponse(result, status_code=400)
@@ -3701,8 +3958,8 @@ async def admin_ws_status(user: dict = Depends(require_admin)):
 
 
 @app.get("/api/copy-trading/balance")
-async def ct_get_balance(user: dict = Depends(require_tier("pro"))):
-    """Fetch live Binance Futures USDT balance.
+async def ct_get_balance(request: Request, user: dict = Depends(require_tier("pro"))):
+    """Fetch live Futures USDT balance (Binance or MEXC).
 
     Redis fast-path (Phase 2, 2026-04-24):
       1. 8 s TTL cache keyed on user_id — sufficient because the
@@ -3712,16 +3969,16 @@ async def ct_get_balance(user: dict = Depends(require_tier("pro"))):
       2. Cache is invalidated opportunistically on UDS ACCOUNT_UPDATE
          events (see binance_user_stream.py → bal_cache_del).
       3. If Redis is unavailable the call simply falls through to the
-         existing synchronous Binance path; no degradation.
+         existing synchronous path; no degradation.
     """
+    ex = request.query_params.get('exchange') or None
     from redis_cache import bal_cache_get, bal_cache_set
-    cached = bal_cache_get(user['id'])
+    cache_key_redis = f"{user['id']}:{ex}" if ex else user['id']
+    cached = bal_cache_get(cache_key_redis)
     if cached is not None:
         cached["cache_source"] = "redis"
         return JSONResponse(cached)
-    # The Binance client is synchronous and can block for up to 30 s on
-    # timeout — run it in a worker thread so we don't stall the event loop.
-    result = await asyncio.to_thread(ct_live_balance, user['id'])
+    result = await asyncio.to_thread(ct_live_balance, user['id'], ex)
     # Backfill only on success; failure payloads stay out of cache to
     # avoid pinning an error state on every subsequent poll.
     try:
@@ -3733,7 +3990,7 @@ async def ct_get_balance(user: dict = Depends(require_tier("pro"))):
 
 
 @app.get("/api/copy-trading/live-pnl")
-async def ct_live_pnl_endpoint(user: dict = Depends(require_tier("pro"))):
+async def ct_live_pnl_endpoint(request: Request, user: dict = Depends(require_tier("pro"))):
     """Ultra-cheap real-time unrealized PnL — zero Binance REST weight.
 
     Recomputes unrealized PnL every call from two WebSocket caches:
@@ -3748,7 +4005,23 @@ async def ct_live_pnl_endpoint(user: dict = Depends(require_tier("pro"))):
         pnl_pct = pnl_usd / init_margin * 100  (ROI on margin, same as Binance UI)
 
     Safe to poll every 1 s from the client.
+    For MEXC: returns cached REST balance data (no WS stream available yet).
     """
+    ex = request.query_params.get('exchange') or None
+    # For non-Binance exchanges (including 'both'), return from REST balance cache
+    if ex and ex != 'binance':
+        result = await asyncio.to_thread(ct_live_balance, user['id'], ex)
+        resp = {
+            "ok": True,
+            "unrealized_pnl": result.get("unrealized_pnl", 0),
+            "unrealized_pnl_pct": result.get("unrealized_pnl_pct", 0),
+            "total_invested_usd": result.get("total_invested_usd", 0),
+            "positions": result.get("positions", {}),
+            "source": "rest",
+        }
+        if result.get("per_exchange"):
+            resp["per_exchange"] = result["per_exchange"]
+        return JSONResponse(resp)
     try:
         from binance_user_stream import get_state as _uds_state  # type: ignore
     except Exception:
@@ -3859,12 +4132,14 @@ async def ct_recalc_pnl(
 
 @app.get("/api/copy-trading/history")
 async def ct_get_history(
+    request: Request,
     limit: int = 50,
     user: dict = Depends(require_tier("pro"))
 ):
     """Get copy-trade history with live unrealized PnL for open trades."""
-    trades = ct_history(user['id'], min(limit, 200))
-    stats  = ct_stats(user['id'])
+    ex = request.query_params.get('exchange') or None
+    trades = ct_history(user['id'], min(limit, 200), exchange=ex)
+    stats  = ct_stats(user['id'], exchange=ex)
     # Enrich open trades with live Binance unrealized PnL
     open_trades = [t for t in trades if t.get('status') == 'open']
     if open_trades:
@@ -4548,6 +4823,56 @@ async def api_status():
     })
 
 
+@app.get("/api/platform-health")
+async def api_platform_health():
+    """Global platform health for the dashboard header badge."""
+    import time as _t
+    now = _t.time()
+    last_scan = _store["last_scan"] or 0
+    scan_age = now - last_scan if last_scan else 9999
+
+    # Binance WS streams
+    ws_count = _store["ws_connected"]
+    binance_ok = ws_count > 0
+
+    # MEXC pairs presence
+    mexc_pairs_count = len(_store.get("mexc_pairs", set()))
+    mexc_ok = mexc_pairs_count > 0
+
+    # Open signals count
+    open_sigs = 0
+    try:
+        import sqlite3
+        _c = sqlite3.connect('signal_registry.db', timeout=2)
+        open_sigs = _c.execute("SELECT COUNT(*) FROM signals WHERE status IN ('SENT','OPEN')").fetchone()[0]
+        _c.close()
+    except Exception:
+        pass
+
+    # Bot alive check: last_scan within 15 min means bot is actively scanning
+    bot_alive = scan_age < 900
+
+    # Overall status
+    if binance_ok and bot_alive:
+        overall = 'operational'
+    elif bot_alive:
+        overall = 'degraded'
+    else:
+        overall = 'down'
+
+    return JSONResponse(content={
+        "overall": overall,
+        "binance_ws": {"ok": binance_ok, "streams": ws_count},
+        "mexc": {"ok": mexc_ok, "pairs": mexc_pairs_count},
+        "bot": {"alive": bot_alive, "last_scan_ago_s": round(scan_age)},
+        "signals_open": open_sigs,
+        "binance_pairs": len(_store.get("binance_pairs", set())),
+        "mexc_pairs": mexc_pairs_count,
+        "monitored": len(_store["monitored"]),
+        "bootstrapped": _store["bootstrapped"],
+    })
+
+
 # ── Public Landing Stats (no auth) ───────────────────────────────────
 _PUBLIC_STATS_CACHE = {"ts": 0.0, "data": None}
 # Short TTL so the landing-page "signals fired" counter visibly ticks up
@@ -4574,10 +4899,10 @@ def _count_all_signals_direct() -> int:
         con.close()
 
 
-@app.get("/api/public/stats")
-async def api_public_stats():
+@app.get("/api/public/stats/cache")
+async def api_public_stats_cache():
     """
-    Public aggregate stats for the landing page (no auth, cached 15 s).
+    Cached aggregate stats snapshot (diagnostic endpoint).
     Returns real numbers: total signals fired, win rate, pairs monitored.
     The "total_signals" value comes straight from the signal_registry DB
     (open + archived rows) so the landing-page counter reflects every

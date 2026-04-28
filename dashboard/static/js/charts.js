@@ -459,7 +459,10 @@ async function _loadChartSlot(slotId, pair, interval) {
         const d   = await res.json();
         if (myToken !== s.loadToken) return;    // stale fetch, slot was reloaded/destroyed
         if (d.error) throw new Error(d.error);
+        s._exchanges = d.exchanges || 'binance';
+        const validCandles = _chartCandles(d);
         renderChartSlot(slotId, d);
+        if (!validCandles.length) return;
         renderChartStatusSlot(slotId, d);
         _connectLiveWsSlot(slotId, pair, interval);
         if (slotId === 0) _syncPrimaryGlobals();
@@ -504,6 +507,82 @@ function _createChartOptions(height) {
 
 const _add = (chart, Type, opts) => chart.addSeries(Type, opts);
 
+function _chartNum(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+
+function _chartTime(t) {
+    if (typeof t === 'number') {
+        const sec = t > 1000000000000 ? Math.floor(t / 1000) : Math.floor(t);
+        return Number.isFinite(sec) && sec > 0 ? sec + (_SERVER_TZ_OFFSET || 0) : null;
+    }
+    if (typeof t === 'string') {
+        const s = t.trim();
+        if (!s) return null;
+        const hasTz = /(?:Z|[+-]\d{2}:?\d{2})$/.test(s);
+        const ms = Date.parse(hasTz ? s : s + 'Z');
+        if (!Number.isFinite(ms)) return null;
+        return Math.floor(ms / 1000) + (_SERVER_TZ_OFFSET || 0);
+    }
+    return null;
+}
+
+function _chartDedupeSort(rows) {
+    const m = new Map();
+    rows.forEach(r => { if (r && Number.isFinite(r.time)) m.set(r.time, r); });
+    return Array.from(m.values()).sort((a, b) => a.time - b.time);
+}
+
+function _chartOhlc(timeRaw, openRaw, highRaw, lowRaw, closeRaw) {
+    const time = _chartTime(timeRaw);
+    const open = _chartNum(openRaw), high = _chartNum(highRaw), low = _chartNum(lowRaw), close = _chartNum(closeRaw);
+    if (!Number.isFinite(time) || open === null || high === null || low === null || close === null) return null;
+    if (open <= 0 || high <= 0 || low <= 0 || close <= 0) return null;
+    return { time, open, high: Math.max(open, high, low, close), low: Math.min(open, high, low, close), close };
+}
+
+function _chartCandles(d) {
+    const n = Math.min((d.timestamps || []).length, (d.open || []).length, (d.high || []).length, (d.low || []).length, (d.close || []).length);
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+        const bar = _chartOhlc(d.timestamps[i], d.open[i], d.high[i], d.low[i], d.close[i]);
+        if (bar) rows.push(bar);
+    }
+    return _chartDedupeSort(rows);
+}
+
+function _chartVolume(d) {
+    const n = Math.min((d.timestamps || []).length, (d.volume || []).length, (d.open || []).length, (d.close || []).length);
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+        const time = _chartTime(d.timestamps[i]);
+        const value = _chartNum(d.volume[i]) ?? 0;
+        const open = _chartNum(d.open[i]), close = _chartNum(d.close[i]);
+        if (!Number.isFinite(time) || open === null || close === null || value < 0) continue;
+        rows.push({ time, value, color: close >= open ? 'rgba(0,214,143,0.12)' : 'rgba(255,77,106,0.12)' });
+    }
+    return _chartDedupeSort(rows);
+}
+
+function _chartLineData(d, valueFn, colorFn, positiveOnly) {
+    const rows = [];
+    const n = (d.timestamps || []).length;
+    for (let i = 0; i < n; i++) {
+        const time = _chartTime(d.timestamps[i]);
+        const value = _chartNum(valueFn(i));
+        if (!Number.isFinite(time) || value === null || (positiveOnly && value <= 0)) continue;
+        const row = { time, value };
+        if (colorFn) row.color = colorFn(i);
+        rows.push(row);
+    }
+    return _chartDedupeSort(rows);
+}
+
+function _chartRangeOk(r) {
+    return r && Number.isFinite(r.from) && Number.isFinite(r.to) && r.to > r.from;
+}
+
 // ═════════════════════════════════════════════════════════════════
 //  RENDER CHART (per slot)
 // ═════════════════════════════════════════════════════════════════
@@ -519,7 +598,13 @@ function renderChartSlot(slotId, d) {
     indEl.innerHTML   = '';
     priceEl.style.position = 'relative';
 
-    const _lastClose = d.close && d.close.length ? d.close[d.close.length - 1] : 1;
+    const candles = _chartCandles(d);
+    if (!candles.length) {
+        priceEl.innerHTML = '<div class="no-data">No valid candle data for this pair/timeframe.</div>';
+        return;
+    }
+
+    const _lastClose = candles[candles.length - 1].close || 1;
     s.precFmt = _pricePrecision(_lastClose);
     const _pf = { type: 'price', ...s.precFmt };
 
@@ -535,43 +620,44 @@ function renderChartSlot(slotId, d) {
         wickUpColor: '#4fffb8', wickDownColor: '#ff6b85',
         priceFormat: _pf,
     });
-    s.candleSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), open: d.open[i], high: d.high[i], low: d.low[i], close: d.close[i] })));
+    s.candleSeries.setData(candles);
 
     // Volume
     s.volSeries = _add(s.priceChart, LC.HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
     s.priceChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-    s.volSeries.setData(d.timestamps.map((t,i) => ({
-        time: toUnix(t), value: d.volume[i],
-        color: d.close[i] >= d.open[i] ? 'rgba(0,214,143,0.12)' : 'rgba(255,77,106,0.12)'
-    })));
+    s.volSeries.setData(_chartVolume(d));
 
     // CE Line
     s.ceLineSeries = _add(s.priceChart, LC.LineSeries, {
         lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
         crosshairMarkerVisible: false, priceFormat: _pf });
-    s.ceLineSeries.setData(d.timestamps.map((t,i) => ({
-        time: toUnix(t),
-        value: d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i],
-        color: d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a'
-    })));
+    s.ceLineSeries.setData(_chartLineData(
+        d,
+        i => d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i],
+        i => d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a',
+        true
+    ));
 
     // CE Cloud
     s.ceCloudSeries = _add(s.priceChart, LC.LineSeries, {
         lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
         crosshairMarkerVisible: false, lineStyle: LC.LineStyle.Dotted, priceFormat: _pf });
-    s.ceCloudSeries.setData(d.timestamps.map((t,i) => ({
-        time: toUnix(t),
-        value: d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i],
-        color: d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)'
-    })));
+    s.ceCloudSeries.setData(_chartLineData(
+        d,
+        i => d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i],
+        i => d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)',
+        true
+    ));
 
     // CE markers
     s.ceMarkers = [];
     for (let i = 1; i < d.timestamps.length; i++) {
+        const markerTime = _chartTime(d.timestamps[i]);
+        if (!Number.isFinite(markerTime)) continue;
         if (d.ce_line_dir[i] === 1 && d.ce_line_dir[i-1] === -1)
-            s.ceMarkers.push({ time: toUnix(d.timestamps[i]), position: 'belowBar', color: '#00d68f', shape: 'arrowUp',   text: 'CE Buy',  size: 1 });
+            s.ceMarkers.push({ time: markerTime, position: 'belowBar', color: '#00d68f', shape: 'arrowUp',   text: 'CE Buy',  size: 1 });
         else if (d.ce_line_dir[i] === -1 && d.ce_line_dir[i-1] === 1)
-            s.ceMarkers.push({ time: toUnix(d.timestamps[i]), position: 'aboveBar', color: '#ff4d6a', shape: 'arrowDown', text: 'CE Sell', size: 1 });
+            s.ceMarkers.push({ time: markerTime, position: 'aboveBar', color: '#ff4d6a', shape: 'arrowDown', text: 'CE Sell', size: 1 });
     }
     try {
         s.markerPlugin = LC.createSeriesMarkers(s.candleSeries, s.ceMarkers);
@@ -583,32 +669,29 @@ function renderChartSlot(slotId, d) {
     s.indChart = LC.createChart(indEl, _createChartOptions(indH));
     s.linregSeries = _add(s.indChart, LC.HistogramSeries, { priceLineVisible: false, lastValueVisible: false, priceScaleId: 'lr' });
     s.indChart.priceScale('lr').applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
-    s.linregSeries.setData(d.timestamps.map((t,i) => ({
-        time: toUnix(t), value: d.linreg[i],
-        color: d.linreg[i] >= 0 ? 'rgba(0,214,143,0.28)' : 'rgba(255,77,106,0.28)'
-    })));
+    s.linregSeries.setData(_chartLineData(d, i => d.linreg[i], i => _chartNum(d.linreg[i]) >= 0 ? 'rgba(0,214,143,0.28)' : 'rgba(255,77,106,0.28)'));
 
     s.tsiSeries = _add(s.indChart, LC.LineSeries, { color: '#a78bfa', lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
-    s.tsiSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), value: d.tsi[i] })));
+    s.tsiSeries.setData(_chartLineData(d, i => d.tsi[i]));
 
     [{ val: d.adapt_l1, col: 'rgba(244,162,54,0.6)' }, { val: d.adapt_l2, col: 'rgba(255,77,106,0.6)' }].forEach(({val, col}) => {
         [val, -val].forEach(v => {
             const l = _add(s.indChart, LC.LineSeries, { color: col, lineWidth: 1, lineStyle: LC.LineStyle.Dotted, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-            l.setData(d.timestamps.map(t => ({ time: toUnix(t), value: v })));
+            l.setData(_chartLineData(d, () => v));
         });
     });
     const zeroS = _add(s.indChart, LC.LineSeries, { color: '#1e2d40', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    zeroS.setData(d.timestamps.map(t => ({ time: toUnix(t), value: 0 })));
+    zeroS.setData(_chartLineData(d, () => 0));
 
     // Sync time scales per-slot (flag prevents infinite loop)
     s.priceChart.timeScale().subscribeVisibleLogicalRangeChange(r => {
-        if (s.syncingRange || !r) return;
+        if (s.syncingRange || !_chartRangeOk(r)) return;
         s.syncingRange = true;
         try { s.indChart.timeScale().setVisibleLogicalRange(r); } catch(_) {}
         s.syncingRange = false;
     });
     s.indChart.timeScale().subscribeVisibleLogicalRangeChange(r => {
-        if (s.syncingRange || !r) return;
+        if (s.syncingRange || !_chartRangeOk(r)) return;
         s.syncingRange = true;
         try { s.priceChart.timeScale().setVisibleLogicalRange(r); } catch(_) {}
         s.syncingRange = false;
@@ -700,22 +783,32 @@ function overlaySignalLinesSlot(slotId, d) {
         : null;
 
     if (!sig) {
-        s.priceChart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 80), to: total });
-        s.indChart && s.indChart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 80), to: total });
+        const r = { from: Math.max(0, total - 80), to: total };
+        if (_chartRangeOk(r)) {
+            try { s.priceChart.timeScale().setVisibleLogicalRange(r); } catch(_) {}
+            try { s.indChart && s.indChart.timeScale().setVisibleLogicalRange(r); } catch(_) {}
+        }
         return;
     }
 
-    const tFirst = toUnix(d.timestamps[0]);
-    const tLast  = toUnix(d.timestamps[total - 1]);
-    const mkLine = v => [{ time: tFirst, value: v }, { time: tLast, value: v }];
+    const tFirst = _chartTime(d.timestamps[0]);
+    const tLast  = _chartTime(d.timestamps[total - 1]);
+    const mkLine = v => {
+        const value = _chartNum(v);
+        if (!Number.isFinite(tFirst) || !Number.isFinite(tLast) || value === null || value <= 0) return [];
+        return [{ time: tFirst, value }, { time: tLast, value }];
+    };
     const isLong = (sig.direction || '').toUpperCase() !== 'SHORT';
 
     const sigDispUnix = sig.timestamp + _SERVER_TZ_OFFSET;
     let sigIdx = -1;
-    for (let i = 0; i < total; i++) { if (toUnix(d.timestamps[i]) >= sigDispUnix) { sigIdx = i; break; } }
+    for (let i = 0; i < total; i++) { if ((_chartTime(d.timestamps[i]) || 0) >= sigDispUnix) { sigIdx = i; break; } }
     const from = sigIdx >= 0 ? Math.max(0, sigIdx - 24) : Math.max(0, total - 80);
-    s.priceChart.timeScale().setVisibleLogicalRange({ from, to: total });
-    s.indChart   && s.indChart.timeScale().setVisibleLogicalRange({ from, to: total });
+    const focusRange = { from, to: total };
+    if (_chartRangeOk(focusRange)) {
+        try { s.priceChart.timeScale().setVisibleLogicalRange(focusRange); } catch(_) {}
+        try { s.indChart && s.indChart.timeScale().setVisibleLogicalRange(focusRange); } catch(_) {}
+    }
 
     const pctFmt = (price) => {
         const p = (price - sig.price) / sig.price * 100;
@@ -751,8 +844,10 @@ function overlaySignalLinesSlot(slotId, d) {
 
     // Signal-bar marker merged with CE markers
     if (sigIdx >= 0 && s.candleSeries) {
+        const sigTime = _chartTime(d.timestamps[sigIdx]);
+        if (!Number.isFinite(sigTime)) return;
         const sigM = {
-            time: toUnix(d.timestamps[sigIdx]),
+            time: sigTime,
             position: isLong ? 'belowBar' : 'aboveBar',
             color: '#f4a236', shape: isLong ? 'arrowUp' : 'arrowDown',
             text: `📍 ${sig.direction} @${formatPrice(sig.price)}`, size: 2,
@@ -772,6 +867,7 @@ function overlaySignalLinesSlot(slotId, d) {
 // ═════════════════════════════════════════════════════════════════
 
 function renderChartStatusSlot(slotId, d) {
+    if (!d || !Array.isArray(d.tsi) || !Array.isArray(d.linreg) || !Array.isArray(d.ce_line_dir) || !Array.isArray(d.ce_cloud_dir) || !d.tsi.length) return;
     const last = d.tsi.length - 1;
     const tsi = d.tsi[last], lr = d.linreg[last], ceL = d.ce_line_dir[last], ceC = d.ce_cloud_dir[last];
     let zone = 'Neutral', zc = 'neutral';
@@ -787,7 +883,8 @@ function renderChartStatusSlot(slotId, d) {
         <div class="rh-stat"><span class="stat-label">L1/L2:</span><span class="stat-val neutral">±${d.adapt_l1} / ±${d.adapt_l2}</span></div>
         <div class="rh-stat"><span class="stat-label">LinReg:</span><span class="stat-val ${lr > 0 ? 'up' : lr < 0 ? 'down' : 'neutral'}">${lr.toFixed(3)}</span></div>
         <div class="rh-stat"><span class="stat-label">CE Line:</span><span class="stat-val ${ceL === 1 ? 'up' : 'down'}">${ceL === 1 ? 'LONG' : 'SHORT'}</span></div>
-        <div class="rh-stat"><span class="stat-label">CE Cloud:</span><span class="stat-val ${ceC === 1 ? 'up' : 'down'}">${ceC === 1 ? 'LONG' : 'SHORT'}</span></div>`;
+        <div class="rh-stat"><span class="stat-label">CE Cloud:</span><span class="stat-val ${ceC === 1 ? 'up' : 'down'}">${ceC === 1 ? 'LONG' : 'SHORT'}</span></div>
+        <div class="rh-stat"><span class="stat-label">Exchange:</span><span class="stat-val neutral">${d.exchanges === 'both' ? '🔵🟡 Both' : d.exchanges === 'mexc' ? '🟡 MEXC' : '🔵 Binance'}</span></div>`;
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -811,19 +908,52 @@ function _connectLiveWsSlot(slotId, pair, interval) {
     if (!s) return;
     _disconnectLiveWsSlot(slotId);
 
+    // MEXC-only pairs: no Binance WS available, use REST polling every 5s
+    if (s._exchanges === 'mexc') {
+        const ctx = { active: true, timer: null };
+        async function poll() {
+            if (!ctx.active || !s.candleSeries) return;
+            try {
+                const bars = _TF_BARS[interval] || 500;
+                const res = await fetch(`/api/chart/${pair}?interval=${interval}&bars=${bars}`, { headers: authHeaders() });
+                const d = await res.json();
+                if (!d.error && d.close && d.close.length > 0 && s.candleSeries) {
+                    const lastIdx = d.close.length - 1;
+                    const bar = _chartOhlc(d.timestamps[lastIdx], d.open[lastIdx], d.high[lastIdx], d.low[lastIdx], d.close[lastIdx]);
+                    if (bar) {
+                        s.candleSeries.update(bar);
+                        const vol = _chartNum(d.volume[lastIdx]) ?? 0;
+                        if (s.volSeries && vol >= 0) s.volSeries.update({
+                            time: bar.time, value: vol,
+                            color: bar.close >= bar.open ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)'
+                        });
+                    }
+                }
+            } catch(_) {}
+            if (ctx.active) ctx.timer = setTimeout(poll, 5000);
+        }
+        const badge = document.getElementById(`live-stream-badge-${slotId}`);
+        if (badge) { badge.style.display = 'flex'; badge.title = 'MEXC REST poll (5s)'; }
+        ctx.timer = setTimeout(poll, 5000);
+        s.liveWs = { _teardown: () => { ctx.active = false; if (ctx.timer) clearTimeout(ctx.timer); } };
+        return;
+    }
+
     const stream = `${pair.toLowerCase()}@kline_${interval}`;
     const wsUrl  = `wss://fstream.binance.com/stream?streams=${stream}`;
-    const ctx = { active: true, socket: null };
+    const ctx = { active: true, socket: null, lastMsg: 0, refreshTimer: null, staleTimer: null };
 
     function connect() {
         if (!ctx.active) return;
         const ws = new WebSocket(wsUrl);
         ctx.socket = ws;
         ws.onopen = () => {
+            ctx.lastMsg = Date.now();
             const badge = document.getElementById(`live-stream-badge-${slotId}`);
             if (badge) badge.style.display = 'flex';
         };
         ws.onmessage = (evt) => {
+            ctx.lastMsg = Date.now();
             try {
                 const msg = JSON.parse(evt.data);
                 const k   = (msg.data || msg).k;
@@ -839,7 +969,50 @@ function _connectLiveWsSlot(slotId, pair, interval) {
     }
     connect();
 
-    s.liveWs = { _teardown: () => { ctx.active = false; if (ctx.socket) try { ctx.socket.close(); } catch(_) {} ctx.socket = null; } };
+    // ── Periodic REST refresh (every 30s) to keep indicators & candles fresh ──
+    ctx.refreshTimer = setInterval(async () => {
+        if (!ctx.active || !s.candleSeries) return;
+        try {
+            const bars = _TF_BARS[interval] || 500;
+            const res  = await fetch(`/api/chart/${pair}?interval=${interval}&bars=${bars}`, { headers: authHeaders() });
+            const d    = await res.json();
+            if (!d.error && s.candleSeries && d.close && d.close.length > 0) {
+                // Update last candle
+                const lastIdx = d.close.length - 1;
+                const bar = _chartOhlc(d.timestamps[lastIdx], d.open[lastIdx], d.high[lastIdx], d.low[lastIdx], d.close[lastIdx]);
+                if (bar) {
+                    s.candleSeries.update(bar);
+                    const vol = _chartNum(d.volume[lastIdx]) ?? 0;
+                    if (s.volSeries && vol >= 0) s.volSeries.update({
+                        time: bar.time, value: vol,
+                        color: bar.close >= bar.open ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)'
+                    });
+                }
+                // Refresh indicators
+                if (s.tsiSeries && d.tsi) s.tsiSeries.setData(_chartLineData(d, i => d.tsi[i]));
+                if (s.linregSeries && d.linreg) s.linregSeries.setData(_chartLineData(d, i => d.linreg[i], i => _chartNum(d.linreg[i]) >= 0 ? 'rgba(0,214,143,0.28)' : 'rgba(255,77,106,0.28)'));
+                if (s.ceLineSeries && d.ce_line_dir) s.ceLineSeries.setData(_chartLineData(d, i => d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i], i => d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a', true));
+                if (s.ceCloudSeries && d.ce_cloud_dir) s.ceCloudSeries.setData(_chartLineData(d, i => d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i], i => d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)', true));
+                renderChartStatusSlot(slotId, d);
+            }
+        } catch(_) {}
+    }, 30000);
+
+    // ── Stale WS detection: if no message for 15s, force reconnect ──
+    ctx.staleTimer = setInterval(() => {
+        if (!ctx.active) return;
+        if (ctx.lastMsg && Date.now() - ctx.lastMsg > 15000 && ctx.socket) {
+            try { ctx.socket.close(); } catch(_) {}
+        }
+    }, 10000);
+
+    s.liveWs = { _teardown: () => {
+        ctx.active = false;
+        if (ctx.refreshTimer) clearInterval(ctx.refreshTimer);
+        if (ctx.staleTimer) clearInterval(ctx.staleTimer);
+        if (ctx.socket) try { ctx.socket.close(); } catch(_) {}
+        ctx.socket = null;
+    } };
 }
 
 function _disconnectLiveWsSlot(slotId) {
@@ -861,17 +1034,15 @@ async function _onLiveTickSlot(slotId, pair, interval, k) {
     const s = _slots.get(slotId);
     if (!s || !s.candleSeries || !s.priceChart) return;
 
-    const barTime = Math.floor(parseInt(k.t) / 1000) + (_SERVER_TZ_OFFSET || 0);
-    const o = parseFloat(k.o), h = parseFloat(k.h),
-          l = parseFloat(k.l), c = parseFloat(k.c),
-          v = parseFloat(k.v);
-    const bar = { time: barTime, open: o, high: h, low: l, close: c };
+    const bar = _chartOhlc(k.t, k.o, k.h, k.l, k.c);
+    const v = _chartNum(k.v);
+    if (!bar) return;
 
     try {
         s.candleSeries.update(bar);
-        if (s.volSeries) s.volSeries.update({
-            time: barTime, value: v,
-            color: c >= o ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)'
+        if (s.volSeries && v !== null && v >= 0) s.volSeries.update({
+            time: bar.time, value: v,
+            color: bar.close >= bar.open ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)'
         });
     } catch(_) {}
     s.liveLastBar = bar;
@@ -885,27 +1056,26 @@ async function _onLiveTickSlot(slotId, pair, interval, k) {
                 const d    = await res.json();
                 if (!d.error && s.candleSeries) {
                     if (s.tsiSeries && d.tsi) {
-                        s.tsiSeries.setData(d.timestamps.map((t,i) => ({ time: toUnix(t), value: d.tsi[i] })));
+                        s.tsiSeries.setData(_chartLineData(d, i => d.tsi[i]));
                     }
                     if (s.linregSeries && d.linreg) {
-                        s.linregSeries.setData(d.timestamps.map((t,i) => ({
-                            time: toUnix(t), value: d.linreg[i],
-                            color: d.linreg[i] >= 0 ? 'rgba(0,214,143,0.28)' : 'rgba(255,77,106,0.28)'
-                        })));
+                        s.linregSeries.setData(_chartLineData(d, i => d.linreg[i], i => _chartNum(d.linreg[i]) >= 0 ? 'rgba(0,214,143,0.28)' : 'rgba(255,77,106,0.28)'));
                     }
                     if (s.ceLineSeries && d.ce_line_dir) {
-                        s.ceLineSeries.setData(d.timestamps.map((t,i) => ({
-                            time: toUnix(t),
-                            value: d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i],
-                            color: d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a'
-                        })));
+                        s.ceLineSeries.setData(_chartLineData(
+                            d,
+                            i => d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i],
+                            i => d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a',
+                            true
+                        ));
                     }
                     if (s.ceCloudSeries && d.ce_cloud_dir) {
-                        s.ceCloudSeries.setData(d.timestamps.map((t,i) => ({
-                            time: toUnix(t),
-                            value: d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i],
-                            color: d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)'
-                        })));
+                        s.ceCloudSeries.setData(_chartLineData(
+                            d,
+                            i => d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i],
+                            i => d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)',
+                            true
+                        ));
                     }
                     renderChartStatusSlot(slotId, d);
                 }

@@ -190,9 +190,9 @@ class UserStreamManager:
             # Lazy import to avoid circular import with copy_trading
             from binance import AsyncClient  # type: ignore
             from copy_trading import _get_decrypted_keys  # type: ignore
-            keys = _get_decrypted_keys(user_id)
+            keys = _get_decrypted_keys(user_id, 'binance')
             if not keys:
-                raise RuntimeError(f"no API keys for user {user_id}")
+                raise RuntimeError(f"no Binance API keys for user {user_id}")
             client = await AsyncClient.create(keys[0], keys[1])
             self._clients[user_id] = client
             log.info(f"user {user_id}: on-demand AsyncClient created (no UDS yet)")
@@ -247,11 +247,11 @@ class UserStreamManager:
         # Import here to avoid circular import (copy_trading → user_stream)
         from copy_trading import _get_decrypted_keys  # type: ignore
 
-        keys = _get_decrypted_keys(user_id)
+        keys = _get_decrypted_keys(user_id, 'binance')
         if not keys:
-            self._set_error(user_id, "no API keys configured")
-            log.info(f"user {user_id}: no keys; skipping stream")
-            raise RuntimeError("no API keys configured")
+            self._set_error(user_id, "no Binance API keys configured")
+            log.info(f"user {user_id}: no Binance keys; skipping stream")
+            raise RuntimeError("no Binance API keys configured")
 
         api_key, api_secret = keys
         client = await AsyncClient.create(api_key, api_secret)

@@ -52,10 +52,13 @@ _EXINFO_CACHE: dict = {}
 _EXINFO_TS: float = 0.0
 _EXINFO_TTL: float = 300.0  # 5 minutes
 
-# ── Per-user Binance client cache (avoids new TCP session per trade) ────────
-_CLIENT_CACHE: Dict[int, Any] = {}   # user_id → Client
+# ── Per-user exchange client cache (avoids new TCP session per trade) ─────────
+_CLIENT_CACHE: Dict[int, Any] = {}   # user_id → Client (Binance or MEXC)
 _CLIENT_TS:    Dict[int, float] = {} # user_id → last_refresh_time
 _CLIENT_TTL = 600.0  # 10 minutes — refresh after key rotation window
+
+# ── Per-user exchange type cache ──────────────────────────────────────────────
+_USER_EXCHANGE_CACHE: Dict[int, str] = {}  # user_id → 'binance' | 'mexc'
 
 # ── Per-user hedge mode cache (avoids redundant API call per trade) ─────────
 _HEDGE_CACHE: Dict[int, bool] = {}
@@ -71,6 +74,67 @@ _LEVERAGE_CACHE:   Dict[tuple, int]   = {}   # (user_id, pair) -> leverage
 _LEVERAGE_TS:      Dict[tuple, float] = {}   # (user_id, pair) -> last-set ts
 _MARGIN_CROSS_SET: Dict[tuple, float] = {}   # (user_id, pair) -> last-set ts
 _LEV_MARGIN_TTL = 12 * 3600                  # 12 h
+
+
+def _get_user_exchange(user_id: int) -> str:
+    """Return 'binance', 'mexc', or 'both' for a user (cached)."""
+    if user_id in _USER_EXCHANGE_CACHE:
+        return _USER_EXCHANGE_CACHE[user_id]
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT exchange FROM copy_trading_config WHERE user_id=?", (user_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    exchange = (dict(row).get('exchange', 'binance') if row else 'binance').lower()
+    _USER_EXCHANGE_CACHE[user_id] = exchange
+    return exchange
+
+
+def _get_user_active_exchanges(user_id: int) -> list:
+    """Return list of exchanges the user has valid API keys for.
+    E.g. ['binance'], ['mexc'], or ['binance', 'mexc']."""
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            "SELECT exchange FROM exchange_keys WHERE user_id=? AND exchange IN ('binance','mexc')",
+            (user_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    if rows:
+        return sorted({r['exchange'] for r in rows})
+    # Fallback: use the config exchange
+    exchange = _get_user_exchange(user_id)
+    return ['binance', 'mexc'] if exchange == 'both' else [exchange]
+
+
+def _pair_exists_on_binance(user_id: int, pair: str) -> bool:
+    try:
+        client = _get_futures_client(user_id, 'binance')
+        if not client:
+            return False
+        info = _get_exchange_info_cached(client)
+        return any(
+            s.get('symbol') == pair and s.get('status', 'TRADING') == 'TRADING'
+            for s in info.get('symbols', [])
+        )
+    except Exception as e:
+        log.warning(f"[routing] Binance pair check failed user {user_id} {pair}: {e}")
+        return False
+
+
+def _pair_exists_on_mexc(user_id: int, pair: str) -> bool:
+    try:
+        from mexc_futures_client import MexcFuturesClient
+        client = _get_futures_client(user_id, 'mexc')
+        if not client or not isinstance(client, MexcFuturesClient):
+            return False
+        return bool(client.get_contract_info(pair))
+    except Exception as e:
+        log.warning(f"[routing] MEXC pair check failed user {user_id} {pair}: {e}")
+        return False
 
 
 def _ensure_leverage_cached(client, user_id: int, pair: str, leverage: int) -> int:
@@ -280,14 +344,64 @@ def init_copy_trading_db():
         "ALTER TABLE copy_trading_config ADD COLUMN copy_experimental INTEGER DEFAULT 0",
         "ALTER TABLE copy_trading_config ADD COLUMN sl_mode TEXT DEFAULT 'signal'",
         "ALTER TABLE copy_trading_config ADD COLUMN sl_pct REAL DEFAULT 3.0",
+        "ALTER TABLE copy_trading_config ADD COLUMN exchange TEXT DEFAULT 'binance'",
         "ALTER TABLE copy_trades ADD COLUMN sl_price REAL DEFAULT 0",
         "ALTER TABLE copy_trades ADD COLUMN tp_prices TEXT DEFAULT '[]'",
+        "ALTER TABLE copy_trades ADD COLUMN exchange TEXT DEFAULT 'binance'",
     ]:
         try:
             conn.execute(_col_sql)
             conn.commit()
         except Exception:
             pass
+
+    # ── Per-exchange API key storage (multi-exchange support) ──────────
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS exchange_keys (
+            user_id        INTEGER NOT NULL,
+            exchange       TEXT NOT NULL DEFAULT 'binance',
+            api_key_enc    TEXT NOT NULL,
+            api_secret_enc TEXT NOT NULL,
+            created_at     REAL NOT NULL,
+            updated_at     REAL NOT NULL,
+            CHECK (exchange IN ('binance','mexc')),
+            PRIMARY KEY (user_id, exchange),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+
+    # Migrate existing keys from copy_trading_config → exchange_keys (one-time)
+    try:
+        existing = conn.execute(
+            "SELECT user_id, api_key_enc, api_secret_enc, exchange, created_at, updated_at "
+            "FROM copy_trading_config WHERE api_key_enc IS NOT NULL AND api_key_enc != ''"
+        ).fetchall()
+        for r in existing:
+            try:
+                legacy_exchange = (r['exchange'] or 'binance').lower()
+                if legacy_exchange not in ('binance', 'mexc'):
+                    legacy_exchange = 'binance'
+                conn.execute(
+                    "INSERT OR IGNORE INTO exchange_keys "
+                    "(user_id, exchange, api_key_enc, api_secret_enc, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (r['user_id'], legacy_exchange,
+                     r['api_key_enc'], r['api_secret_enc'],
+                     r['created_at'] or time.time(), r['updated_at'] or time.time())
+                )
+            except Exception:
+                pass
+        conn.commit()
+    except Exception:
+        pass
+
+    try:
+        conn.execute("DELETE FROM exchange_keys WHERE exchange NOT IN ('binance','mexc')")
+        conn.commit()
+    except Exception:
+        pass
+
     conn.close()
     log.info("Copy-trading tables initialized")
 
@@ -453,15 +567,16 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
                   size_mode: str = 'pct', fixed_size_usd: float = 5.0,
                   leverage_mode: str = 'auto', sl_mode: str = 'signal',
                   sl_pct: float = 3.0,
-                  copy_experimental: bool = False) -> Dict:
-    """Encrypt and store Binance API credentials."""
+                  copy_experimental: bool = False,
+                  exchange: str = 'binance') -> Dict:
+    """Encrypt and store exchange API credentials (Binance or MEXC)."""
     # Basic validation — explicit reject with error, no silent clamping.
     api_key = api_key.strip()
     api_secret = api_secret.strip()
     if not api_key or not api_secret:
         return {"error": "API key and secret are required"}
     if len(api_key) < 20 or len(api_secret) < 20:
-        return {"error": "Invalid API key format"}
+        return {"error": "Invalid API key format. Paste the full exchange API/Access Key and Secret Key — not your exchange email, password, or 2FA code."}
     if not (0.1 <= size_pct <= 25.0):
         return {"error": "Size % must be between 0.1 and 25.0"}
     if not (0.1 <= max_size_pct <= 50.0):
@@ -480,9 +595,16 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
         return {"error": "Invalid leverage_mode"}
     if sl_mode not in ('signal', 'pct', 'none'):
         return {"error": "Invalid sl_mode"}
+    exchange = exchange.lower().strip()
+    if exchange not in ('binance', 'mexc'):
+        return {"error": "exchange must be 'binance' or 'mexc'"}
 
     # Validate key permissions (non-blocking: save keys even if validation fails)
-    validation = _validate_binance_key(api_key, api_secret)
+    if exchange == 'mexc':
+        from mexc_futures_client import MexcFuturesClient
+        validation = MexcFuturesClient(api_key, api_secret).validate_key()
+    else:
+        validation = _validate_binance_key(api_key, api_secret)
     # Hard-block ONLY on withdrawal permission — this is a security risk
     if validation.get("error") and "withdrawal" in validation["error"].lower():
         return validation
@@ -497,8 +619,8 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
                 (user_id, api_key_enc, api_secret_enc, size_pct, max_size_pct,
                  max_leverage, scale_with_sqi, tp_mode,
                  size_mode, fixed_size_usd, leverage_mode, sl_mode, sl_pct,
-                 copy_experimental, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 copy_experimental, exchange, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 api_key_enc=excluded.api_key_enc,
                 api_secret_enc=excluded.api_secret_enc,
@@ -513,13 +635,27 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
                 sl_mode=excluded.sl_mode,
                 sl_pct=excluded.sl_pct,
                 copy_experimental=excluded.copy_experimental,
+                exchange=excluded.exchange,
                 updated_at=excluded.updated_at
         """, (user_id, encrypt_key(api_key), encrypt_key(api_secret),
               size_pct, max_size_pct, max_leverage,
               int(scale_with_sqi), tp_mode, size_mode, fixed_size_usd,
-              leverage_mode, sl_mode, sl_pct, int(copy_experimental), now, now))
+              leverage_mode, sl_mode, sl_pct, int(copy_experimental), exchange, now, now))
+        conn.commit()
+        # ── Store keys in per-exchange table (multi-exchange support) ─────
+        conn.execute("""
+            INSERT INTO exchange_keys
+                (user_id, exchange, api_key_enc, api_secret_enc, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, exchange) DO UPDATE SET
+                api_key_enc=excluded.api_key_enc,
+                api_secret_enc=excluded.api_secret_enc,
+                updated_at=excluded.updated_at
+        """, (user_id, exchange, encrypt_key(api_key), encrypt_key(api_secret), now, now))
         conn.commit()
         _invalidate_client_cache(user_id)  # force fresh client with new keys on next trade
+        _invalidate_client_cache((user_id, exchange))  # also invalidate exchange-specific cache
+        _USER_EXCHANGE_CACHE[user_id] = exchange  # update exchange cache immediately
         result = {"success": True, "permissions": validation.get("permissions", {})}
         if validation.get("error"):
             result["warning"] = validation["error"]
@@ -532,60 +668,92 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
         conn.close()
 
 
-def get_config(user_id: int) -> Optional[Dict]:
-    """Get copy-trading config (without decrypted keys)."""
+def get_config(user_id: int, exchange: str = None) -> Optional[Dict]:
+    """Get copy-trading config (without decrypted keys).
+    Returns per-exchange masked keys from exchange_keys table."""
     conn = _get_db()
     row = conn.execute(
         "SELECT * FROM copy_trading_config WHERE user_id=?", (user_id,)
     ).fetchone()
-    conn.close()
     if not row:
+        conn.close()
         return None
     d = dict(row)
-    # Mask keys for display
-    try:
-        ak = decrypt_key(d['api_key_enc'])
-        d['api_key_masked'] = ak[:6] + '...' + ak[-4:]
-    except InvalidToken:
-        d['api_key_masked'] = '***corrupted***'
-    del d['api_key_enc']
-    del d['api_secret_enc']
-    d['has_tradefi_errors'] = has_tradefi_errors(user_id)
-    # PP4 · API-key rotation nudge — surface age so the UI can show a
-    # soft banner at 90 days and a stronger one at 180. The key itself
-    # is still perfectly valid; rotation is a hygiene recommendation,
-    # not a forced expiry.
-    try:
-        import time as _t
-        age = max(0.0, _t.time() - float(d.get('updated_at') or d.get('created_at') or 0))
-        d['api_key_age_days']        = round(age / 86400.0, 1)
-        d['api_key_rotation_needed'] = age >= (90 * 86400)      # >= 90 d: suggest
-        d['api_key_rotation_urgent'] = age >= (180 * 86400)     # >= 180 d: strong
-    except Exception:
-        d['api_key_age_days']        = None
+    # Remove legacy key columns from response
+    d.pop('api_key_enc', None)
+    d.pop('api_secret_enc', None)
+
+    # ── Per-exchange keys from exchange_keys table ────────────────────
+    ex = exchange or d.get('exchange') or 'binance'
+    if ex == 'both':
+        ex = 'binance'
+    ek_row = conn.execute(
+        "SELECT api_key_enc, created_at, updated_at FROM exchange_keys WHERE user_id=? AND exchange=?",
+        (user_id, ex)
+    ).fetchone()
+    # Also list all configured exchanges for this user
+    all_ex = conn.execute(
+        "SELECT exchange FROM exchange_keys WHERE user_id=? AND exchange IN ('binance','mexc')",
+        (user_id,)
+    ).fetchall()
+    d['configured_exchanges'] = sorted({r['exchange'] for r in all_ex})
+    conn.close()
+
+    if ek_row:
+        try:
+            ak = decrypt_key(ek_row['api_key_enc'])
+            d['api_key_masked'] = ak[:6] + '...' + ak[-4:]
+        except InvalidToken:
+            d['api_key_masked'] = '***corrupted***'
+        # Key age from exchange_keys table
+        try:
+            import time as _t
+            age = max(0.0, _t.time() - float(ek_row['updated_at'] or ek_row['created_at'] or 0))
+            d['api_key_age_days']        = round(age / 86400.0, 1)
+            d['api_key_rotation_needed'] = age >= (90 * 86400)
+            d['api_key_rotation_urgent'] = age >= (180 * 86400)
+        except Exception:
+            d['api_key_age_days']        = None
+            d['api_key_rotation_needed'] = False
+            d['api_key_rotation_urgent'] = False
+    else:
+        d['api_key_masked'] = None
+        d['api_key_age_days'] = None
         d['api_key_rotation_needed'] = False
         d['api_key_rotation_urgent'] = False
+
+    d['has_tradefi_errors'] = has_tradefi_errors(user_id)
     return d
 
 
-def _get_decrypted_keys(user_id: int) -> Optional[tuple]:
-    """Internal: get decrypted API key + secret."""
+def _get_decrypted_keys(user_id: int, exchange: str = None) -> Optional[tuple]:
+    """Internal: get decrypted API key + secret.
+    Reads from exchange_keys table first (multi-exchange), falls back to legacy config."""
+    if exchange is None:
+        exchange = _get_user_exchange(user_id)
     try:
         conn = _get_db()
+        # Try exchange_keys table first (multi-exchange support)
         row = conn.execute(
-            "SELECT api_key_enc, api_secret_enc FROM copy_trading_config WHERE user_id=?",
-            (user_id,)
+            "SELECT api_key_enc, api_secret_enc FROM exchange_keys WHERE user_id=? AND exchange=?",
+            (user_id, exchange)
         ).fetchone()
+        if not row and exchange == 'binance':
+            # Fallback to legacy copy_trading_config
+            row = conn.execute(
+                "SELECT api_key_enc, api_secret_enc FROM copy_trading_config WHERE user_id=?",
+                (user_id,)
+            ).fetchone()
         conn.close()
     except Exception as e:
-        log.error(f"[keys] DB error reading keys for user {user_id}: {e}")
+        log.error(f"[keys] DB error reading keys for user {user_id} exchange {exchange}: {e}")
         return None
     if not row:
         return None
     try:
         return decrypt_key(row['api_key_enc']), decrypt_key(row['api_secret_enc'])
     except InvalidToken:
-        log.error(f"[keys] InvalidToken decrypting keys for user {user_id}")
+        log.error(f"[keys] InvalidToken decrypting keys for user {user_id} exchange {exchange}")
         return None
     except Exception as e:
         log.error(f"[keys] Unexpected error decrypting keys for user {user_id}: {e}")
@@ -670,20 +838,23 @@ def _note_binance_ip_ban(msg: str):
         pass
 
 
-def get_live_balance(user_id: int) -> Dict:
-    """Fetch live Binance Futures USDT balance for the user.
+def get_live_balance(user_id: int, exchange: str = None) -> Dict:
+    """Fetch live Futures USDT balance for the user on the specified exchange.
 
-    Preferred path (zero Binance REST cost): the per-user WebSocket User
-    Data Stream maintains a push-updated in-memory state. If fresh, return
-    it directly — no REST call, no rate-limit budget consumed.
-
-    Fallback path: the 15-second REST cache below, which itself falls back
-    to a live futures_account / futures_account_balance pair on miss.
+    Routes to Binance or MEXC based on exchange param (defaults to user's active exchange).
     """
-    # ── WebSocket User Data Stream (primary source) ─────────────────────
-    # Push-based; costs exactly zero signed REST calls. If the stream is
-    # fresh we bypass REST entirely, which is what eliminated the -1003
-    # IP ban risk.
+    if exchange is None:
+        exchange = _get_user_exchange(user_id)
+
+    # ── Both exchanges: fetch each, combine totals ────────────────────
+    if exchange == 'both':
+        return _get_live_balance_both(user_id)
+
+    # ── MEXC balance path ─────────────────────────────────────────────
+    if exchange == 'mexc':
+        return _get_live_balance_mexc(user_id)
+
+    # ── Binance: WebSocket User Data Stream (primary source) ──────────
     try:
         from binance_user_stream import get_state as _ws_state, is_fresh as _ws_fresh
         if _ws_fresh(user_id):
@@ -699,18 +870,16 @@ def get_live_balance(user_id: int) -> Dict:
                 "source":             "websocket",
             }
     except Exception as _ws_e:
-        # Any failure in the WS layer → silently fall through to REST.
         log.debug(f"[balance] WS state unavailable for user {user_id}: {_ws_e}")
 
     # Serve from cache if fresh
     _now = time.time()
-    _cached = _BALANCE_CACHE.get(user_id)
-    if _cached is not None and (_now - _BALANCE_TS.get(user_id, 0)) < _BALANCE_TTL:
+    _cache_key = (user_id, 'binance')
+    _cached = _BALANCE_CACHE.get(_cache_key) or _BALANCE_CACHE.get(user_id)
+    _cached_ts = _BALANCE_TS.get(_cache_key) or _BALANCE_TS.get(user_id, 0)
+    if _cached is not None and (_now - _cached_ts) < _BALANCE_TTL:
         return {**_cached, "cached": True}
 
-    # If the IP is currently banned, return the last cached payload (even if
-    # stale) with a clear error field so the UI can show the banner. Do NOT
-    # hit Binance — that only extends the ban.
     _ban_until = _binance_ip_banned_until()
     if _ban_until:
         retry_in = max(1, int(_ban_until - _now))
@@ -729,9 +898,9 @@ def get_live_balance(user_id: int) -> Dict:
         })
         return base
 
-    keys = _get_decrypted_keys(user_id)
+    keys = _get_decrypted_keys(user_id, 'binance')
     if not keys:
-        return {"error": "No API keys configured",
+        return {"error": "No Binance API keys configured",
                 "error_code": "no_keys",
                 "error_hint": "Paste your Binance Futures API key + secret below to see live balance."}
     api_key, api_secret = keys
@@ -818,6 +987,146 @@ def get_live_balance(user_id: int) -> Dict:
                 "error_detail": info["detail"]}
 
 
+def _get_live_balance_both(user_id: int) -> Dict:
+    """Fetch Binance + MEXC balances, combine totals, include per-exchange breakdown."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _fetch_bn():
+        try:
+            return get_live_balance(user_id, 'binance')
+        except Exception as e:
+            return {"error": str(e), "balance_usdt": 0, "available_usdt": 0,
+                    "unrealized_pnl": 0, "total_invested_usd": 0, "positions": {}}
+
+    def _fetch_mx():
+        try:
+            return get_live_balance(user_id, 'mexc')
+        except Exception as e:
+            return {"error": str(e), "balance_usdt": 0, "available_usdt": 0,
+                    "unrealized_pnl": 0, "total_invested_usd": 0, "positions": {}}
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_bn = pool.submit(_fetch_bn)
+        f_mx = pool.submit(_fetch_mx)
+        bn = f_bn.result(timeout=35)
+        mx = f_mx.result(timeout=35)
+
+    def _safe(d, k): return float(d.get(k, 0) or 0)
+
+    total_bal   = _safe(bn, 'balance_usdt')   + _safe(mx, 'balance_usdt')
+    total_avail = _safe(bn, 'available_usdt')  + _safe(mx, 'available_usdt')
+    total_unr   = _safe(bn, 'unrealized_pnl')  + _safe(mx, 'unrealized_pnl')
+    total_inv   = _safe(bn, 'total_invested_usd') + _safe(mx, 'total_invested_usd')
+    total_pct   = round(total_unr / total_inv * 100, 2) if total_inv else 0.0
+
+    # Merge positions from both exchanges (prefix-free, exchange field inside)
+    all_pos = {}
+    for sym, p in (bn.get('positions') or {}).items():
+        all_pos[sym] = {**p, "exchange": "binance"}
+    for sym, p in (mx.get('positions') or {}).items():
+        key = sym if sym not in all_pos else f"{sym}_mexc"
+        all_pos[key] = {**p, "exchange": "mexc"}
+
+    return {
+        "balance_usdt":       round(total_bal, 2),
+        "available_usdt":     round(total_avail, 2),
+        "unrealized_pnl":     round(total_unr, 2),
+        "unrealized_pnl_pct": total_pct,
+        "total_invested_usd": round(total_inv, 2),
+        "positions":          all_pos,
+        "server_time":        time.time(),
+        "exchange":           "both",
+        "per_exchange": {
+            "binance": {
+                "balance_usdt":       round(_safe(bn, 'balance_usdt'), 2),
+                "available_usdt":     round(_safe(bn, 'available_usdt'), 2),
+                "unrealized_pnl":     round(_safe(bn, 'unrealized_pnl'), 2),
+                "unrealized_pnl_pct": round(_safe(bn, 'unrealized_pnl_pct'), 2),
+                "total_invested_usd": round(_safe(bn, 'total_invested_usd'), 2),
+                "error":              bn.get('error'),
+            },
+            "mexc": {
+                "balance_usdt":       round(_safe(mx, 'balance_usdt'), 2),
+                "available_usdt":     round(_safe(mx, 'available_usdt'), 2),
+                "unrealized_pnl":     round(_safe(mx, 'unrealized_pnl'), 2),
+                "unrealized_pnl_pct": round(_safe(mx, 'unrealized_pnl_pct'), 2),
+                "total_invested_usd": round(_safe(mx, 'total_invested_usd'), 2),
+                "error":              mx.get('error'),
+            },
+        },
+    }
+
+
+def _get_live_balance_mexc(user_id: int) -> Dict:
+    """Fetch live MEXC Futures USDT balance."""
+    _now = time.time()
+    _cache_key = (user_id, 'mexc')
+    _cached = _BALANCE_CACHE.get(_cache_key)
+    if _cached is not None and (_now - _BALANCE_TS.get(_cache_key, 0)) < _BALANCE_TTL:
+        return {**_cached, "cached": True}
+
+    keys = _get_decrypted_keys(user_id, 'mexc')
+    if not keys:
+        return {"error": "No MEXC API keys configured",
+                "error_code": "no_keys",
+                "error_hint": "Paste your MEXC Futures API key + secret below to see live balance."}
+    try:
+        from mexc_futures_client import MexcFuturesClient
+        client = MexcFuturesClient(keys[0], keys[1])
+        assets = client.get_account_assets()
+        usdt = next((a for a in assets if a.get("currency") == "USDT"), None)
+        if not usdt:
+            return {"balance_usdt": 0.0, "available_usdt": 0.0, "unrealized_pnl": 0.0, "total_invested_usd": 0.0}
+        total = float(usdt.get("equity", 0) or 0)
+        avail = float(usdt.get("availableBalance", 0) or 0)
+        unrealized = float(usdt.get("unrealized", 0) or 0)
+        total_invested = float(usdt.get("positionMargin", 0) or 0)
+        unrealized_pct = round(unrealized / total_invested * 100, 2) if total_invested else 0.0
+
+        # Fetch open positions for per-position PnL
+        positions: Dict[str, Dict] = {}
+        try:
+            raw_pos = client.get_position_as_binance_format()
+            for p in raw_pos:
+                amt = float(p.get('positionAmt', 0) or 0)
+                if amt == 0:
+                    continue
+                sym = p.get('symbol', '')
+                entry = float(p.get('entryPrice', 0) or 0)
+                lev = int(float(p.get('leverage', 1) or 1)) or 1
+                im = abs(amt) * entry / lev if entry else 0
+                pnl_u = float(p.get('unRealizedProfit', 0) or 0)
+                pnl_p = (pnl_u / im * 100) if im else 0.0
+                positions[sym] = {
+                    "pnl_usd": round(pnl_u, 4),
+                    "pnl_pct": round(pnl_p, 4),
+                    "leverage": lev,
+                    "entry": entry,
+                }
+        except Exception as _pe:
+            log.warning(f"[balance] MEXC positions fetch failed for user {user_id}: {_pe}")
+
+        result = {
+            "balance_usdt":       round(total, 2),
+            "available_usdt":     round(avail, 2),
+            "unrealized_pnl":     round(unrealized, 2),
+            "unrealized_pnl_pct": unrealized_pct,
+            "total_invested_usd": round(total_invested, 2),
+            "positions":          positions,
+            "server_time":        time.time(),
+            "source":             "rest",
+        }
+        _BALANCE_CACHE[_cache_key] = result
+        _BALANCE_TS[_cache_key] = time.time()
+        return result
+    except Exception as e:
+        msg = str(e)[:300]
+        log.error(f"[balance] MEXC error for user {user_id}: {msg}")
+        return {"error": f"MEXC balance fetch failed: {msg}",
+                "error_code": "mexc_error",
+                "error_detail": msg}
+
+
 def toggle_active(user_id: int, active: bool) -> Dict:
     """Enable or disable copy-trading for a user."""
     conn = _get_db()
@@ -846,7 +1155,8 @@ def update_settings(user_id: int, size_pct: float = None, max_size_pct: float = 
                     size_mode: str = None, fixed_size_usd: float = None,
                     leverage_mode: str = None, sl_mode: str = None,
                     sl_pct: float = None,
-                    copy_experimental: bool = None) -> Dict:
+                    copy_experimental: bool = None,
+                    exchange: str = None) -> Dict:
     """Update copy-trading settings without re-entering keys."""
     conn = _get_db()
     row = conn.execute(
@@ -902,6 +1212,13 @@ def update_settings(user_id: int, size_pct: float = None, max_size_pct: float = 
     if copy_experimental is not None:
         updates.append("copy_experimental=?")
         params.append(int(copy_experimental))
+    if exchange is not None:
+        exchange = exchange.lower().strip()
+        if exchange in ('binance', 'mexc', 'both'):
+            updates.append("exchange=?")
+            params.append(exchange)
+            _USER_EXCHANGE_CACHE[user_id] = exchange
+            _invalidate_client_cache(user_id)
 
     if not updates:
         conn.close()
@@ -929,20 +1246,18 @@ def delete_config(user_id: int) -> Dict:
 
 
 # ── Live PnL for open trades ────────────────────────────────────────
-def get_open_trades_live_pnl(user_id: int) -> Dict[str, Dict]:
-    """
-    Returns {pair: {pnl_usd, pnl_pct, mark_price}} for every open Binance
-    Futures position belonging to this user.  Used to enrich trade history
-    with live unrealized PnL so the dashboard shows real numbers instead of
-    'Open' / '—'.
-    """
-    client = _get_futures_client(user_id)
+def _live_pnl_for_exchange(user_id: int, exchange: str) -> Dict[str, Dict]:
+    """Fetch live PnL for a single exchange."""
+    client = _get_futures_client(user_id, exchange)
     if not client:
         return {}
     try:
-        positions = client.futures_position_information()
+        if exchange == 'mexc':
+            positions = client.get_position_as_binance_format()
+        else:
+            positions = client.futures_position_information()
     except Exception as e:
-        log.warning(f"[live_pnl] Binance fetch failed for user {user_id}: {e}")
+        log.warning(f"[live_pnl] {exchange.upper()} fetch failed for user {user_id}: {e}")
         return {}
 
     result: Dict[str, Dict] = {}
@@ -955,8 +1270,6 @@ def get_open_trades_live_pnl(user_id: int) -> Dict[str, Dict]:
         mark_price = float(p.get('markPrice', 0))
         entry      = float(p.get('entryPrice', 0))
         leverage   = int(float(p.get('leverage', 1))) or 1
-        # Binance ROI% = unRealizedProfit / initialMargin * 100
-        # initialMargin = abs(positionAmt) * entryPrice / leverage
         initial_margin = abs(amt) * entry / leverage if entry else 0
         if initial_margin:
             pnl_pct = round(pnl_usd / initial_margin * 100, 4)
@@ -971,6 +1284,21 @@ def get_open_trades_live_pnl(user_id: int) -> Dict[str, Dict]:
             'mark_price': mark_price,
         }
     return result
+
+
+def get_open_trades_live_pnl(user_id: int) -> Dict[str, Dict]:
+    """
+    Returns {pair: {pnl_usd, pnl_pct, mark_price}} for every open exchange
+    position belonging to this user.  Used to enrich trade history
+    with live unrealized PnL so the dashboard shows real numbers instead of
+    'Open' / '—'.
+    """
+    exchange = _get_user_exchange(user_id)
+    if exchange == 'both':
+        result = _live_pnl_for_exchange(user_id, 'binance')
+        result.update(_live_pnl_for_exchange(user_id, 'mexc'))
+        return result
+    return _live_pnl_for_exchange(user_id, exchange)
 
 
 # ── Recalculate realized PnL for every closed copy-trade ───────────
@@ -1009,13 +1337,13 @@ def backfill_closed_pnl(user_id: int, lookback_days: int = 90,
                 "retry_in_seconds": retry_in,
                 "updated": 0, "skipped": 0, "errors": []}
 
-    client = _get_futures_client(user_id)
+    client = _get_futures_client(user_id, 'binance')
     if not client:
         return {"error": "Failed to connect to Binance — check API keys"}
 
     cutoff = time.time() - lookback_days * 86400
     conn = _get_db()
-    where = "WHERE user_id=? AND status='closed' AND created_at > ?"
+    where = "WHERE user_id=? AND status='closed' AND created_at > ? AND (exchange='binance' OR exchange IS NULL)"
     if only_missing:
         where += " AND (pnl_usd IS NULL OR pnl_usd=0)"
     rows = conn.execute(
@@ -1125,23 +1453,37 @@ def backfill_closed_pnl(user_id: int, lookback_days: int = 90,
 
 
 # ── Trade History ──────────────────────────────────────────────────
-def get_trade_history(user_id: int, limit: int = 50) -> List[Dict]:
+def get_trade_history(user_id: int, limit: int = 50, exchange: str = None) -> List[Dict]:
     conn = _get_db()
-    rows = conn.execute(
-        "SELECT * FROM copy_trades WHERE user_id=? ORDER BY created_at DESC LIMIT ?",
-        (user_id, limit)
+    ex_filter = " AND exchange=?" if exchange else ""
+    ex_params = (exchange,) if exchange else ()
+    # Always return ALL open trades + most recent non-open trades up to limit
+    open_rows = conn.execute(
+        f"SELECT * FROM copy_trades WHERE user_id=? AND status='open'{ex_filter} ORDER BY created_at DESC",
+        (user_id,) + ex_params
+    ).fetchall()
+    closed_rows = conn.execute(
+        f"SELECT * FROM copy_trades WHERE user_id=? AND status!='open'{ex_filter} ORDER BY created_at DESC LIMIT ?",
+        (user_id,) + ex_params + (limit,)
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    # Merge: open first (newest first), then closed
+    return [dict(r) for r in open_rows] + [dict(r) for r in closed_rows]
 
 
-def get_trade_stats(user_id: int) -> Dict:
-    """Aggregate stats for a user's copy-trades."""
+def get_trade_stats(user_id: int, exchange: str = None) -> Dict:
+    """Aggregate stats for a user's copy-trades, optionally filtered by exchange."""
     conn = _get_db()
-    rows = conn.execute(
-        "SELECT status, pnl_pct, pnl_usd, size_usd, created_at FROM copy_trades WHERE user_id=?",
-        (user_id,)
-    ).fetchall()
+    if exchange:
+        rows = conn.execute(
+            "SELECT status, pnl_pct, pnl_usd, size_usd, created_at FROM copy_trades WHERE user_id=? AND exchange=?",
+            (user_id, exchange)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT status, pnl_pct, pnl_usd, size_usd, created_at FROM copy_trades WHERE user_id=?",
+            (user_id,)
+        ).fetchall()
     conn.close()
     if not rows:
         return {"total": 0, "open": 0, "won": 0, "lost": 0,
@@ -1226,34 +1568,56 @@ def _validate_binance_key(api_key: str, api_secret: str) -> Dict:
         return {"error": f"Validation failed: {err}"}
 
 
-def _get_futures_client(user_id: int):
-    """Return a cached Binance futures client for a user (TTL=10min). Creates fresh on miss."""
+def _get_futures_client(user_id: int, exchange: str = None):
+    """Return a cached exchange client for a user (TTL=10min). Creates fresh on miss.
+    Returns a Binance Client or MexcFuturesClient depending on exchange.
+    When exchange is None, uses the user's active exchange from config."""
+    if exchange is None:
+        exchange = _get_user_exchange(user_id)
+    cache_key = (user_id, exchange)
     now = time.time()
-    if user_id in _CLIENT_CACHE and (now - _CLIENT_TS.get(user_id, 0)) < _CLIENT_TTL:
-        return _CLIENT_CACHE[user_id]
-    # Cache miss — create new client below
-    client = _get_futures_client_fresh(user_id)
+    if cache_key in _CLIENT_CACHE and (now - _CLIENT_TS.get(cache_key, 0)) < _CLIENT_TTL:
+        return _CLIENT_CACHE[cache_key]
+    client = _get_futures_client_fresh(user_id, exchange)
     if client:
-        _CLIENT_CACHE[user_id] = client
-        _CLIENT_TS[user_id] = now
+        _CLIENT_CACHE[cache_key] = client
+        _CLIENT_TS[cache_key] = now
     return client
 
 
-def _invalidate_client_cache(user_id: int):
-    """Call after key update so next trade gets a fresh client."""
-    _CLIENT_CACHE.pop(user_id, None)
-    _CLIENT_TS.pop(user_id, None)
-    _HEDGE_CACHE.pop(user_id, None)
-    _HEDGE_TS.pop(user_id, None)
-    _invalidate_leverage_margin_caches(user_id)
+def _invalidate_client_cache(user_id_or_key):
+    """Call after key update so next trade gets a fresh client.
+    Accepts user_id (int) or (user_id, exchange) tuple."""
+    _CLIENT_CACHE.pop(user_id_or_key, None)
+    _CLIENT_TS.pop(user_id_or_key, None)
+    if isinstance(user_id_or_key, int):
+        _HEDGE_CACHE.pop(user_id_or_key, None)
+        _HEDGE_TS.pop(user_id_or_key, None)
+        _invalidate_leverage_margin_caches(user_id_or_key)
+        # Also clear exchange-specific cache entries
+        for k in list(_CLIENT_CACHE.keys()):
+            if isinstance(k, tuple) and k[0] == user_id_or_key:
+                _CLIENT_CACHE.pop(k, None)
+                _CLIENT_TS.pop(k, None)
 
 
-def _get_futures_client_fresh(user_id: int):
-    """Create a Binance futures client for a user. Retries up to 3x on transient errors."""
-    keys = _get_decrypted_keys(user_id)
+def _get_futures_client_fresh(user_id: int, exchange: str = None):
+    """Create an exchange client for a user. Routes to Binance or MEXC.
+    Retries up to 3x on transient errors."""
+    if exchange is None:
+        exchange = _get_user_exchange(user_id)
+    keys = _get_decrypted_keys(user_id, exchange)
     if not keys:
-        log.error(f"[client] No keys for user {user_id} — decryption failed or no config")
+        log.error(f"[client] No keys for user {user_id} exchange {exchange} — decryption failed or no config")
         return None
+    if exchange == 'mexc':
+        try:
+            from mexc_futures_client import MexcFuturesClient
+            return MexcFuturesClient(keys[0], keys[1])
+        except Exception as e:
+            log.error(f"[client] MEXC client init failed for user {user_id}: {e}")
+            return None
+    # Default: Binance
     from binance.client import Client
     import time as _time
     last_err = None
@@ -1288,6 +1652,7 @@ async def execute_copy_trades(signal_data: Dict):
     leverage = int(signal_data.get('leverage', 5))
     sqi_score = float(signal_data.get('sqi_score', 50))
     signal_tier = str(signal_data.get('signal_tier', 'production') or 'production').lower()
+    signal_exchange = str(signal_data.get('exchange', 'binance') or 'binance').lower()
 
     if not all([signal_id, pair, direction, entry_price, stop_loss]):
         log.warning(f"Copy-trade skipped: incomplete signal data for {signal_id}")
@@ -1305,7 +1670,6 @@ async def execute_copy_trades(signal_data: Dict):
     if _ban_until:
         log.warning(f"[execute_copy_trades] BLOCKED (Binance IP ban active until "
                     f"{time.ctime(_ban_until)}) — signal {signal_id} skipped")
-        return []
 
     # Get all active copy-trading configs
     conn = _get_db()
@@ -1323,15 +1687,13 @@ async def execute_copy_trades(signal_data: Dict):
         uid = cfg['user_id']
 
         # Duplicate signal guard — skip if already executed (non-error)
+        # Exchange-aware: a 'both' user can execute the same signal on 2 exchanges
         _dup_conn = _get_db()
-        _dup = _dup_conn.execute(
-            "SELECT id FROM copy_trades WHERE user_id=? AND signal_id=? AND status NOT IN ('error')",
+        _existing_exchanges = [r['exchange'] for r in _dup_conn.execute(
+            "SELECT exchange FROM copy_trades WHERE user_id=? AND signal_id=? AND status NOT IN ('error')",
             (uid, signal_id)
-        ).fetchone()
+        ).fetchall()]
         _dup_conn.close()
-        if _dup:
-            log.info(f"Copy-trade skip user {uid}: signal {signal_id} already executed")
-            continue
 
         # Must be Pro tier or higher (canonical: plus < pro <= ultra).
         # canonicalize_tier also tolerates legacy 'elite' values on stale JWTs.
@@ -1347,15 +1709,63 @@ async def execute_copy_trades(signal_data: Dict):
             log.info(f"Copy-trade skip user {uid}: experimental signal {signal_id} not enabled")
             continue
 
+        # ── Multi-exchange routing ────────────────────────────────────────
+        # Determine which exchanges this user should execute on for this signal.
+        # 'both' users → execute on every exchange the signal is tagged on
+        # Single-exchange users → execute on their exchange; MEXC-only users
+        #   can receive Binance-tagged signals if the pair exists on MEXC too.
+        _user_exchange = _get_user_exchange(uid)
+        _user_keys = _get_user_active_exchanges(uid)
+        _target_exchanges = []
+
+        if _user_exchange == 'both':
+            if 'binance' in _user_keys and not _ban_until and _pair_exists_on_binance(uid, pair):
+                _target_exchanges.append('binance')
+            if 'mexc' in _user_keys and _pair_exists_on_mexc(uid, pair):
+                _target_exchanges.append('mexc')
+            if not _target_exchanges:
+                log.info(f"Copy-trade skip user {uid}: no available target exchange for {pair}")
+                continue
+        elif _user_exchange == 'mexc':
+            if 'mexc' not in _user_keys:
+                log.info(f"Copy-trade skip user {uid}: no MEXC keys found")
+                continue
+            if not _pair_exists_on_mexc(uid, pair):
+                log.info(f"Copy-trade skip user {uid}: {pair} not available on MEXC")
+                continue
+            _target_exchanges = ['mexc']
+        else:
+            if 'binance' not in _user_keys:
+                log.info(f"Copy-trade skip user {uid}: no Binance keys found")
+                continue
+            if _ban_until:
+                log.info(f"Copy-trade skip user {uid}: Binance IP ban active")
+                continue
+            if not _pair_exists_on_binance(uid, pair):
+                log.info(f"Copy-trade skip user {uid}: {pair} not available on Binance")
+                continue
+            _target_exchanges = ['binance']
+
+        # Remove exchanges where this signal was already executed
+        if _existing_exchanges:
+            _target_exchanges = [ex for ex in _target_exchanges if ex not in _existing_exchanges]
+            if not _target_exchanges:
+                log.info(f"Copy-trade skip user {uid}: signal {signal_id} already executed on all target exchanges")
+                continue
+
         # B4: TradFi pre-flight — skip pairs that previously failed with
         # -4411 until the user clicks "I've signed" in the UI.
         if pair in _tradfi_blocked_pairs(uid):
-            log.info(f"Copy-trade skip user {uid}: {pair} blocked — TradFi-Perps agreement not signed")
-            _record_trade(uid, signal_id, pair, direction, 0, 0, leverage, 0,
-                          'skipped',
-                          error_msg=f"TradFi-Perps agreement not signed for {pair}. "
-                                    "Sign it on Binance Futures, then click 'I've signed' in the dashboard.")
-            continue
+            if 'binance' in _target_exchanges:
+                log.info(f"Copy-trade skip user {uid}: {pair} blocked on Binance — TradFi-Perps agreement not signed")
+                _target_exchanges = [ex for ex in _target_exchanges if ex != 'binance']
+                _record_trade(uid, signal_id, pair, direction, 0, 0, leverage, 0,
+                              'skipped',
+                              error_msg=f"TradFi-Perps agreement not signed for {pair}. "
+                                        "Sign it on Binance Futures, then click 'I've signed' in the dashboard.",
+                              exchange='binance')
+            if not _target_exchanges:
+                continue
 
         # Pair classification filter
         try:
@@ -1384,22 +1794,26 @@ async def execute_copy_trades(signal_data: Dict):
         except ImportError:
             pass  # market_classifier not available — skip filter silently
 
-        eligible.append((uid, cfg))
+        # Append one task per target exchange for this user
+        for _tex in _target_exchanges:
+            eligible.append((uid, cfg, _tex))
 
-    # Execute ALL eligible users in parallel — each in its own thread
+    # Execute ALL eligible (user, exchange) pairs in parallel
     if eligible:
         tasks = [
-            asyncio.to_thread(_execute_single_trade_sync, uid, cfg, signal_data)
-            for uid, cfg in eligible
+            asyncio.to_thread(_execute_single_trade_sync, uid, cfg, signal_data, target_ex)
+            for uid, cfg, target_ex in eligible
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         # Log any unexpected exceptions
         for i, r in enumerate(results):
             if isinstance(r, Exception):
                 uid = eligible[i][0]
-                log.error(f"[copy_trading] unhandled exception for user {uid}: {r}")
+                tex = eligible[i][2]
+                log.error(f"[copy_trading] unhandled exception for user {uid} on {tex}: {r}")
                 _record_trade(uid, signal_id, pair, direction, 0, 0, 0, 0,
-                              'error', error_msg=str(r)[:300])
+                              'error', error_msg=f"[{tex}] {str(r)[:280]}",
+                              exchange=tex)
         results = [r for r in results if not isinstance(r, Exception)]
 
     if results:
@@ -1407,27 +1821,28 @@ async def execute_copy_trades(signal_data: Dict):
     return results
 
 
-def _execute_single_trade_sync(user_id: int, config: Dict, signal: Dict) -> Dict:
+def _execute_single_trade_sync(user_id: int, config: Dict, signal: Dict,
+                               target_exchange: str = None) -> Dict:
     """Synchronous wrapper — runs in a thread pool via asyncio.to_thread."""
-    import asyncio as _asyncio
-    loop = None
-    try:
-        loop = _asyncio.get_event_loop()
-    except RuntimeError:
-        pass
-    if loop and loop.is_running():
-        # We are already inside asyncio.to_thread — just call sync version directly
-        return _execute_single_trade_blocking(user_id, config, signal)
-    return _execute_single_trade_blocking(user_id, config, signal)
+    return _execute_single_trade_blocking(user_id, config, signal, target_exchange)
 
 
-async def _execute_single_trade(user_id: int, config: Dict, signal: Dict) -> Dict:
+async def _execute_single_trade(user_id: int, config: Dict, signal: Dict,
+                                target_exchange: str = None) -> Dict:
     """Async wrapper kept for backward compatibility."""
-    return await asyncio.to_thread(_execute_single_trade_blocking, user_id, config, signal)
+    return await asyncio.to_thread(_execute_single_trade_blocking, user_id, config, signal, target_exchange)
 
 
-def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> Dict:
-    """Execute a copy-trade for one user (blocking, runs in thread pool)."""
+def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict,
+                                   target_exchange: str = None) -> Dict:
+    """Execute a copy-trade for one user on a specific exchange (blocking)."""
+    # Determine which exchange to execute on
+    exchange = target_exchange or _get_user_exchange(user_id)
+    if exchange == 'both':
+        exchange = 'binance'  # fallback — caller should pass explicit exchange
+    if exchange == 'mexc':
+        return _execute_single_trade_mexc(user_id, config, signal)
+
     signal_id = signal['signal_id']
     pair = signal['pair']
     direction = signal['direction'].upper()
@@ -1445,10 +1860,11 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
         leverage = min(sig_leverage, int(config.get('max_leverage', 125)))
 
     try:
-        client = _get_futures_client(user_id)
+        client = _get_futures_client(user_id, exchange)
         if not client:
             return _record_trade(user_id, signal_id, pair, direction, 0, 0,
-                                 leverage, 0, 'error', error_msg='Failed to create client')
+                                 leverage, 0, 'error', error_msg='Failed to create client',
+                                 exchange=exchange)
 
         # Detect hedge mode — cached per user to avoid redundant API calls.
         # B3: if detection fails we must NOT silently default to False — that
@@ -1534,12 +1950,14 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
         usdt_bal = next((b for b in (balances or []) if b.get('asset') == 'USDT'), None)
         if not usdt_bal:
             return _record_trade(user_id, signal_id, pair, direction, 0, 0,
-                                 leverage, 0, 'error', error_msg='No USDT balance')
+                                 leverage, 0, 'error', error_msg='No USDT balance',
+                                 exchange=exchange)
 
         available = float(usdt_bal['availableBalance'])
         if available < 1:
             return _record_trade(user_id, signal_id, pair, direction, 0, 0,
-                                 leverage, 0, 'error', error_msg=f'Insufficient balance: ${available:.2f}')
+                                 leverage, 0, 'error', error_msg=f'Insufficient balance: ${available:.2f}',
+                                 exchange=exchange)
 
         # Resolve pair-maximum leverage if requested
         if leverage_mode == 'max_pair':
@@ -1574,11 +1992,13 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
         if size_usd <= 0:
             return _record_trade(user_id, signal_id, pair, direction, 0, 0,
                                  leverage, size_usd, 'skipped',
-                                 error_msg='Calculated size is $0')
+                                 error_msg='Calculated size is $0',
+                                 exchange=exchange)
         if size_usd > available:
             return _record_trade(user_id, signal_id, pair, direction, 0, 0,
                                  leverage, size_usd, 'skipped',
-                                 error_msg=f'Fixed size ${size_usd:.2f} exceeds available balance ${available:.2f}')
+                                 error_msg=f'Fixed size ${size_usd:.2f} exceeds available balance ${available:.2f}',
+                                 exchange=exchange)
 
         # Get symbol info for precision (shared cache, refreshed every 5 min)
         info = _get_exchange_info_cached(client)
@@ -1586,7 +2006,8 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
         if not sym_info:
             return _record_trade(user_id, signal_id, pair, direction, 0, 0,
                                  leverage, size_usd, 'error',
-                                 error_msg=f'Symbol {pair} not found')
+                                 error_msg=f'Symbol {pair} not found',
+                                 exchange=exchange)
 
         # Get quantity precision, price precision, and minimum notional
         qty_precision = 3
@@ -1629,11 +2050,13 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
                                      error_msg=(
                                          f'Min notional ${min_notional:.1f} requires ${required_usd:.2f} '
                                          f'margin at {leverage}x, but user max is ${max_allowed_usd:.2f}'
-                                     ))
+                                     ),
+                                     exchange=exchange)
             if required_usd > available:
                 return _record_trade(user_id, signal_id, pair, direction, 0, 0,
                                      leverage, size_usd, 'skipped',
-                                     error_msg=f'Min notional ${min_notional:.1f} requires ${required_usd:.2f} — insufficient balance ${available:.2f}')
+                                     error_msg=f'Min notional ${min_notional:.1f} requires ${required_usd:.2f} — insufficient balance ${available:.2f}',
+                                     exchange=exchange)
             log.info(f"Copy-trade [{user_id}] {pair}: bumped size ${size_usd:.2f}→${required_usd:.2f} to meet min notional ${min_notional:.1f}")
             size_usd = required_usd
             notional = size_usd * leverage
@@ -1656,7 +2079,8 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
         if quantity <= 0:
             return _record_trade(user_id, signal_id, pair, direction, 0, 0,
                                  leverage, size_usd, 'error',
-                                 error_msg='Calculated quantity is 0')
+                                 error_msg='Calculated quantity is 0',
+                                 exchange=exchange)
 
         # Set leverage — cached: only fires REST when leverage changes vs last trade.
         actual_leverage = _ensure_leverage_cached(client, user_id, pair, leverage)
@@ -1810,7 +2234,8 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
                              quantity, leverage, size_usd, 'open',
                              exchange_order_id=str(order_id),
                              sl_price=sl_price,  # already computed per sl_mode
-                             tp_prices=[float(t) for t in targets] if targets else [])
+                             tp_prices=[float(t) for t in targets] if targets else [],
+                             exchange=exchange)
 
     except Exception as e:
         raw = str(e)
@@ -1865,16 +2290,279 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict) -> 
                 log.error(f"[B5] Failed to auto-pause user {user_id}: {_pause_e}")
 
         return _record_trade(user_id, signal_id, pair, direction, 0, 0,
-                             leverage, 0, 'error', error_msg=error_msg)
+                             leverage, 0, 'error', error_msg=error_msg,
+                             exchange=exchange)
+
+
+def _execute_single_trade_mexc(user_id: int, config: Dict, signal: Dict) -> Dict:
+    """Execute a copy-trade on MEXC Futures for one user (blocking).
+
+    MEXC differences from Binance:
+      - Symbols use underscore: BTC_USDT (auto-converted by MexcFuturesClient)
+      - Orders use contract volume (vol) instead of base-asset quantity
+      - Side: 1=open long, 2=close short, 3=open short, 4=close long
+      - Open type: 1=isolated, 2=cross
+      - No hedge-mode detection needed (MEXC always has positionType 1=long/2=short)
+    """
+    from mexc_futures_client import MexcFuturesClient, to_mexc_symbol
+    import math as _math
+
+    signal_id = signal['signal_id']
+    pair = signal['pair']
+    direction = signal['direction'].upper()
+    entry_price = float(signal['price'])
+    stop_loss = float(signal['stop_loss'])
+    targets = signal.get('targets', [])
+    sig_leverage = int(signal.get('leverage', 5))
+    sqi_score = float(signal.get('sqi_score', 50))
+
+    # Leverage mode
+    leverage_mode = config.get('leverage_mode', 'auto')
+    if leverage_mode == 'fixed':
+        leverage = int(config.get('max_leverage', 20))
+    else:
+        leverage = min(sig_leverage, int(config.get('max_leverage', 125)))
+
+    try:
+        client = _get_futures_client(user_id, 'mexc')
+        if not client or not isinstance(client, MexcFuturesClient):
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, 0, 'error', error_msg='Failed to create MEXC client',
+                                 exchange='mexc')
+
+        # Get USDT balance
+        usdt_data = client.get_asset("USDT")
+        if not usdt_data:
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, 0, 'error', error_msg='No USDT balance on MEXC',
+                                 exchange='mexc')
+        available = float(usdt_data.get('availableBalance', 0))
+        if available < 1:
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, 0, 'error',
+                                 error_msg=f'Insufficient MEXC balance: ${available:.2f}',
+                                 exchange='mexc')
+
+        # Get contract info for this symbol
+        mexc_sym = to_mexc_symbol(pair)
+        contract_info = client.get_contract_info(pair)
+        if not contract_info:
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, 0, 'error',
+                                 error_msg=f'Symbol {pair} not found on MEXC',
+                                 exchange='mexc')
+
+        contract_size = float(contract_info.get('contractSize', 0))
+        min_vol = int(contract_info.get('minVol', 1))
+        max_vol = int(contract_info.get('maxVol', 1000000))
+        vol_scale = int(contract_info.get('volScale', 0))
+        price_scale = int(contract_info.get('priceScale', 2))
+        max_leverage_pair = int(contract_info.get('maxLeverage', 125))
+
+        if contract_size <= 0:
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, 0, 'error',
+                                 error_msg=f'Invalid contract size for {pair}',
+                                 exchange='mexc')
+
+        # Resolve pair-maximum leverage if requested
+        if leverage_mode == 'max_pair':
+            leverage = max_leverage_pair
+        leverage = min(leverage, max_leverage_pair)
+
+        # Calculate position size (USD margin)
+        size_mode = config.get('size_mode', 'pct')
+        max_pct = config.get('max_size_pct', 5.0) / 100.0
+
+        if size_mode == 'fixed_usd':
+            size_usd = float(config.get('fixed_size_usd', 5.0))
+            if config.get('scale_with_sqi', 1):
+                sqi_mult = 0.75 + (min(sqi_score, 167) / 167) * 0.5
+                size_usd = max(round(size_usd * sqi_mult, 2), 1.0)
+        else:
+            base_pct = config.get('size_pct', 2.0) / 100.0
+            if config.get('scale_with_sqi', 1):
+                sqi_mult = 0.5 + (min(sqi_score, 167) / 167) * 1.0
+                size_pct_calc = base_pct * sqi_mult
+            else:
+                size_pct_calc = base_pct
+            size_pct_calc = min(size_pct_calc, max_pct)
+            size_usd = available * size_pct_calc
+
+        if size_usd <= 0:
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, size_usd, 'skipped',
+                                 error_msg='Calculated size is $0',
+                                 exchange='mexc')
+        if size_usd > available:
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, size_usd, 'skipped',
+                                 error_msg=f'Size ${size_usd:.2f} exceeds balance ${available:.2f}',
+                                 exchange='mexc')
+
+        # Calculate contract volume
+        notional = size_usd * leverage
+        raw_contracts = notional / (contract_size * entry_price)
+
+        if vol_scale == 0:
+            vol = max(min_vol, int(_math.floor(raw_contracts)))
+        else:
+            factor = 10 ** vol_scale
+            vol = max(min_vol, _math.floor(raw_contracts * factor) / factor)
+        vol = min(vol, max_vol)
+
+        if vol <= 0:
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, size_usd, 'error',
+                                 error_msg='Calculated volume is 0 contracts',
+                                 exchange='mexc')
+
+        # Set leverage on MEXC (cross mode)
+        try:
+            client.change_leverage(pair, leverage, open_type=2)
+        except Exception as e:
+            log.warning(f"[mexc] Leverage change failed for {pair}: {e}")
+
+        # Place market order
+        open_side = 1 if direction == 'LONG' else 3  # 1=open long, 3=open short
+        position_type = 1 if direction == 'LONG' else 2
+
+        try:
+            import uuid as _uuid
+            ext_oid = f"AL_{signal_id[:20]}_{_uuid.uuid4().hex[:6]}"
+            order = client.place_order(
+                symbol=pair, side=open_side, vol=vol,
+                order_type=5, leverage=leverage, open_type=2,
+                external_oid=ext_oid,
+            )
+            order_id = str(order) if not isinstance(order, dict) else str(order.get('orderId', order))
+        except Exception as e:
+            error_msg = str(e)[:300]
+            log.error(f"[mexc] Order failed for user {user_id}: {e}")
+            return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                                 leverage, size_usd, 'error', error_msg=error_msg,
+                                 exchange='mexc')
+
+        # Fetch actual fill price + positionId from open positions
+        avg_price = entry_price
+        position_id = None
+        try:
+            time.sleep(0.5)
+            positions = client.get_open_positions(pair)
+            for p in (positions or []):
+                if int(p.get('positionType', 0)) == position_type and float(p.get('holdVol', 0)) > 0:
+                    avg_price = float(p.get('holdAvgPrice', entry_price))
+                    position_id = int(p.get('positionId', 0)) or None
+                    break
+        except Exception:
+            pass
+
+        # Compute actual base quantity for display/DB
+        base_qty = vol * contract_size
+
+        # Place SL via stop order (MEXC requires positionId + volume)
+        sl_mode = config.get('sl_mode', 'signal')
+        sl_pct = float(config.get('sl_pct', 3.0) or 3.0)
+
+        if sl_mode == 'none':
+            final_sl = 0.0
+        elif sl_mode == 'pct':
+            fill_ref = avg_price if avg_price else entry_price
+            final_sl = fill_ref * (1 - sl_pct / 100) if direction == 'LONG' \
+                       else fill_ref * (1 + sl_pct / 100)
+            final_sl = round(final_sl, price_scale)
+        else:  # 'signal'
+            final_sl = round(stop_loss, price_scale)
+
+        if final_sl > 0:
+            try:
+                client.place_stop_order(
+                    symbol=pair,
+                    position_type=position_type,
+                    stop_loss_price=final_sl,
+                    position_id=position_id,
+                    stop_loss_vol=vol,
+                )
+                log.info(f"[mexc] SL placed user {user_id} {pair} @ {final_sl} vol={vol} posId={position_id}")
+            except Exception as e:
+                log.info(f"[mexc] SL placement failed ({e}) — software monitor will enforce @ {final_sl}")
+
+        # Place TP orders via stop orders (MEXC requires positionId + takeProfitVol)
+        if targets and position_id:
+            tp_mode = config.get('tp_mode', 'pyramid')
+            active_tps = list(targets)
+            n = len(active_tps)
+
+            if tp_mode == 'tp1_only':
+                active_tps = active_tps[:1]
+                allocs = [1.0]
+            elif tp_mode == 'tp1_tp2':
+                active_tps = active_tps[:2]
+                allocs = [0.65, 0.35] if n >= 2 else [1.0]
+            elif tp_mode == 'pyramid':
+                if n == 1:   allocs = [1.0]
+                elif n == 2: allocs = [0.60, 0.40]
+                elif n == 3: allocs = [0.50, 0.30, 0.20]
+                else:        allocs = [0.50, 0.30, 0.15] + [0.05 / max(1, n - 3)] * (n - 3)
+            else:
+                allocs = [1.0 / n] * n
+
+            total_alloc = sum(allocs)
+            allocs = [a / total_alloc for a in allocs]
+
+            placed_vol = 0
+            for i, (tp, alloc) in enumerate(zip(active_tps, allocs)):
+                tp_price = round(float(tp), price_scale)
+                is_last = (i == len(active_tps) - 1)
+                if is_last:
+                    close_vol = vol - placed_vol
+                else:
+                    close_vol = max(min_vol, int(_math.floor(vol * alloc)))
+                close_vol = max(0, min(close_vol, vol - placed_vol))
+                if close_vol <= 0:
+                    continue
+                try:
+                    client.place_stop_order(
+                        symbol=pair,
+                        position_type=position_type,
+                        take_profit_price=tp_price,
+                        position_id=position_id,
+                        take_profit_vol=close_vol,
+                    )
+                    placed_vol += close_vol
+                    log.info(f"[mexc] TP{i+1} placed user {user_id} {pair} @ {tp_price} vol={close_vol} posId={position_id}")
+                except Exception as e:
+                    log.error(f"[mexc] TP{i+1} FAILED user {user_id} {pair}: {e}")
+
+        log.info(f"[mexc] Trade EXECUTED: user={user_id} {direction} {pair} vol={vol} "
+                 f"lev={leverage}x size=${size_usd:.2f} order={order_id}")
+
+        return _record_trade(user_id, signal_id, pair, direction, avg_price,
+                             base_qty, leverage, size_usd, 'open',
+                             exchange_order_id=str(order_id),
+                             sl_price=final_sl,
+                             tp_prices=[float(t) for t in targets] if targets else [],
+                             exchange='mexc')
+
+    except Exception as e:
+        error_msg = str(e)[:300]
+        log.error(f"[mexc] Trade FAILED for user {user_id}: {e}")
+        return _record_trade(user_id, signal_id, pair, direction, 0, 0,
+                             leverage, 0, 'error', error_msg=error_msg,
+                             exchange='mexc')
 
 
 def _record_trade(user_id: int, signal_id: str, pair: str, direction: str,
                   entry_price: float, quantity: float, leverage: int,
                   size_usd: float, status: str, exchange_order_id: str = '',
                   error_msg: str = '', sl_price: float = 0.0,
-                  tp_prices: list = None) -> Dict:
+                  tp_prices: list = None, exchange: str = None) -> Dict:
     """Record a copy-trade in the database."""
     import json as _json
+    if exchange is None:
+        exchange = _get_user_exchange(user_id)
+        if exchange == 'both':
+            exchange = 'binance'  # fallback — caller should pass explicit exchange
     now = time.time()
     conn = _get_db()
     try:
@@ -1882,11 +2570,11 @@ def _record_trade(user_id: int, signal_id: str, pair: str, direction: str,
             INSERT INTO copy_trades
                 (user_id, signal_id, pair, direction, entry_price, quantity,
                  leverage, size_usd, status, exchange_order_id, error_msg,
-                 created_at, sl_price, tp_prices)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 created_at, sl_price, tp_prices, exchange)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (user_id, signal_id, pair, direction, entry_price, quantity,
               leverage, size_usd, status, exchange_order_id, error_msg, now,
-              sl_price, _json.dumps(tp_prices or [])))
+              sl_price, _json.dumps(tp_prices or []), exchange))
         conn.commit()
     except Exception as e:
         log.error(f"Failed to record trade: {e}")
@@ -1941,15 +2629,22 @@ def quick_entry_trade(
     # Check user has copy-trading configured
     cfg = get_config(user_id)
     if not cfg:
-        return {"error": "Copy-trading not configured — add Binance API keys first"}
+        return {"error": "Copy-trading not configured — add exchange API keys first"}
+
+    exchange = _get_user_exchange(user_id)
+    # For 'both' users, quick entry defaults to Binance
+    qe_exchange = 'binance' if exchange == 'both' else exchange
 
     # Fetch live mark price for entry
-    client = _get_futures_client(user_id)
+    client = _get_futures_client(user_id, qe_exchange)
     if not client:
-        return {"error": "Failed to connect to Binance — check API keys"}
+        return {"error": f"Failed to connect to {qe_exchange.upper()} — check API keys"}
     try:
-        mark_data = client.futures_mark_price(symbol=pair)
-        entry_price = float(mark_data.get('markPrice', 0))
+        if qe_exchange == 'mexc':
+            entry_price = client.get_fair_price(pair)
+        else:
+            mark_data = client.futures_mark_price(symbol=pair)
+            entry_price = float(mark_data.get('markPrice', 0))
         if entry_price <= 0:
             return {"error": f"Could not fetch mark price for {pair}"}
     except Exception as e:
@@ -2004,25 +2699,169 @@ def _close_order_params(pos: dict, symbol: str) -> dict:
     return params
 
 
-def close_all_positions(user_id: int) -> Dict:
-    """Close ALL open Binance Futures positions at market and mark DB trades closed.
+def _close_all_positions_mexc(user_id: int) -> Dict:
+    """Close ALL open MEXC Futures positions at market."""
+    from mexc_futures_client import MexcFuturesClient, to_binance_symbol
+    client = _get_futures_client(user_id, 'mexc')
+    if not client or not isinstance(client, MexcFuturesClient):
+        return {"error": "Failed to initialize MEXC client. Check API keys."}
+    try:
+        positions = client.get_open_positions()
+        closed, errors = [], []
+        now = time.time()
+        for pos in (positions or []):
+            hold_vol = float(pos.get('holdVol', 0))
+            if hold_vol == 0:
+                continue
+            mexc_sym = pos.get('symbol', '')
+            binance_sym = to_binance_symbol(mexc_sym)
+            pos_type = int(pos.get('positionType', 1))
+            close_side = 4 if pos_type == 1 else 2  # 4=close long, 2=close short
+            try:
+                # Cancel open orders for this symbol first
+                try:
+                    client.cancel_all_orders(mexc_sym)
+                    client.cancel_all_plan_orders(mexc_sym)
+                    client.cancel_all_stop_orders(mexc_sym)
+                except Exception:
+                    pass
+                client.place_order(
+                    symbol=mexc_sym, side=close_side, vol=int(hold_vol),
+                    order_type=5, open_type=2,
+                )
+                closed.append(binance_sym)
+                log.info(f"[mexc] close_all: {mexc_sym} vol={hold_vol} closed for user {user_id}")
 
-    Uses WS API (_ws_call) for every signed call — both position fetch and
-    order placement — so a user slamming this button during a ban window
-    doesn't hit REST weight and extend the ban.
-    """
-    # Ban gate — short-circuit cleanly instead of hammering the endpoint
+                # Compute PnL from fair price at close time
+                entry = float(pos.get('holdAvgPrice', 0))
+                lev = int(pos.get('leverage', 1)) or 1
+                try:
+                    ci = client.get_contract_info(mexc_sym)
+                    cs = float(ci.get('contractSize', 0)) if ci else 1
+                except Exception:
+                    cs = 1
+                base_qty = hold_vol * cs
+                try:
+                    exit_price = client.get_fair_price(mexc_sym)
+                except Exception:
+                    exit_price = entry
+                if pos_type == 1:
+                    pnl_usd = round((exit_price - entry) * base_qty, 4)
+                else:
+                    pnl_usd = round((entry - exit_price) * base_qty, 4)
+                init_margin = base_qty * entry / lev if entry else 0
+                pnl_pct = round(pnl_usd / init_margin * 100, 4) if init_margin else 0.0
+
+                conn = _get_db()
+                conn.execute(
+                    "UPDATE copy_trades SET status='closed', closed_at=?, pnl_usd=?, pnl_pct=? "
+                    "WHERE user_id=? AND pair=? AND status='open' AND exchange='mexc'",
+                    (now, pnl_usd, pnl_pct, user_id, binance_sym)
+                )
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                errors.append(f"{binance_sym}: {str(e)[:120]}")
+                log.warning(f"[mexc] close_all failed {mexc_sym} user {user_id}: {e}")
+        # Catch-all: mark any remaining open MEXC trades as closed
+        # (positions already flat or not found on exchange)
+        conn = _get_db()
+        remaining = conn.execute(
+            "SELECT COUNT(*) FROM copy_trades WHERE user_id=? AND status='open' AND exchange='mexc'",
+            (user_id,)
+        ).fetchone()[0]
+        if remaining:
+            conn.execute(
+                "UPDATE copy_trades SET status='closed', closed_at=? "
+                "WHERE user_id=? AND status='open' AND exchange='mexc'",
+                (now, user_id)
+            )
+            conn.commit()
+        conn.close()
+        return {"success": True, "closed": closed, "errors": errors, "count": len(closed)}
+    except Exception as e:
+        return {"error": f"Failed to fetch MEXC positions: {e}"}
+
+
+def _close_single_position_mexc(user_id: int, pair: str) -> Dict:
+    """Close a SINGLE open MEXC Futures position at market."""
+    from mexc_futures_client import MexcFuturesClient, to_mexc_symbol, to_binance_symbol
+    client = _get_futures_client(user_id, 'mexc')
+    if not client or not isinstance(client, MexcFuturesClient):
+        return {"error": "Failed to initialize MEXC client. Check API keys."}
+    try:
+        positions = client.get_open_positions(pair)
+        if not positions:
+            return {"error": f"Position not found on MEXC for {pair}."}
+        pos = next((p for p in positions if float(p.get('holdVol', 0)) > 0), None)
+        if not pos:
+            return {"error": f"Position is already closed on MEXC for {pair}."}
+        hold_vol = float(pos.get('holdVol', 0))
+        pos_type = int(pos.get('positionType', 1))
+        close_side = 4 if pos_type == 1 else 2
+        mexc_sym = pos.get('symbol', to_mexc_symbol(pair))
+        # Cancel open orders first
+        try:
+            client.cancel_all_orders(mexc_sym)
+            client.cancel_all_plan_orders(mexc_sym)
+            client.cancel_all_stop_orders(mexc_sym)
+        except Exception:
+            pass
+        client.place_order(
+            symbol=mexc_sym, side=close_side, vol=int(hold_vol),
+            order_type=5, open_type=2,
+        )
+        log.info(f"[mexc] close_single: {mexc_sym} vol={hold_vol} closed for user {user_id}")
+        # Compute realized PnL from fair price at close time
+        # (pos['realised'] only tracks partial-close PnL; 0 for fresh positions)
+        entry = float(pos.get('holdAvgPrice', 0))
+        lev = int(pos.get('leverage', 1)) or 1
+        try:
+            contract_info = client.get_contract_info(mexc_sym)
+            cs = float(contract_info.get('contractSize', 0)) if contract_info else 1
+        except Exception:
+            cs = 1
+        base_qty = hold_vol * cs
+        try:
+            exit_price = client.get_fair_price(mexc_sym)
+        except Exception:
+            exit_price = entry
+        if pos_type == 1:  # long
+            pnl_usd = round((exit_price - entry) * base_qty, 4)
+        else:  # short
+            pnl_usd = round((entry - exit_price) * base_qty, 4)
+        init_margin = base_qty * entry / lev if entry else 0
+        pnl_pct = round(pnl_usd / init_margin * 100, 4) if init_margin else 0.0
+        # Update DB
+        now = time.time()
+        conn = _get_db()
+        conn.execute(
+            "UPDATE copy_trades SET status='closed', closed_at=?, pnl_usd=?, pnl_pct=? "
+            "WHERE user_id=? AND pair=? AND status='open' AND exchange='mexc'",
+            (now, pnl_usd, pnl_pct, user_id, pair)
+        )
+        conn.commit()
+        conn.close()
+        return {
+            "success": True, "pair": pair,
+            "pnl_usd": pnl_usd, "pnl_pct": pnl_pct,
+        }
+    except Exception as e:
+        return {"error": f"Close position failed: {str(e)[:200]}"}
+
+
+def _close_all_positions_binance(user_id: int) -> Dict:
+    """Close ALL open Binance Futures positions at market."""
     _ban_until = _binance_ip_banned_until()
     if _ban_until:
         retry_in = max(1, int(_ban_until - time.time()))
         return {"error": f"Binance IP rate-limited for {retry_in}s — try again later",
                 "error_code": "rate_limited", "retry_in_seconds": retry_in}
 
-    client = _get_futures_client(user_id)
+    client = _get_futures_client(user_id, 'binance')
     if not client:
         return {"error": "Failed to initialize Binance client. Check API keys."}
     try:
-        # Prefer WS-API; REST fallback automatic inside _ws_call
         positions = _ws_call(
             user_id, "account_position",
             lambda **p: client.futures_position_information(**p),
@@ -2034,8 +2873,6 @@ def close_all_positions(user_id: int) -> Dict:
                 continue
             symbol = pos['symbol']
             try:
-                # Cancel-all is still REST-only (no WS wrapper); wrap in
-                # try/except so one failure doesn't abort the whole loop.
                 try:
                     client.futures_cancel_all_open_orders(symbol=symbol)
                 except Exception:
@@ -2046,14 +2883,15 @@ def close_all_positions(user_id: int) -> Dict:
                     **_close_order_params(pos, symbol),
                 )
                 closed.append(symbol)
-                log.info(f"close_all: {symbol} {abs(amt)} closed for user {user_id}")
+                log.info(f"close_all: {symbol} {abs(amt)} closed for user {user_id} [binance]")
             except Exception as e:
                 errors.append(f"{symbol}: {str(e)[:120]}")
-                log.warning(f"close_all failed {symbol} user {user_id}: {e}")
+                log.warning(f"close_all failed {symbol} user {user_id} [binance]: {e}")
         if closed:
             conn = _get_db()
             conn.execute(
-                "UPDATE copy_trades SET status='closed', closed_at=? WHERE user_id=? AND status='open'",
+                "UPDATE copy_trades SET status='closed', closed_at=? "
+                "WHERE user_id=? AND status='open' AND exchange='binance'",
                 (time.time(), user_id)
             )
             conn.commit()
@@ -2063,16 +2901,34 @@ def close_all_positions(user_id: int) -> Dict:
         return {"error": f"Failed to fetch positions: {e}"}
 
 
-def close_single_position(user_id: int, pair: str) -> Dict:
-    """Close a SINGLE open Binance Futures position at market and mark it closed in DB."""
-    # Ban gate
+def close_all_positions(user_id: int) -> Dict:
+    """Close ALL open exchange positions at market and mark DB trades closed."""
+    exchange = _get_user_exchange(user_id)
+
+    if exchange == 'both':
+        mx_result = _close_all_positions_mexc(user_id)
+        bn_result = _close_all_positions_binance(user_id)
+        closed = (bn_result.get('closed') or []) + (mx_result.get('closed') or [])
+        errors = (bn_result.get('errors') or []) + (mx_result.get('errors') or [])
+        if bn_result.get('error') and mx_result.get('error'):
+            return {"error": f"BN: {bn_result['error']}; MX: {mx_result['error']}"}
+        return {"success": True, "closed": closed, "errors": errors, "count": len(closed)}
+
+    if exchange == 'mexc':
+        return _close_all_positions_mexc(user_id)
+
+    return _close_all_positions_binance(user_id)
+
+
+def _close_single_position_binance(user_id: int, pair: str) -> Dict:
+    """Close a SINGLE open Binance Futures position at market."""
     _ban_until = _binance_ip_banned_until()
     if _ban_until:
         retry_in = max(1, int(_ban_until - time.time()))
         return {"error": f"Binance IP rate-limited for {retry_in}s — try again later",
                 "error_code": "rate_limited", "retry_in_seconds": retry_in}
 
-    client = _get_futures_client(user_id)
+    client = _get_futures_client(user_id, 'binance')
     if not client:
         return {"error": "Failed to initialize Binance client. Check API keys."}
     try:
@@ -2083,7 +2939,6 @@ def close_single_position(user_id: int, pair: str) -> Dict:
         )
         if not positions:
             return {"error": "Position not found on Binance."}
-        # In hedge mode there may be both LONG and SHORT entries; pick the non-zero one
         pos = next((p for p in (positions or []) if float(p.get('positionAmt', 0) or 0) != 0), None)
         if not pos:
             return {"error": "Position is already closed on Binance."}
@@ -2091,29 +2946,25 @@ def close_single_position(user_id: int, pair: str) -> Dict:
         amt = float(pos['positionAmt'])
         qty = abs(amt)
         try:
-            # Drop open SL/TP orders on this pair (REST-only; no WS wrapper)
             try:
                 client.futures_cancel_all_open_orders(symbol=pair)
             except Exception:
                 pass
-            # Fire the market close order via WS (REST fallback automatic)
             _ws_call(
                 user_id, "create_order",
                 lambda **p: client.futures_create_order(**p),
                 **_close_order_params(pos, pair),
             )
-            log.info(f"close_single: {pair} {qty} closed for user {user_id}")
+            log.info(f"close_single: {pair} {qty} closed for user {user_id} [binance]")
 
-            # Fetch realized PnL from Binance income history
             now = time.time()
             pnl_usd = 0.0
             pnl_pct = 0.0
             try:
-                time.sleep(0.8)  # small delay so Binance income record is posted
+                time.sleep(0.8)
                 income = client.futures_income_history(
                     symbol=pair, incomeType='REALIZED_PNL', limit=20
                 )
-                # Try 5-min window first, fall back to 30 min
                 for window in (300, 1800):
                     cutoff = now - window
                     recent = [float(i['income']) for i in income
@@ -2121,7 +2972,6 @@ def close_single_position(user_id: int, pair: str) -> Dict:
                     if recent:
                         pnl_usd = round(sum(recent), 4)
                         break
-                # pnl_pct = ROI relative to initial margin
                 entry_px = float(pos.get('entryPrice', 0))
                 lev      = int(float(pos.get('leverage', 1))) or 1
                 init_margin = qty * entry_px / lev if entry_px else 0
@@ -2130,11 +2980,10 @@ def close_single_position(user_id: int, pair: str) -> Dict:
             except Exception as _pe:
                 log.warning(f"close_single: PnL fetch failed {pair}: {_pe}")
 
-            # Update local state
             conn = _get_db()
             conn.execute(
                 "UPDATE copy_trades SET status='closed', pnl_usd=?, pnl_pct=?, closed_at=? "
-                "WHERE user_id=? AND pair=? AND status='open'",
+                "WHERE user_id=? AND pair=? AND status='open' AND exchange='binance'",
                 (pnl_usd, pnl_pct, now, user_id, pair)
             )
             conn.commit()
@@ -2142,10 +2991,43 @@ def close_single_position(user_id: int, pair: str) -> Dict:
             return {"success": True, "closed": pair, "pnl_usd": pnl_usd, "pnl_pct": pnl_pct}
         except Exception as e:
             err = str(e)[:120]
-            log.warning(f"close_single failed {pair} user {user_id}: {e}")
+            log.warning(f"close_single failed {pair} user {user_id} [binance]: {e}")
             return {"error": f"Close failed: {err}"}
     except Exception as e:
         return {"error": f"Failed to fetch position: {e}"}
+
+
+def close_single_position(user_id: int, pair: str) -> Dict:
+    """Close a SINGLE open exchange position at market and mark it closed in DB."""
+    exchange = _get_user_exchange(user_id)
+
+    if exchange == 'both':
+        # Check which exchange(s) this pair is open on in DB
+        conn = _get_db()
+        trade_exs = [r[0] for r in conn.execute(
+            "SELECT DISTINCT exchange FROM copy_trades "
+            "WHERE user_id=? AND pair=? AND status='open'",
+            (user_id, pair)
+        ).fetchall()]
+        conn.close()
+        if not trade_exs:
+            trade_exs = ['binance', 'mexc']
+        results = []
+        for ex in trade_exs:
+            if ex == 'mexc':
+                results.append(_close_single_position_mexc(user_id, pair))
+            else:
+                results.append(_close_single_position_binance(user_id, pair))
+        successes = [r for r in results if r.get('success')]
+        if successes:
+            return successes[0]
+        errors = [r.get('error', 'unknown') for r in results]
+        return {"error": "; ".join(errors)}
+
+    if exchange == 'mexc':
+        return _close_single_position_mexc(user_id, pair)
+
+    return _close_single_position_binance(user_id, pair)
 
 
 # ── Signal Close Handler ───────────────────────────────────────────
@@ -2277,7 +3159,7 @@ def _replace_exchange_sl_blocking(user_id: int, pair: str, direction: str,
     user and place a fresh one at `new_sl`.  Handles both legacy futures
     orders and migrated algo orders.  Blocking — call via asyncio.to_thread.
     """
-    client = _get_futures_client(user_id)
+    client = _get_futures_client(user_id, 'binance')
     if not client:
         raise RuntimeError("no Binance client")
 
@@ -2385,7 +3267,7 @@ async def run_sl_monitor():
                 continue
             conn = _get_db()
             trades = conn.execute(
-                "SELECT id, user_id, pair, direction, quantity, sl_price "
+                "SELECT id, user_id, pair, direction, quantity, sl_price, exchange "
                 "FROM copy_trades WHERE status='open' AND sl_price > 0"
             ).fetchall()
             conn.close()
@@ -2412,36 +3294,65 @@ async def run_sl_monitor():
 
 
 def _check_sl_for_user(user_id: int, trades: list):
-    """Check SL levels for a single user's open trades and close if breached."""
+    """Check SL levels for a single user's open trades and close if breached.
+
+    Trades are split by exchange so each uses the correct client.
+    """
     if _is_maintenance():
         log.debug(f"[sl_monitor] _check_sl_for_user skipped for user {user_id} — maintenance mode")
         return
-    client = _get_futures_client(user_id)
+
+    # Group trades by exchange
+    by_exchange: Dict[str, list] = {}
+    for t in trades:
+        ex = t.get('exchange') or 'binance'
+        by_exchange.setdefault(ex, []).append(t)
+
+    for ex, ex_trades in by_exchange.items():
+        try:
+            _check_sl_for_user_exchange(user_id, ex_trades, ex)
+        except Exception as e:
+            log.warning(f"[sl_monitor] user {user_id} {ex} check failed: {e}")
+
+
+def _check_sl_for_user_exchange(user_id: int, trades: list, exchange: str):
+    """Check SL levels for a single user + exchange combination."""
+    from mexc_futures_client import MexcFuturesClient
+    client = _get_futures_client(user_id, exchange)
     if not client:
         return
 
     pairs = list({t['pair'] for t in trades})
     try:
-        # Fetch mark prices for all relevant pairs at once
-        all_prices = client.futures_mark_price()
-        price_map = {p['symbol']: float(p['markPrice']) for p in all_prices if p['symbol'] in pairs}
+        if exchange == 'mexc' and isinstance(client, MexcFuturesClient):
+            # MEXC: fetch fair price per pair
+            price_map = {}
+            for p in pairs:
+                try:
+                    price_map[p] = client.get_fair_price(p)
+                except Exception:
+                    pass
+        else:
+            all_prices = client.futures_mark_price()
+            price_map = {p['symbol']: float(p['markPrice']) for p in all_prices if p['symbol'] in pairs}
     except Exception as e:
-        log.warning(f"[sl_monitor] Price fetch failed for user {user_id}: {e}")
+        log.warning(f"[sl_monitor] Price fetch failed for user {user_id} [{exchange}]: {e}")
         return
 
-    # Prefer cached hedge mode (populated on trade entry) to avoid a
-    # signed REST call every 15 s per user.
-    cached_hm = _HEDGE_CACHE.get(user_id)
-    if cached_hm is not None and (time.time() - _HEDGE_TS.get(user_id, 0)) < _CLIENT_TTL:
-        hedge_mode = cached_hm
-    else:
-        try:
-            pos_mode = client.futures_get_position_mode()
-            hedge_mode = pos_mode.get('dualSidePosition', False)
-            _HEDGE_CACHE[user_id] = hedge_mode
-            _HEDGE_TS[user_id] = time.time()
-        except Exception:
-            hedge_mode = False
+    # Hedge mode only applies to Binance
+    hedge_mode = False
+    if exchange == 'binance':
+        cached_hm = _HEDGE_CACHE.get(user_id)
+        if cached_hm is not None and (time.time() - _HEDGE_TS.get(user_id, 0)) < _CLIENT_TTL:
+            hedge_mode = cached_hm
+        else:
+            try:
+                pos_mode = client.futures_get_position_mode()
+                hedge_mode = pos_mode.get('dualSidePosition', False)
+                _HEDGE_CACHE[user_id] = hedge_mode
+                _HEDGE_TS[user_id] = time.time()
+            except Exception:
+                hedge_mode = False
 
     for trade in trades:
         pair = trade['pair']
@@ -2460,47 +3371,63 @@ def _check_sl_for_user(user_id: int, trades: list):
             continue
 
         log.warning(f"[sl_monitor] SL BREACHED {pair} direction={direction} "
-                    f"mark={mark} sl={sl} — firing MARKET close")
-        try:
-            close_side = 'SELL' if direction == 'LONG' else 'BUY'
-            close_params = dict(symbol=pair, side=close_side, type='MARKET', quantity=qty)
-            if hedge_mode:
-                close_params['positionSide'] = direction
-            else:
-                close_params['reduceOnly'] = True
-            # Route through WS-API (REST fallback baked into _ws_call)
-            _ws_call(
-                user_id, "create_order",
-                lambda **p: client.futures_create_order(**p),
-                **close_params,
-            )
-            log.info(f"[sl_monitor] SL market close executed {pair} qty={qty}")
+                    f"mark={mark} sl={sl} [{exchange}] — firing MARKET close")
 
-            # Mark as closed in DB and feed outcome to signal registry
-            conn = _get_db()
-            conn.execute(
-                "UPDATE copy_trades SET status='closed', closed_at=?, error_msg='SL hit (software)' WHERE id=?",
-                (time.time(), trade['id'])
-            )
-            conn.commit()
-            conn.close()
-            _feed_copy_result_to_registry(trade.get('signal_id', ''), -100.0, 0)  # SL = loss
+        def _mark_closed_sl(reason: str):
+            try:
+                conn = _get_db()
+                conn.execute(
+                    "UPDATE copy_trades SET status='closed', closed_at=?, "
+                    "error_msg=? WHERE id=?",
+                    (time.time(), reason, trade['id'])
+                )
+                conn.commit()
+                conn.close()
+                _feed_copy_result_to_registry(trade.get('signal_id', ''), -100.0, 0)
+            except Exception as _db_e:
+                log.error(f"[sl_monitor] DB cleanup failed {pair}: {_db_e}")
+
+        try:
+            if exchange == 'mexc' and isinstance(client, MexcFuturesClient):
+                from mexc_futures_client import to_mexc_symbol
+                mexc_sym = to_mexc_symbol(pair)
+                # MEXC close sides: 4=close long, 2=close short (qty is vol in contracts)
+                close_side_mexc = 4 if direction == 'LONG' else 2
+                try:
+                    client.cancel_all_orders(mexc_sym)
+                    client.cancel_all_stop_orders(mexc_sym)
+                except Exception:
+                    pass
+                client.place_order(
+                    symbol=mexc_sym, side=close_side_mexc,
+                    vol=int(qty), order_type=5, open_type=2,
+                )
+            else:
+                close_side = 'SELL' if direction == 'LONG' else 'BUY'
+                close_params = dict(symbol=pair, side=close_side, type='MARKET', quantity=qty)
+                if hedge_mode:
+                    close_params['positionSide'] = direction
+                else:
+                    close_params['reduceOnly'] = True
+                _ws_call(
+                    user_id, "create_order",
+                    lambda **p: client.futures_create_order(**p),
+                    **close_params,
+                )
+            log.info(f"[sl_monitor] SL market close executed {pair} qty={qty} [{exchange}]")
+            _mark_closed_sl('SL hit (software)')
         except Exception as e:
             err_str = str(e)
-            log.error(f"[sl_monitor] MARKET close FAILED {pair}: {e}")
+            log.error(f"[sl_monitor] MARKET close FAILED {pair} [{exchange}]: {e}")
 
-            # -2022: ReduceOnly rejected — position likely already closed/liquidated
-            # Verify on exchange and clean up DB to stop infinite retry loop
-            if '-2022' in err_str:
+            # -2022: ReduceOnly rejected (Binance-specific) — position likely already closed
+            if exchange == 'binance' and '-2022' in err_str:
                 try:
                     pos_info = _ws_call(
                         user_id, "account_position",
                         lambda **p: client.futures_position_information(**p),
                         symbol=pair,
                     )
-                    # Direction-aware check: only count the side we are trying to close
-                    # SHORT position → positionAmt < 0  |  LONG position → positionAmt > 0
-                    # In hedge mode Binance also exposes positionSide; both checks work.
                     if direction == 'SHORT':
                         dir_amt = sum(
                             abs(float(p.get('positionAmt', 0)))
@@ -2517,48 +3444,29 @@ def _check_sl_for_user(user_id: int, trades: list):
                         ) if pos_info else 0
                 except Exception as _pe:
                     log.warning(f"[sl_monitor] {pair} position verify failed: {_pe}")
-                    dir_amt = -1  # unknown — don't modify DB
-
-                def _mark_closed(reason: str):
-                    try:
-                        conn = _get_db()
-                        conn.execute(
-                            "UPDATE copy_trades SET status='closed', closed_at=?, "
-                            "error_msg=? WHERE id=?",
-                            (time.time(), reason, trade['id'])
-                        )
-                        conn.commit()
-                        conn.close()
-                        _feed_copy_result_to_registry(trade.get('signal_id', ''), -100.0, 0)
-                    except Exception as _db_e:
-                        log.error(f"[sl_monitor] DB cleanup failed {pair}: {_db_e}")
+                    dir_amt = -1
 
                 if dir_amt == 0:
-                    # Exchange confirms this direction has no open position
-                    # (already liquidated or closed by exchange SL order)
                     log.warning(f"[sl_monitor] {pair} {direction} positionAmt=0 → "
                                 f"already closed (liquidated/exchange-SL) — cleaning DB")
-                    _mark_closed('SL hit (exchange-closed/liquidated)')
-
+                    _mark_closed_sl('SL hit (exchange-closed/liquidated)')
                 elif dir_amt > 0:
-                    # Position still exists — retry WITHOUT reduceOnly
                     log.warning(f"[sl_monitor] {pair} {direction} position still open "
                                 f"(amt={dir_amt:.4f}) — retrying without reduceOnly")
                     try:
+                        close_side = 'SELL' if direction == 'LONG' else 'BUY'
                         retry_params = dict(symbol=pair, side=close_side, type='MARKET', quantity=qty)
                         if hedge_mode:
                             retry_params['positionSide'] = direction
                         client.futures_create_order(**retry_params)
                         log.info(f"[sl_monitor] SL retry (no reduceOnly) executed {pair}")
-                        _mark_closed('SL hit (software-retry)')
+                        _mark_closed_sl('SL hit (software-retry)')
                     except Exception as _re:
                         log.error(f"[sl_monitor] SL retry also FAILED {pair}: {_re}")
-                        # If retry also gets -2022, position was closed in the race window
-                        # between our position check and the order — clean DB anyway
                         if '-2022' in str(_re):
                             log.warning(f"[sl_monitor] {pair} -2022 on retry → "
                                         f"race condition, position closed mid-check — cleaning DB")
-                            _mark_closed('SL hit (race-closed)')
+                            _mark_closed_sl('SL hit (race-closed)')
 
 
 # ── Background Position Monitor ────────────────────────────────────
@@ -2599,16 +3507,120 @@ async def _sync_open_positions():
             log.warning(f"[ct_monitor] sync failed for user {uid}: {e}")
 
 
+def _sync_mexc_positions(user_id: int):
+    """Sync MEXC open copy-trades with exchange positions.
+
+    Detects trades closed on-exchange (SL/TP/liquidation) and computes
+    realized PnL from MEXC history_positions or fair price.
+    """
+    from mexc_futures_client import MexcFuturesClient, to_binance_symbol, to_mexc_symbol
+    client = _get_futures_client(user_id, 'mexc')
+    if not client or not isinstance(client, MexcFuturesClient):
+        return
+
+    try:
+        positions = client.get_open_positions() or []
+    except Exception as e:
+        log.warning(f"[ct_monitor] MEXC position fetch failed user {user_id}: {e}")
+        return
+
+    open_pairs = set()
+    for p in positions:
+        if float(p.get('holdVol', 0)) > 0:
+            open_pairs.add(to_binance_symbol(p.get('symbol', '')))
+
+    conn = _get_db()
+    open_trades = conn.execute(
+        "SELECT id, signal_id, pair, direction, entry_price, quantity, leverage, size_usd "
+        "FROM copy_trades WHERE user_id=? AND status='open' AND exchange='mexc'",
+        (user_id,)
+    ).fetchall()
+
+    now = time.time()
+    for trade in open_trades:
+        t = dict(trade)
+        if t['pair'] in open_pairs:
+            continue  # Still open on MEXC
+
+        # Position closed on MEXC — compute PnL
+        pnl_usd = 0.0
+        pnl_pct = 0.0
+        try:
+            mexc_sym = to_mexc_symbol(t['pair'])
+            history = client.get_history_positions(t['pair'], page_size=10)
+            if history and isinstance(history, list):
+                # Find history entry matching this trade by timestamp
+                best = None
+                for h in history:
+                    ct = float(h.get('updateTime', 0) or 0) / 1000
+                    if ct >= (t.get('created_at', 0) or now) - 120:
+                        if best is None or ct > float(best.get('updateTime', 0) or 0) / 1000:
+                            best = h
+                if best:
+                    pnl_usd = round(float(best.get('realised', 0) or 0), 4)
+                    entry_avg = float(best.get('holdAvgPrice', 0) or 0)
+                    close_avg = float(best.get('closeAvgPrice', 0) or 0)
+                    hold_vol = float(best.get('closeVol', 0) or best.get('holdVol', 0) or 0)
+                    lev = int(best.get('leverage', 1) or 1)
+                    try:
+                        ci = client.get_contract_info(mexc_sym)
+                        cs = float(ci.get('contractSize', 0)) if ci else 1
+                    except Exception:
+                        cs = 1
+                    base_qty = hold_vol * cs
+                    init_margin = base_qty * entry_avg / lev if (entry_avg and lev) else 0
+                    # If realised is 0 but we have close/entry prices, compute
+                    if pnl_usd == 0 and close_avg and entry_avg:
+                        pos_type = int(best.get('positionType', 1))
+                        if pos_type == 1:
+                            pnl_usd = round((close_avg - entry_avg) * base_qty, 4)
+                        else:
+                            pnl_usd = round((entry_avg - close_avg) * base_qty, 4)
+                    pnl_pct = round(pnl_usd / init_margin * 100, 4) if init_margin else 0.0
+        except Exception as e:
+            log.warning(f"[ct_monitor] MEXC history PnL failed {t['pair']} user {user_id}: {e}")
+
+        conn.execute(
+            "UPDATE copy_trades SET status='closed', pnl_usd=?, pnl_pct=?, closed_at=? WHERE id=?",
+            (pnl_usd, pnl_pct, now, t['id'])
+        )
+        log.info(f"[ct_monitor] MEXC closed trade {t['id']} {t['pair']} user {user_id}: pnl=${pnl_usd:.4f}")
+        _feed_copy_result_to_registry(t.get('signal_id', ''), pnl_pct, pnl_usd)
+
+    conn.commit()
+    conn.close()
+
+
 def _sync_user_positions(user_id: int):
-    """Sync a single user's open copy-trades with Binance.
+    """Sync a single user's open copy-trades with their exchange(s).
 
     Prefers the in-memory UDS state (zero Binance cost) → falls back to
     WS-API → falls back to REST. This runs on every monitor tick for
     every user, so avoiding REST here is critical at scale.
     """
+    # ── MEXC sync (if any open MEXC trades) ──
+    conn = _get_db()
+    mexc_open = conn.execute(
+        "SELECT COUNT(*) FROM copy_trades WHERE user_id=? AND status='open' AND exchange='mexc'",
+        (user_id,)
+    ).fetchone()[0]
+    bn_open = conn.execute(
+        "SELECT COUNT(*) FROM copy_trades WHERE user_id=? AND status='open' AND exchange='binance'",
+        (user_id,)
+    ).fetchone()[0]
+    conn.close()
+    if mexc_open:
+        try:
+            _sync_mexc_positions(user_id)
+        except Exception as e:
+            log.warning(f"[ct_monitor] MEXC sync failed user {user_id}: {e}")
+    if not bn_open:
+        return  # No Binance trades to sync
+
     # 1. UDS in-memory state (fastest, zero Binance cost)
     open_pairs: set = set()
     live_positions = None
+    client = None
     try:
         from binance_user_stream import get_state as _ws_state, is_fresh as _ws_fresh
         if _ws_fresh(user_id):
@@ -2627,7 +3639,7 @@ def _sync_user_positions(user_id: int):
 
     if live_positions is None:
         # 2. Signed call: WS first, REST fallback
-        client = _get_futures_client(user_id)
+        client = _get_futures_client(user_id, 'binance')
         if not client:
             return
         try:
@@ -2644,7 +3656,7 @@ def _sync_user_positions(user_id: int):
     conn = _get_db()
     open_trades = conn.execute(
         "SELECT id, signal_id, pair, direction, entry_price, quantity, leverage, size_usd "
-        "FROM copy_trades WHERE user_id=? AND status='open'",
+        "FROM copy_trades WHERE user_id=? AND status='open' AND exchange='binance'",
         (user_id,)
     ).fetchall()
 
@@ -2658,6 +3670,11 @@ def _sync_user_positions(user_id: int):
         pnl_usd = 0.0
         pnl_pct = 0.0
         try:
+            # Lazily create client for income history (may not exist if UDS was used)
+            if client is None:
+                client = _get_futures_client(user_id, 'binance')
+            if not client:
+                raise RuntimeError("no Binance client for income history")
             # Check recent futures income for this symbol's realized PnL
             income = client.futures_income_history(
                 symbol=t['pair'], incomeType='REALIZED_PNL', limit=10
@@ -2728,7 +3745,8 @@ async def retry_missing_sl_tp(user_id: int) -> List[Dict]:
 
     conn = _get_db()
     open_trades = conn.execute(
-        "SELECT * FROM copy_trades WHERE user_id=? AND status='open'", (user_id,)
+        "SELECT * FROM copy_trades WHERE user_id=? AND status='open' "
+        "AND (exchange='binance' OR exchange IS NULL)", (user_id,)
     ).fetchall()
     cfg_row = conn.execute(
         "SELECT * FROM copy_trading_config WHERE user_id=?", (user_id,)
@@ -2739,9 +3757,9 @@ async def retry_missing_sl_tp(user_id: int) -> List[Dict]:
         return []
 
     cfg = dict(cfg_row)
-    client = _get_futures_client(user_id)
+    client = _get_futures_client(user_id, 'binance')
     if not client:
-        log.error(f"[sl_tp_recovery] Cannot create client for user {user_id}")
+        log.error(f"[sl_tp_recovery] Cannot create Binance client for user {user_id}")
         return []
 
     # Detect hedge mode

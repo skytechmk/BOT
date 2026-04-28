@@ -37,6 +37,13 @@ var _CT_TP_MODES = {
 var _ctBalTimer = null;
 var _ctLivePnlTimer = null;
 
+// ── Exchange selector toggle ─────────────────────────────────────────
+window._ctSelectExchange = function(ex) {
+    window._ctSelectedExchange = ex;
+    // Full refetch — stats, trades, balance are all exchange-scoped
+    loadCopyTradingPage();
+};
+
 function stopCTBalancePolling() {
     if (_ctBalTimer) { clearInterval(_ctBalTimer); _ctBalTimer = null; }
     if (_ctLivePnlTimer) { clearInterval(_ctLivePnlTimer); _ctLivePnlTimer = null; }
@@ -51,18 +58,36 @@ async function refreshCTLivePnl() {
     if (document.hidden) return;
     if (!document.getElementById('ct-bal-unrealized')) { stopCTBalancePolling(); return; }
     try {
-        var res = await fetch('/api/copy-trading/live-pnl', { headers: authHeaders() });
+        var _exQLp = window._ctSelectedExchange ? '?exchange=' + window._ctSelectedExchange : '';
+        var res = await fetch('/api/copy-trading/live-pnl' + _exQLp, { headers: authHeaders() });
         if (!res.ok) return;
         var data = await res.json();
         if (!data || data.error) return;
 
-        // Top-card unrealized PnL $ + %
+        // Top-card unrealized PnL $ + % — only overwrite if live-pnl has real data
+        var hasPositions = data.positions && Object.keys(data.positions).length > 0;
         var el3 = document.getElementById('ct-bal-unrealized');
         var el3p = document.getElementById('ct-bal-unrealized-pct');
-        if (el3)  { el3.textContent  = _fmtUsd(data.unrealized_pnl); el3.style.color = _pnlColor(data.unrealized_pnl); }
-        if (el3p) { el3p.textContent = _fmtPct(data.unrealized_pnl_pct || 0); el3p.style.color = _pnlColor(data.unrealized_pnl_pct || 0); }
+        if (hasPositions || data.unrealized_pnl) {
+            if (el3)  { el3.textContent  = _fmtUsd(data.unrealized_pnl); el3.style.color = _pnlColor(data.unrealized_pnl); }
+            if (el3p) { el3p.textContent = _fmtPct(data.unrealized_pnl_pct || 0); el3p.style.color = _pnlColor(data.unrealized_pnl_pct || 0); }
+        }
         var el4 = document.getElementById('ct-bal-invested');
-        if (el4 && data.total_invested_usd != null) el4.textContent = '$' + (+data.total_invested_usd).toFixed(2);
+        if (el4 && data.total_invested_usd != null && data.total_invested_usd > 0) el4.textContent = '$' + (+data.total_invested_usd).toFixed(2);
+
+        // ── Per-exchange live PnL (multi-exchange mode) ─────
+        if (data.per_exchange) {
+            var bn = data.per_exchange.binance || {};
+            var mx = data.per_exchange.mexc || {};
+            var bnPnlEl = document.getElementById('ct-pex-bn-pnl');
+            if (bnPnlEl) { bnPnlEl.textContent = _fmtUsd(bn.unrealized_pnl || 0); bnPnlEl.style.color = _pnlColor(bn.unrealized_pnl || 0); }
+            var bnInvEl = document.getElementById('ct-pex-bn-inv');
+            if (bnInvEl && bn.total_invested_usd != null) bnInvEl.textContent = '$' + (bn.total_invested_usd || 0).toFixed(2);
+            var mxPnlEl = document.getElementById('ct-pex-mx-pnl');
+            if (mxPnlEl) { mxPnlEl.textContent = _fmtUsd(mx.unrealized_pnl || 0); mxPnlEl.style.color = _pnlColor(mx.unrealized_pnl || 0); }
+            var mxInvEl = document.getElementById('ct-pex-mx-inv');
+            if (mxInvEl && mx.total_invested_usd != null) mxInvEl.textContent = '$' + (mx.total_invested_usd || 0).toFixed(2);
+        }
 
         // Per-row PnL / PnL% cells in the open-trades table
         _ctPatchOpenRows(data.positions || {});
@@ -73,7 +98,7 @@ async function loadCopyTradingPage() {
     var container = document.getElementById('copytrading-content');
     if (!container) return;
     if (!(window._hasTier ? window._hasTier('pro') : _tier === 'pro')) {
-        container.innerHTML = '<div class="paywall-overlay"><div class="paywall-icon">🤖</div><div class="paywall-title">Copy-Trading — Pro Feature</div><div class="paywall-desc">Automatically mirror Aladdin signals to your Binance Futures account with institutional-grade exit management.</div><button class="btn btn-gold" onclick="switchPage(\'pricing\')">Upgrade to Pro — 109 USDT/mo</button></div>';
+        container.innerHTML = '<div class="paywall-overlay"><div class="paywall-icon">🤖</div><div class="paywall-title">Copy-Trading — Pro Feature</div><div class="paywall-desc">Automatically mirror Aladdin signals to your exchange account with institutional-grade exit management.</div><button class="btn btn-gold" onclick="switchPage(\'pricing\')">Upgrade to Pro — 109 USDT/mo</button></div>';
         return;
     }
     // ── Skeleton loader: users see the page shape instantly ──
@@ -101,16 +126,18 @@ async function loadCopyTradingPage() {
         '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px">' +
           _sk('35%', 12, 4) + _sk('100%', 40, 8) + _sk('100%', 40, 8) + '</div>';
     try {
+        var _exQ = window._ctSelectedExchange ? '&exchange=' + window._ctSelectedExchange : '';
+        var _exQBal = window._ctSelectedExchange ? '?exchange=' + window._ctSelectedExchange : '';
         var results = await Promise.all([
-            fetch('/api/copy-trading/config',  { headers: authHeaders() }),
-            fetch('/api/copy-trading/history?limit=50', { headers: authHeaders() }),
-            fetch('/api/copy-trading/balance', { headers: authHeaders() }),
+            fetch('/api/copy-trading/config?_=1' + _exQ,  { headers: authHeaders() }),
+            fetch('/api/copy-trading/history?limit=50' + _exQ, { headers: authHeaders() }),
+            fetch('/api/copy-trading/balance' + _exQBal, { headers: authHeaders() }),
         ]);
         var cfgData  = results[0].ok ? await results[0].json() : { config: null, stats: {} };
         var histData = results[1].ok ? await results[1].json() : { trades: [], stats: {} };
         var balData  = results[2].ok ? await results[2].json() : null;
         renderCopyTrading(cfgData.config, cfgData.stats || histData.stats || {}, histData.trades || [], balData);
-        // Fetch server IP for the whitelist guide (non-blocking)
+        // Fetch server IP for the setup guide (non-blocking)
         fetchServerIP();
         // Fetch UDS stream health badge (non-blocking, shows WS Live vs REST fallback)
         fetchUDSHealth();
@@ -144,6 +171,8 @@ function _fmtPct(v) {
 }
 
 function renderCopyTrading(cfg, stats, trades, bal) {
+    // Stash for exchange-toggle re-render (no refetch needed)
+    window._ctLastRenderData = {cfg: cfg, stats: stats, trades: trades, bal: bal};
     var container = document.getElementById('copytrading-content');
     if (!container) return;
     var hasConfig = !!cfg;
@@ -152,16 +181,29 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     var currentMode = (hasConfig && cfg.tp_mode) ? cfg.tp_mode : 'pyramid';
     var currentSlMode = (hasConfig && cfg.sl_mode) ? cfg.sl_mode : 'signal';
     var currentSlPct  = (hasConfig && cfg.sl_pct)  ? parseFloat(cfg.sl_pct) : 3.0;
+    var currentExchange = window._ctSelectedExchange || ((hasConfig && cfg.exchange) ? cfg.exchange : 'binance');
+    if (!window._ctSelectedExchange) window._ctSelectedExchange = currentExchange;
 
     var html = '<div class="section-header"><h2>🤖 Copy-Trading</h2></div>';
 
-    // ── Exchange Selector ────────────────────────────────────────
+    // ── Exchange Selector ────────────────────────────────────────────────
     html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px">';
     html += '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);margin-bottom:14px">EXCHANGE</div>';
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">';
 
-    // Binance — Active
-    html += '<div style="border:2px solid var(--gold);border-radius:10px;padding:14px 16px;cursor:default;background:#f0b42912;position:relative">';
+    // Both Exchanges
+    var bothSel = currentExchange === 'both';
+    html += '<div id="ct-ex-both" onclick="window._ctSelectExchange(\'both\')" style="border:2px solid ' + (bothSel ? '#00c9a7' : 'var(--border)') + ';border-radius:10px;padding:14px 16px;cursor:pointer;background:' + (bothSel ? '#00c9a712' : 'var(--bg)') + ';position:relative;transition:all .2s">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+    html += '<span style="font-size:16px">&#x1F310;</span>';
+    html += '<span style="font-size:13px;font-weight:800">All Exchanges</span></div>';
+    html += '<div style="font-size:10px;color:var(--text-dim)">Binance + MEXC</div>';
+    html += '<div style="position:absolute;top:8px;right:8px;background:#00c9a7;color:#000;font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:.05em">MULTI</div>';
+    html += '</div>';
+
+    // Binance — Active & selectable
+    var bnSel = currentExchange === 'binance';
+    html += '<div id="ct-ex-binance" onclick="window._ctSelectExchange(\'binance\')" style="border:2px solid ' + (bnSel ? 'var(--gold)' : 'var(--border)') + ';border-radius:10px;padding:14px 16px;cursor:pointer;background:' + (bnSel ? '#f0b42912' : 'var(--bg)') + ';position:relative;transition:all .2s">';
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
     html += '<img src="https://cryptologos.cc/logos/binance-bnb-logo.png" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
     html += '<span style="font-size:13px;font-weight:800">Binance</span></div>';
@@ -169,22 +211,23 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += '<div style="position:absolute;top:8px;right:8px;background:var(--gold);color:#000;font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:.05em">ACTIVE</div>';
     html += '</div>';
 
-    // Bybit — Beta this week
-    html += '<div style="border:2px solid #f7931a55;border-radius:10px;padding:14px 16px;cursor:not-allowed;background:#f7931a08;position:relative;opacity:.9">';
+    // MEXC — Active & selectable
+    var mxSel = currentExchange === 'mexc';
+    html += '<div id="ct-ex-mexc" onclick="window._ctSelectExchange(\'mexc\')" style="border:2px solid ' + (mxSel ? '#2d6cdf' : 'var(--border)') + ';border-radius:10px;padding:14px 16px;cursor:pointer;background:' + (mxSel ? '#2d6cdf12' : 'var(--bg)') + ';position:relative;transition:all .2s">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+    html += '<img src="https://cryptologos.cc/logos/mexc-global-logo.png" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
+    html += '<span style="font-size:13px;font-weight:800">MEXC</span></div>';
+    html += '<div style="font-size:10px;color:var(--text-dim)">Futures · USDT-M</div>';
+    html += '<div style="position:absolute;top:8px;right:8px;background:#2d6cdf;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:.05em">ACTIVE</div>';
+    html += '</div>';
+
+    // Bybit — Coming soon
+    html += '<div style="border:2px solid #f7931a55;border-radius:10px;padding:14px 16px;cursor:not-allowed;background:#f7931a08;position:relative;opacity:.65">';
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
     html += '<img src="https://cryptologos.cc/logos/bybit-logo.png" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
     html += '<span style="font-size:13px;font-weight:800">Bybit</span></div>';
     html += '<div style="font-size:10px;color:var(--text-dim)">Futures · USDT-M</div>';
-    html += '<div style="position:absolute;top:8px;right:8px;background:#f7931a;color:#000;font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:.05em">THIS WEEK</div>';
-    html += '</div>';
-
-    // KuCoin — Beta this week
-    html += '<div style="border:2px solid #00c85355;border-radius:10px;padding:14px 16px;cursor:not-allowed;background:#00c85308;position:relative;opacity:.9">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-    html += '<img src="https://cryptologos.cc/logos/kucoin-kcs-logo.png" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
-    html += '<span style="font-size:13px;font-weight:800">KuCoin</span></div>';
-    html += '<div style="font-size:10px;color:var(--text-dim)">Futures · USDT-M</div>';
-    html += '<div style="position:absolute;top:8px;right:8px;background:#00c853;color:#000;font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:.05em">THIS WEEK</div>';
+    html += '<div style="position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.05em">SOON</div>';
     html += '</div>';
 
     // OKX — Coming soon
@@ -196,17 +239,8 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += '<div style="position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.05em">Q3</div>';
     html += '</div>';
 
-    // Gate.io — Coming soon
-    html += '<div style="border:2px solid var(--border);border-radius:10px;padding:14px 16px;cursor:not-allowed;background:var(--bg);position:relative;opacity:.55">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-    html += '<span style="font-size:18px">🔷</span>';
-    html += '<span style="font-size:13px;font-weight:800">Gate.io</span></div>';
-    html += '<div style="font-size:10px;color:var(--text-dim)">Futures · USDT-M</div>';
-    html += '<div style="position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.05em">Q3</div>';
     html += '</div>';
-
-    html += '</div>';
-    html += '<div style="margin-top:10px;font-size:11px;color:var(--text-dim)">🔥 <strong style="color:#f7931a">Bybit</strong> and <strong style="color:#00c853">KuCoin</strong> integrations are in final testing — launching this week. Configure your Binance account now while you wait.</div>';
+    html += '<div style="margin-top:10px;font-size:11px;color:var(--text-dim)">Select <strong style="color:#00c9a7">All Exchanges</strong> to copy-trade on both, or pick a single exchange. API keys needed for each.</div>';
     html += '</div>';
 
     // ── Status Bar ──────────────────────────────────────────────
@@ -239,10 +273,10 @@ function renderCopyTrading(cfg, stats, trades, bal) {
         var bg          = urgent ? '#1a0a0a' : '#1a1200';
         var title = urgent
             ? 'API key is older than 180 days'
-            : 'Consider rotating your Binance API key';
+            : 'Consider rotating your ' + (currentExchange === 'mexc' ? 'MEXC' : 'Binance') + ' API key';
         var body = urgent
             ? 'For account hygiene, generate a fresh Futures-only key (no withdrawal permission) and replace the one in use. Your existing key still works — this is a recommendation, not a forced expiry.'
-            : 'Your Binance API key is ' + ageDays + ' days old. Best practice is to rotate keys every 90–180 days. Generate a new Futures-only key and paste it below when convenient.';
+            : 'Your ' + (currentExchange === 'mexc' ? 'MEXC' : 'Binance') + ' API key is ' + ageDays + ' days old. Best practice is to rotate keys every 90–180 days. Generate a new Futures-only key and paste it below when convenient.';
         html += '<div style="display:flex;gap:14px;align-items:flex-start;background:' + bg + ';border:1.5px solid ' + borderColor + ';border-radius:12px;padding:16px 20px;margin-bottom:16px">';
         html += '<div style="font-size:24px;flex-shrink:0;line-height:1">🔑</div>';
         html += '<div style="flex:1">';
@@ -251,8 +285,8 @@ function renderCopyTrading(cfg, stats, trades, bal) {
         html += '</div></div>';
     }
 
-    // ── TradFi Agreement Warning ─────────────────────────────────
-    var showTradFi = cfg && cfg.has_tradefi_errors && !cfg.tradefi_signed;
+    // ── TradFi Agreement Warning (Binance only) ───────────────────
+    var showTradFi = currentExchange === 'binance' && cfg && cfg.has_tradefi_errors && !cfg.tradefi_signed;
     if (showTradFi) {
         html += '<div id="ct-tradefi-banner" style="display:flex;gap:14px;align-items:flex-start;background:#1a1200;border:1.5px solid #f0b429;border-radius:12px;padding:18px 20px;margin-bottom:16px">';
         html += '<div style="font-size:28px;flex-shrink:0;line-height:1">⚠️</div>';
@@ -294,6 +328,34 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += _ctCard('Best / Worst', hasTrades ? ('+$' + Math.abs(stats.best_trade_usd||0).toFixed(0) + ' / -$' + Math.abs(stats.worst_trade_usd||0).toFixed(0)) : '—', 'Single trade extremes', 'var(--text-dim)');
     html += '</div>';
 
+    // ── Per-Exchange Stats (only when 'both' selected) ──────────
+    if (currentExchange === 'both' && stats.per_exchange) {
+        var _pexStats = function(label, icon, color, borderColor, s) {
+            var ht = s.total > 0;
+            var p = s.total_pnl_usd || 0;
+            var w = s.win_rate || 0;
+            var pf = ht ? (s.profit_factor === 999 ? '∞' : (s.profit_factor||0).toFixed(2)) : '—';
+            var roi = ht ? _fmtPct(s.roi_pct||0) : '—';
+            var h = '<div style="background:var(--surface);border:1.5px solid ' + borderColor + ';border-radius:12px;padding:16px 18px">';
+            h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">';
+            h += '<img src="' + icon + '" style="width:18px;height:18px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
+            h += '<span style="font-size:13px;font-weight:800;color:' + color + '">' + label + '</span>';
+            h += '<span style="font-size:10px;color:var(--text-dim);margin-left:auto">' + (s.open||0) + ' open / ' + (s.total||0) + ' total</span>';
+            h += '</div>';
+            h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">';
+            h += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">TOTAL PnL</div><div style="font-size:15px;font-weight:800;color:' + _pnlColor(p) + '">' + _fmtUsd(p) + '</div></div>';
+            h += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">WIN RATE</div><div style="font-size:15px;font-weight:800;color:' + (w >= 55 ? 'var(--green)' : w >= 45 ? 'var(--gold)' : 'var(--red)') + '">' + w + '%</div></div>';
+            h += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">PROFIT FACTOR</div><div style="font-size:15px;font-weight:800;color:' + ((s.profit_factor||0) >= 1.5 ? 'var(--green)' : 'var(--text-dim)') + '">' + pf + '</div></div>';
+            h += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">ROI</div><div style="font-size:15px;font-weight:800;color:' + _pnlColor(s.roi_pct||0) + '">' + roi + '</div></div>';
+            h += '</div></div>';
+            return h;
+        };
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+        html += _pexStats('Binance', 'https://cryptologos.cc/logos/binance-bnb-logo.png', 'var(--gold)', '#f0b42944', stats.per_exchange.binance || {});
+        html += _pexStats('MEXC', 'https://cryptologos.cc/logos/mexc-global-logo.png', '#5b9cf5', '#2d6cdf44', stats.per_exchange.mexc || {});
+        html += '</div>';
+    }
+
     // ── Balance Row ─────────────────────────────────────────────
     var hasBalance = bal && !bal.error;
     var totalBal = hasBalance ? bal.balance_usdt : null;
@@ -306,7 +368,7 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     // TradFi agreement unsigned, timeout, etc.) — instead of silent dashes.
     if (bal && bal.error && hasKeys) {
         var ec = bal.error_code || 'unknown';
-        var hint = bal.error || 'Binance API call failed.';
+        var hint = bal.error || (currentExchange === 'mexc' ? 'MEXC API call failed.' : 'Binance API call failed.');
         var detail = bal.error_detail || '';
         var emoji = ({
             invalid_key_or_ip: '🔑', bad_key_format: '🔑', bad_signature: '🔏',
@@ -316,7 +378,7 @@ function renderCopyTrading(cfg, stats, trades, bal) {
         html += '<div style="display:flex;gap:12px;align-items:flex-start;background:#1a0e0e;border:1px solid #dc262666;border-radius:12px;padding:14px 18px;margin-bottom:12px">';
         html += '<div style="font-size:22px;line-height:1;flex-shrink:0">' + emoji + '</div>';
         html += '<div style="flex:1;min-width:0">';
-        html += '<div style="font-size:13px;font-weight:800;color:#fca5a5;margin-bottom:4px;letter-spacing:.02em">Live Binance balance unavailable <span style="color:#6b7280;font-weight:500;font-family:monospace;font-size:11px;margin-left:6px">[' + ec + ']</span></div>';
+        html += '<div style="font-size:13px;font-weight:800;color:#fca5a5;margin-bottom:4px;letter-spacing:.02em">Live ' + (currentExchange === 'mexc' ? 'MEXC' : 'Binance') + ' balance unavailable <span style="color:#6b7280;font-weight:500;font-family:monospace;font-size:11px;margin-left:6px">[' + ec + ']</span></div>';
         html += '<div style="font-size:12px;color:#e5a5a5;line-height:1.55">' + hint + '</div>';
         if (detail && detail !== hint) {
             html += '<details style="margin-top:6px"><summary style="font-size:11px;color:#6b7280;cursor:pointer">Raw error (for support)</summary><div style="font-family:monospace;font-size:11px;color:#9a6060;margin-top:4px;word-break:break-all">' + detail + '</div></details>';
@@ -325,12 +387,12 @@ function renderCopyTrading(cfg, stats, trades, bal) {
         html += '</div></div>';
     }
 
-    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px" id="ct-balance-row">';
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:' + (currentExchange === 'both' ? '12' : '20') + 'px" id="ct-balance-row">';
     // Futures Balance card (with refresh button)
     html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative">';
-    html += '<div style="font-size:10px;font-weight:600;color:var(--text-dim);letter-spacing:.07em;margin-bottom:6px">FUTURES BALANCE</div>';
+    html += '<div style="font-size:10px;font-weight:600;color:var(--text-dim);letter-spacing:.07em;margin-bottom:6px">' + (currentExchange === 'both' ? 'TOTAL FUTURES BALANCE' : 'FUTURES BALANCE') + '</div>';
     html += '<div style="font-size:20px;font-weight:800;color:var(--gold);line-height:1.1" id="ct-bal-total">' + (hasBalance ? '$' + totalBal.toFixed(2) : '—') + '</div>';
-    html += '<div style="font-size:11px;color:var(--text-dim);margin-top:4px">Total USDT in account</div>';
+    html += '<div style="font-size:11px;color:var(--text-dim);margin-top:4px">' + (currentExchange === 'both' ? 'Binance + MEXC combined' : 'Total USDT in account') + '</div>';
     html += '<button onclick="refreshCTBalance()" title="Refresh" style="position:absolute;top:10px;right:10px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px">⟳</button>';
     html += '</div>';
     // Available Balance
@@ -352,9 +414,56 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += '<div style="font-size:10px;font-weight:600;color:var(--text-dim);letter-spacing:.07em;margin-bottom:6px">UNREALIZED PnL</div>';
     html += '<div style="font-size:20px;font-weight:800;color:' + (hasBalance ? _pnlColor(unrealPnl) : 'var(--text-dim)') + ';line-height:1.1" id="ct-bal-unrealized">' + (hasBalance ? _fmtUsd(unrealPnl) : '—') + '</div>';
     html += '<div style="font-size:12px;font-weight:700;margin-top:2px;color:' + (hasBalance ? _pnlColor(unrealPct) : 'var(--text-dim)') + '" id="ct-bal-unrealized-pct">' + unrealPctStr + '</div>';
-    html += '<div style="margin-top:6px"><a href="https://www.binance.com/en/my/wallet/account/futures" target="_blank" rel="noopener" style="font-size:11px;color:var(--gold);text-decoration:none;font-weight:600">+ Add Funds → Binance Futures</a></div>';
+    if (currentExchange === 'both') {
+        html += '<div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">';
+        html += '<a href="https://www.binance.com/en/my/wallet/account/futures" target="_blank" rel="noopener" style="font-size:11px;color:var(--gold);text-decoration:none;font-weight:600">+ Binance Futures</a>';
+        html += '<a href="https://futures.mexc.com/exchange" target="_blank" rel="noopener" style="font-size:11px;color:#5b9cf5;text-decoration:none;font-weight:600">+ MEXC Futures</a>';
+        html += '</div>';
+    } else {
+        var _addFundsUrl = currentExchange === 'mexc' ? 'https://futures.mexc.com/exchange' : 'https://www.binance.com/en/my/wallet/account/futures';
+        var _addFundsLabel = currentExchange === 'mexc' ? '+ Add Funds → MEXC Futures' : '+ Add Funds → Binance Futures';
+        html += '<div style="margin-top:6px"><a href="' + _addFundsUrl + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--gold);text-decoration:none;font-weight:600">' + _addFundsLabel + '</a></div>';
+    }
     html += '</div>';
     html += '</div>';
+
+    // ── Per-Exchange Breakdown (only when 'both' selected) ──────
+    if (currentExchange === 'both') {
+        var perEx = (bal && bal.per_exchange) || {};
+        var bnData = perEx.binance || {};
+        var mxData = perEx.mexc || {};
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px" id="ct-per-exchange-row">';
+
+        // Binance panel
+        html += '<div style="background:var(--surface);border:1.5px solid #f0b42944;border-radius:12px;padding:16px 18px">';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">';
+        html += '<img src="https://cryptologos.cc/logos/binance-bnb-logo.png" style="width:18px;height:18px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
+        html += '<span style="font-size:13px;font-weight:800;color:var(--gold)">Binance</span>';
+        if (bnData.error) html += '<span style="font-size:9px;color:var(--red);margin-left:auto">⚠ Error</span>';
+        html += '</div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+        html += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">BALANCE</div><div style="font-size:15px;font-weight:800;color:var(--gold)" id="ct-pex-bn-bal">$' + (bnData.balance_usdt || 0).toFixed(2) + '</div></div>';
+        html += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">AVAILABLE</div><div style="font-size:15px;font-weight:800;color:var(--green)" id="ct-pex-bn-avail">$' + (bnData.available_usdt || 0).toFixed(2) + '</div></div>';
+        html += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">INVESTED</div><div style="font-size:15px;font-weight:800;color:var(--text)" id="ct-pex-bn-inv">$' + (bnData.total_invested_usd || 0).toFixed(2) + '</div></div>';
+        html += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">UNREAL. PnL</div><div style="font-size:15px;font-weight:800;color:' + _pnlColor(bnData.unrealized_pnl || 0) + '" id="ct-pex-bn-pnl">' + _fmtUsd(bnData.unrealized_pnl || 0) + '</div></div>';
+        html += '</div></div>';
+
+        // MEXC panel
+        html += '<div style="background:var(--surface);border:1.5px solid #2d6cdf44;border-radius:12px;padding:16px 18px">';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">';
+        html += '<img src="https://cryptologos.cc/logos/mexc-global-logo.png" style="width:18px;height:18px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
+        html += '<span style="font-size:13px;font-weight:800;color:#5b9cf5">MEXC</span>';
+        if (mxData.error) html += '<span style="font-size:9px;color:var(--red);margin-left:auto">⚠ Error</span>';
+        html += '</div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+        html += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">BALANCE</div><div style="font-size:15px;font-weight:800;color:#5b9cf5" id="ct-pex-mx-bal">$' + (mxData.balance_usdt || 0).toFixed(2) + '</div></div>';
+        html += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">AVAILABLE</div><div style="font-size:15px;font-weight:800;color:var(--green)" id="ct-pex-mx-avail">$' + (mxData.available_usdt || 0).toFixed(2) + '</div></div>';
+        html += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">INVESTED</div><div style="font-size:15px;font-weight:800;color:var(--text)" id="ct-pex-mx-inv">$' + (mxData.total_invested_usd || 0).toFixed(2) + '</div></div>';
+        html += '<div><div style="font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-bottom:3px">UNREAL. PnL</div><div style="font-size:15px;font-weight:800;color:' + _pnlColor(mxData.unrealized_pnl || 0) + '" id="ct-pex-mx-pnl">' + _fmtUsd(mxData.unrealized_pnl || 0) + '</div></div>';
+        html += '</div></div>';
+
+        html += '</div>';
+    }
 
     // ── PnL Sparkline (last 20 closed trades) ──────────────────
     var closed = trades.filter(function(t) { return t.status === 'closed' && t.pnl_usd != null; }).slice(0, 20);
@@ -424,14 +533,14 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += '</div>';
     html += '</div>';
 
-    // ── IP Whitelist Setup Guide ──────────────────────────────────
+    // ── IP Whitelist / API Setup Guide (exchange-conditional) ─────
+    if (currentExchange === 'binance') {
     html += '<div style="background:var(--surface);border:2px solid var(--green);border-radius:12px;padding:20px;margin-bottom:16px">';
     html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">';
     html += '<span style="font-size:22px;flex-shrink:0">🛡️</span>';
     html += '<div><div style="font-size:14px;font-weight:800;color:var(--green)">Step 1 — Whitelist This Server\'s IP on Your Binance API Key</div>';
     html += '<div style="font-size:11px;color:var(--text-dim);margin-top:2px">Copy-trading calls Binance <strong>directly from our server</strong> using your API key. Binance requires the server\'s IP to be whitelisted — otherwise every trade will fail with <code style="background:var(--bg);padding:1px 5px;border-radius:3px;color:var(--red)">-2015 Invalid API key</code>.</div>';
     html += '</div></div>';
-
     // IP display row
     html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
     html += '<div style="font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:.06em;white-space:nowrap">SERVER IP TO WHITELIST:</div>';
@@ -442,7 +551,6 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += '<button onclick="copyServerIP()" title="Copy IP to clipboard" style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:var(--green);border:none;color:#fff;white-space:nowrap" id="ct-copy-ip-btn">📋 Copy IP</button>';
     html += '<button onclick="refreshServerIP()" title="Refresh IP (runs every 30 min automatically)" style="padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:1.5px solid var(--green);color:var(--green);white-space:nowrap" id="ct-refresh-ip-btn">⟳ Refresh</button>';
     html += '</div>';
-
     // Step-by-step guide
     html += '<div style="background:var(--bg);border-radius:8px;padding:14px 16px;margin-bottom:14px">';
     html += '<div style="font-size:11px;font-weight:700;color:var(--green);letter-spacing:.07em;margin-bottom:10px">HOW TO WHITELIST ON BINANCE:</div>';
@@ -455,7 +563,6 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += '<li>Confirm via email 2FA, then copy your <strong>API Key</strong> and <strong>Secret Key</strong> below</li>';
     html += '</ol>';
     html += '</div>';
-
     // Dynamic IP warning
     html += '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--gold);border-radius:8px;padding:10px 14px">';
     html += '<span style="font-size:16px;flex-shrink:0">⚠️</span>';
@@ -464,10 +571,53 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += 'The IP is automatically refreshed every 30 minutes.</div>';
     html += '</div>';
     html += '</div>';
+    } else if (currentExchange === 'mexc') {
+    // MEXC setup guide — IP whitelist optional but recommended
+    html += '<div style="background:var(--surface);border:2px solid #2d6cdf;border-radius:12px;padding:20px;margin-bottom:16px">';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">';
+    html += '<span style="font-size:22px;flex-shrink:0">🔑</span>';
+    html += '<div><div style="font-size:14px;font-weight:800;color:#2d6cdf">Step 1 — Create Your MEXC Futures API Key</div>';
+    html += '<div style="font-size:11px;color:var(--text-dim);margin-top:2px">IP whitelisting is <strong>optional</strong> on MEXC, but recommended — keys without a linked IP expire after 90 days.</div>';
+    html += '</div></div>';
+    // Server IP for optional whitelisting
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
+    html += '<div style="font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:.06em;white-space:nowrap">SERVER IP (for Link IP Address field):</div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1.5px solid #2d6cdf;border-radius:8px;padding:8px 14px;flex:1;min-width:200px">';
+    html += '<code id="ct-server-ip" style="font-size:15px;font-weight:700;color:#2d6cdf;letter-spacing:.05em;font-family:monospace">Fetching…</code>';
+    html += '<span id="ct-server-ip-stale" style="display:none;font-size:10px;color:var(--gold);background:var(--bg);border:1px solid var(--gold);padding:2px 6px;border-radius:4px">⚠ stale</span>';
+    html += '</div>';
+    html += '<button onclick="copyServerIP()" title="Copy IP to clipboard" style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:#2d6cdf;border:none;color:#fff;white-space:nowrap" id="ct-copy-ip-btn">📋 Copy IP</button>';
+    html += '<button onclick="refreshServerIP()" title="Refresh IP" style="padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:1.5px solid #2d6cdf;color:#2d6cdf;white-space:nowrap" id="ct-refresh-ip-btn">⟳ Refresh</button>';
+    html += '</div>';
+    // Step-by-step guide
+    html += '<div style="background:var(--bg);border-radius:8px;padding:14px 16px;margin-bottom:14px">';
+    html += '<div style="font-size:11px;font-weight:700;color:#2d6cdf;letter-spacing:.07em;margin-bottom:10px">HOW TO SET UP ON MEXC:</div>';
+    html += '<ol style="margin:0;padding-left:20px;color:var(--text);font-size:12px;line-height:2.0">';
+    html += '<li>Go to <a href="https://www.mexc.com/user/openapi" target="_blank" rel="noopener" style="color:#2d6cdf;font-weight:600">MEXC → API Management</a></li>';
+    html += '<li>Click <strong>Create New API Key</strong> → complete 2FA verification</li>';
+    html += '<li>Under <strong>Futures</strong> — enable <strong style="color:#2d6cdf">✓ View Account Details</strong>, <strong style="color:#2d6cdf">✓ View Order Details</strong>, and <strong style="color:#2d6cdf">✓ Order Placing</strong><br><span style="color:var(--red);font-size:11px">⚠ Do NOT enable Spot Trade, Withdraw, or Transfer — they will be rejected by our system</span></li>';
+    html += '<li>In the <strong>Notes</strong> field, enter any label (e.g. "copy-trading")</li>';
+    html += '<li>In <strong>Link IP Address</strong> (optional), paste the server IP shown above for extra security</li>';
+    html += '<li>Click <strong>Create</strong>, then copy your <strong>Access Key</strong> and <strong>Secret Key</strong> below</li>';
+    html += '</ol>';
+    html += '</div>';
+    // 90-day warning
+    html += '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--gold);border-radius:8px;padding:10px 14px">';
+    html += '<span style="font-size:16px;flex-shrink:0">⚠️</span>';
+    html += '<div style="font-size:11px;color:var(--text-dim)"><strong style="color:var(--gold)">90-Day Expiry:</strong> MEXC API keys without a linked IP address expire after 90 days. ';
+    html += 'We recommend pasting the server IP above into the <strong>Link IP Address</strong> field when creating your key to avoid expiry. ';
+    html += 'If the server IP changes, update it in MEXC API settings.</div>';
+    html += '</div>';
+    html += '</div>';
+    }
 
     // ── API Keys + Risk Settings ────────────────────────────────
     html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px">';
-    html += '<div style="font-size:13px;font-weight:700;margin-bottom:4px">🔑 Binance API Keys</div>';
+    var keyPanelExchangeName = currentExchange === 'mexc' ? 'MEXC' : (currentExchange === 'binance' ? 'Binance' : 'Per-Exchange');
+    html += '<div style="font-size:13px;font-weight:700;margin-bottom:4px">🔑 ' + keyPanelExchangeName + ' API Keys</div>';
+    if (currentExchange === 'both') {
+        html += '<div style="margin-bottom:12px;padding:10px 12px;border:1px solid #00c9a755;background:#00c9a712;border-radius:8px;font-size:12px;color:var(--text)">API keys are saved separately. Select <strong>Binance</strong> or <strong>MEXC</strong> above before adding/updating keys.</div>';
+    }
     html += '<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px">Encrypted at rest (AES-256). <span style="color:var(--gold)">Required:</span> Futures trading permission. <span style="color:var(--red)">Forbidden:</span> Withdrawal / Transfer (rejected for security).</div>';
     html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
     html += _ctInput('ct-api-key', 'text', 'API Key', '', 'monospace');
@@ -522,7 +672,7 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     var _lmDefs = [
         ['auto',     '\ud83e\udd16', 'Automatic', 'Signal leverage, capped at your max'],
         ['fixed',    '\ud83d\udd12', 'Fixed',     'Always use your exact set leverage'],
-        ['max_pair', '\ud83d\udd1d', 'Pair Max',  'Binance maximum for each pair (e.g. 125\xd7)'],
+        ['max_pair', '\ud83d\udd1d', 'Pair Max',  (currentExchange === 'mexc' ? 'MEXC' : 'Binance') + ' maximum for each pair (e.g. 125\xd7)'],
     ];
     _lmDefs.forEach(function(_lm) {
         var _sel = _lm[0] === leverageMode;
@@ -612,7 +762,7 @@ function renderCopyTrading(cfg, stats, trades, bal) {
     html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
     html += '<div style="font-size:13px;font-weight:700">📋 Trade History</div>';
-    html += '<button onclick="ctRecalcPnl()" title="Recompute realized PnL for every closed trade (last 90 days) — pulls USD from Binance income history and derives ROI% from the leverage actually used" ' +
+    html += '<button onclick="ctRecalcPnl()" title="Recompute realized PnL for every closed trade (last 90 days) — pulls USD from exchange income history and derives ROI% from the leverage actually used" ' +
             'style="padding:4px 12px;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;' +
             'background:transparent;border:1px solid var(--border);color:var(--text-dim)">⟳ Recalculate PnL</button>';
     html += '</div>';
@@ -853,11 +1003,20 @@ function _ctVal(id, fb) { var e = _ctGetEl(id); return e ? e.value : fb; }
 async function saveCopyTradingKeys() {
     var apiKey = _ctVal('ct-api-key', '').trim();
     var apiSecret = _ctVal('ct-api-secret', '').trim();
+    var keyExchange = window._ctSelectedExchange || 'binance';
+    if (keyExchange !== 'binance' && keyExchange !== 'mexc') {
+        alert('API keys are saved per exchange. Select Binance or MEXC first, then paste that exchange API Key + Secret.');
+        return;
+    }
     if (!apiKey || !apiSecret) {
         // Keys blank but config already exists — just save settings
         var hasCfg = !!document.querySelector('[onclick="deleteCopyTradingKeys()"]');
         if (hasCfg) { return saveCopyTradingSettings(); }
         alert('Enter both API Key and API Secret.');
+        return;
+    }
+    if (apiKey.length < 20 || apiSecret.length < 20) {
+        alert('Invalid API key format. Paste the full exchange API/Access Key and Secret Key — not your exchange email, password, or 2FA code.');
         return;
     }
     var body = {
@@ -874,6 +1033,7 @@ async function saveCopyTradingKeys() {
         fixed_size_usd:   parseFloat(_ctVal('ct-fixed-size-usd', 5.0)) || 5.0,
         leverage_mode:    _ctVal('ct-leverage-mode', 'auto'),
         copy_experimental: (_ctGetEl('ct-copy-experimental') || {}).checked || false,
+        exchange:         keyExchange,
     };
     try {
         var res = await fetch('/api/copy-trading/keys', {
@@ -930,6 +1090,7 @@ async function saveCopyTradingSettings() {
         fixed_size_usd:   parseFloat(_ctVal('ct-fixed-size-usd', 5.0)) || 5.0,
         leverage_mode:    _ctVal('ct-leverage-mode', 'auto'),
         copy_experimental: (_ctGetEl('ct-copy-experimental') || {}).checked || false,
+        exchange:         window._ctSelectedExchange || 'binance',
     };
     try {
         var res = await fetch('/api/copy-trading/settings', {
@@ -940,6 +1101,7 @@ async function saveCopyTradingSettings() {
         var data = await res.json();
         if (data.error) { alert(data.error); return; }
         await saveCopyTradingFilters();
+        alert('✅ Settings saved.');
         loadCopyTradingPage();
     } catch(e) { alert('Failed to save settings.'); }
 }
@@ -950,7 +1112,8 @@ async function refreshCTBalance() {
     var btn = document.querySelector('[onclick="refreshCTBalance()"]');
     if (btn) btn.style.opacity = '0.4';
     try {
-        var res = await fetch('/api/copy-trading/balance', { headers: authHeaders() });
+        var _exQBal = window._ctSelectedExchange ? '?exchange=' + window._ctSelectedExchange : '';
+        var res = await fetch('/api/copy-trading/balance' + _exQBal, { headers: authHeaders() });
         var data = res.ok ? await res.json() : null;
         if (data && !data.error) {
             var el = document.getElementById('ct-bal-total');
@@ -968,8 +1131,28 @@ async function refreshCTBalance() {
             }
             if (el4 && data.total_invested_usd !== undefined) el4.textContent = '$' + data.total_invested_usd.toFixed(2);
 
+            // ── Per-exchange breakdown (multi-exchange mode) ─────
+            if (data.per_exchange) {
+                var bn = data.per_exchange.binance || {};
+                var mx = data.per_exchange.mexc || {};
+                var _pexSet = function(id, val, col) {
+                    var e = document.getElementById(id);
+                    if (e) { e.textContent = '$' + (val || 0).toFixed(2); if (col) e.style.color = col; }
+                };
+                _pexSet('ct-pex-bn-bal', bn.balance_usdt, 'var(--gold)');
+                _pexSet('ct-pex-bn-avail', bn.available_usdt, 'var(--green)');
+                _pexSet('ct-pex-bn-inv', bn.total_invested_usd);
+                var bnPnlEl = document.getElementById('ct-pex-bn-pnl');
+                if (bnPnlEl) { bnPnlEl.textContent = _fmtUsd(bn.unrealized_pnl || 0); bnPnlEl.style.color = _pnlColor(bn.unrealized_pnl || 0); }
+                _pexSet('ct-pex-mx-bal', mx.balance_usdt, '#5b9cf5');
+                _pexSet('ct-pex-mx-avail', mx.available_usdt, 'var(--green)');
+                _pexSet('ct-pex-mx-inv', mx.total_invested_usd);
+                var mxPnlEl = document.getElementById('ct-pex-mx-pnl');
+                if (mxPnlEl) { mxPnlEl.textContent = _fmtUsd(mx.unrealized_pnl || 0); mxPnlEl.style.color = _pnlColor(mx.unrealized_pnl || 0); }
+            }
+
             // Live-patch every open-trade row with fresh per-position PnL
-            // straight from Binance — no re-render, no lost sort state.
+            // straight from exchange — no re-render, no lost sort state.
             _ctPatchOpenRows(data.positions || {});
         }
     } catch(e) {}
@@ -977,9 +1160,8 @@ async function refreshCTBalance() {
 }
 
 // Update PnL $ / PnL % cells in-place for every open-trade row. The values
-// come straight from Binance's futures_account() positions array, so they
-// already reflect leverage (Binance computes unrealizedProfit and ROI%
-// exactly the same way for open & closed positions).
+// come straight from the exchange positions array, so they already reflect
+// leverage (unrealizedProfit and ROI% computed the same way).
 function _ctPatchOpenRows(positions) {
     var rows = document.querySelectorAll('tr[data-ct-open="1"]');
     rows.forEach(function(row) {
@@ -990,7 +1172,7 @@ function _ctPatchOpenRows(positions) {
         if (!usdCell || !pctCell) return;
 
         if (!p) {
-            // Position no longer on Binance (closed externally or not yet
+            // Position no longer on exchange (closed externally or not yet
             // filled). Show a neutral placeholder rather than stale data.
             usdCell.innerHTML = '<span style="color:var(--text-dim);font-weight:700">—</span>' +
                 '<div style="font-size:9px;color:var(--text-dim);margin-top:1px;letter-spacing:.04em">NO POSITION</div>';
@@ -1208,7 +1390,8 @@ async function ctMarkTradefiSigned() {
 }
 
 async function deleteCopyTradingKeys() {
-    if (!confirm('Delete your Binance API keys and all copy-trading configuration?\n\nThis cannot be undone. Active positions on Binance will NOT be closed automatically.')) return;
+    var _exName = (window._ctSelectedExchange === 'mexc') ? 'MEXC' : 'Binance';
+    if (!confirm('Delete your ' + _exName + ' API keys and all copy-trading configuration?\n\nThis cannot be undone. Active positions on ' + _exName + ' will NOT be closed automatically.')) return;
     try {
         var res = await fetch('/api/copy-trading/keys', {
             method: 'DELETE', headers: authHeaders()
