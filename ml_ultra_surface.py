@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -44,37 +45,57 @@ _MODEL_DIR = Path(os.environ.get(
 _CLASS_NAMES = ("SHORT", "NEUTRAL", "LONG")
 
 _cache = {"xgb": None, "xgb_mtime": None, "feat_cols": None, "scaler": None}
+_model_lock = threading.Lock()
 
 
 def _ensure_model():
+    """Thread-safe singleton loader for the XGBoost booster and companions.
+
+    Guards against the race where a concurrent autotrainer overwrites
+    ``xgboost_best.json`` while ``booster.load_model()`` is reading it —
+    which would produce a SIGABRT / partial-binary crash in the ASGI process.
+    """
     xgb_path = _MODEL_DIR / "xgboost_best.json"
     if not xgb_path.exists():
         return None
     mtime = xgb_path.stat().st_mtime
+
+    # Fast path: model already loaded and file hasn't changed.
     if _cache["xgb"] is not None and _cache["xgb_mtime"] == mtime:
         return _cache
-    booster = xgb.Booster()
-    booster.load_model(str(xgb_path))
-    fcols = None
-    fcols_path = _MODEL_DIR / "xgboost_features.pkl"
-    if fcols_path.exists():
-        try:
-            fcols = joblib.load(fcols_path)
-        except Exception:
-            fcols = None
-    scaler = None
-    scaler_path = _MODEL_DIR / "scaler.pkl"
-    if scaler_path.exists():
-        try:
-            scaler = joblib.load(scaler_path)
-        except Exception:
-            scaler = None
-    _cache.update({
-        "xgb": booster,
-        "xgb_mtime": mtime,
-        "feat_cols": fcols,
-        "scaler": scaler,
-    })
+
+    with _model_lock:
+        # Double-check inside the lock — another thread may have loaded
+        # the model between the fast-path check and acquiring the lock.
+        _mtime_now = xgb_path.stat().st_mtime
+        if _cache["xgb"] is not None and _cache["xgb_mtime"] == _mtime_now:
+            return _cache
+
+        booster = xgb.Booster()
+        booster.load_model(str(xgb_path))
+
+        fcols = None
+        fcols_path = _MODEL_DIR / "xgboost_features.pkl"
+        if fcols_path.exists():
+            try:
+                fcols = joblib.load(fcols_path)
+            except Exception:
+                fcols = None
+
+        scaler = None
+        scaler_path = _MODEL_DIR / "scaler.pkl"
+        if scaler_path.exists():
+            try:
+                scaler = joblib.load(scaler_path)
+            except Exception:
+                scaler = None
+
+        _cache.update({
+            "xgb": booster,
+            "xgb_mtime": _mtime_now,
+            "feat_cols": fcols,
+            "scaler": scaler,
+        })
     return _cache
 
 

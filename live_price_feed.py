@@ -31,8 +31,21 @@ import json
 import time
 
 import websockets
+from typing import TypedDict, Optional
 
-from utils_logger import log_message
+from utils_logger import log_message, set_context
+
+class LivePriceDict(TypedDict):
+    mark: float
+    index: float
+    bid: float
+    ask: float
+    bid_qty: float
+    ask_qty: float
+    mid: float
+    spread_bps: float
+    mark_ts: float
+    book_ts: float
 
 
 # Binance split futures WS endpoints into /public and /market categories;
@@ -67,7 +80,7 @@ class LivePriceFeed:
 
     # ── public API ──────────────────────────────────────────────────────────
 
-    def get(self, pair: str, max_age_s: float = _DEFAULT_MAX_AGE):
+    def get(self, pair: str, max_age_s: float = _DEFAULT_MAX_AGE) -> Optional[LivePriceDict]:
         """Return merged live-price dict for `pair`, or None if unavailable / stale."""
         m = self._mark.get(pair)
         b = self._book.get(pair)
@@ -132,6 +145,7 @@ class LivePriceFeed:
         Cross-category subscriptions are no longer allowed on the new
         Binance futures WS endpoints, so markPrice and bookTicker run on
         separate connections."""
+        set_context("LIVE-FEED")
         self.running = True
         await asyncio.gather(
             self._run_one(_WS_MARKPRICE_URL,  "markPrice@arr@1s"),
@@ -141,6 +155,7 @@ class LivePriceFeed:
 
     async def _run_one(self, url: str, label: str):
         """Run a single WS connection with reconnect/backoff."""
+        set_context(f"LIVE-WS:{label}")
         delay = _RECONNECT_BASE
         while self.running:
             try:

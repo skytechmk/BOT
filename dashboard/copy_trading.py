@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import time
+import json
 import base64
 import hashlib
 import sqlite3
@@ -43,6 +44,40 @@ if not log.handlers:
     log.addHandler(_fh)
     log.setLevel(logging.DEBUG)
     log.propagate = False
+
+# ── ML Confidence extraction helper ─────────────────────────────────────
+def _extract_ml_confidence_from_signal(features) -> Optional[float]:
+    """
+    Extract ML calibrated probability from the signal's feature snapshot.
+
+    The ``features`` dict contains ``ml_prob_short``, ``ml_prob_neutral``,
+    ``ml_prob_long`` — calibrated probabilities from ml_ultra_surface.py.
+
+    Returns a float 0.0–1.0 or None if ML data was never persisted.
+    """
+    if not features:
+        return None
+    if isinstance(features, str):
+        try:
+            features = json.loads(features)
+        except Exception:
+            return None
+    try:
+        probs = []
+        for k in ('ml_prob_long', 'ml_prob_short', 'ml_prob_neutral'):
+            v = features.get(k)
+            if v is not None:
+                probs.append(float(v))
+        if not probs:
+            return None
+        # Directional: if the signal's SQI direction is embedded in features,
+        # use that; otherwise fall back to max(probs) as directional confidence.
+        sqi_ml = features.get('sqi_ml_ensemble_val')
+        if sqi_ml is not None and abs(float(sqi_ml)) >= 3:
+            return float(max(probs))
+        return float(max(probs))
+    except (TypeError, ValueError):
+        return None
 
 # ── Signal registry path (absolute — shared with main bot) ─────────────
 _SIGNAL_DB_PATH = str(Path(__file__).resolve().parent.parent / "signal_registry.db")
@@ -278,7 +313,7 @@ DB_PATH = Path(__file__).parent / "users.db"
 
 
 def _get_db():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=15.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -568,7 +603,8 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
                   leverage_mode: str = 'auto', sl_mode: str = 'signal',
                   sl_pct: float = 3.0,
                   copy_experimental: bool = False,
-                  exchange: str = 'binance') -> Dict:
+                  exchange: str = 'binance',
+                  validation_result: Dict = None) -> Dict:
     """Encrypt and store exchange API credentials (Binance or MEXC)."""
     # Basic validation — explicit reject with error, no silent clamping.
     api_key = api_key.strip()
@@ -599,17 +635,20 @@ def save_api_keys(user_id: int, api_key: str, api_secret: str,
     if exchange not in ('binance', 'mexc'):
         return {"error": "exchange must be 'binance' or 'mexc'"}
 
-    # Validate key permissions (non-blocking: save keys even if validation fails)
-    if exchange == 'mexc':
-        from mexc_futures_client import MexcFuturesClient
-        validation = MexcFuturesClient(api_key, api_secret).validate_key()
+    # Use provided validation result or fall back to legacy check
+    if validation_result is not None:
+        validation = validation_result
     else:
-        validation = _validate_binance_key(api_key, api_secret)
-    # Hard-block ONLY on withdrawal permission — this is a security risk
-    if validation.get("error") and "withdrawal" in validation["error"].lower():
-        return validation
-    if validation.get("error") and "internal transfer" in validation["error"].lower():
-        return validation
+        if exchange == 'mexc':
+            from mexc_futures_client import MexcFuturesClient
+            validation = MexcFuturesClient(api_key, api_secret).validate_key()
+        else:
+            validation = _validate_binance_key(api_key, api_secret)
+        # Hard-block ONLY on withdrawal permission — this is a security risk
+        if validation.get("error") and "withdrawal" in validation["error"].lower():
+            return validation
+        if validation.get("error") and "internal transfer" in validation["error"].lower():
+            return validation
 
     now = time.time()
     conn = _get_db()
@@ -1680,20 +1719,23 @@ async def execute_copy_trades(signal_data: Dict):
     ).fetchall()
     conn.close()
 
+    # ── Bulk duplicate-signal check (O(1) per-user lookup) ────────────
+    # Fetch all existing (user_id, exchange) for this signal_id in ONE query
+    # instead of hitting the DB inside the user loop.
+    _dup_conn = _get_db()
+    _dup_rows = _dup_conn.execute(
+        "SELECT user_id, exchange FROM copy_trades "
+        "WHERE signal_id=? AND status NOT IN ('error')",
+        (signal_id,)
+    ).fetchall()
+    _dup_conn.close()
+    _executed_set: set = {(_r['user_id'], _r['exchange']) for _r in _dup_rows}
+
     results = []
     eligible = []
     for cfg in configs:
         cfg = dict(cfg)
         uid = cfg['user_id']
-
-        # Duplicate signal guard — skip if already executed (non-error)
-        # Exchange-aware: a 'both' user can execute the same signal on 2 exchanges
-        _dup_conn = _get_db()
-        _existing_exchanges = [r['exchange'] for r in _dup_conn.execute(
-            "SELECT exchange FROM copy_trades WHERE user_id=? AND signal_id=? AND status NOT IN ('error')",
-            (uid, signal_id)
-        ).fetchall()]
-        _dup_conn.close()
 
         # Must be Pro tier or higher (canonical: plus < pro <= ultra).
         # canonicalize_tier also tolerates legacy 'elite' values on stale JWTs.
@@ -1747,6 +1789,8 @@ async def execute_copy_trades(signal_data: Dict):
             _target_exchanges = ['binance']
 
         # Remove exchanges where this signal was already executed
+        _existing_exchanges = [ex for ex in _target_exchanges
+                               if (uid, ex) in _executed_set]
         if _existing_exchanges:
             _target_exchanges = [ex for ex in _target_exchanges if ex not in _existing_exchanges]
             if not _target_exchanges:
@@ -1821,6 +1865,42 @@ async def execute_copy_trades(signal_data: Dict):
     return results
 
 
+# ─── Circuit Breaker pre-flight checks ────────
+
+async def _check_circuit_breaker_async() -> bool:
+    """
+    Async circuit breaker check — reads from distributed Redis state.
+    Returns True if breaker is OPEN (trading halted), False if CLOSED.
+    """
+    try:
+        from dashboard.redis_cache import get_circuit_breaker
+        return await get_circuit_breaker()
+    except Exception as e:
+        log.warning(f"[copy_trading] Circuit breaker check failed (allowing entry): {e}")
+        return False
+
+
+def _check_circuit_breaker_sync() -> bool:
+    """
+    Synchronous circuit breaker check for thread-pool execution paths.
+    Reads directly from Redis using the same key as the async version.
+    Falls back to False (healthy) if Redis is unavailable.
+    """
+    try:
+        from dashboard.redis_cache import _REDIS, _KEY_PREFIX
+        if _REDIS is None:
+            return False
+        raw = _REDIS.get(f"{_KEY_PREFIX}circuit_breaker:trading")
+        if raw is None:
+            return False
+        import json
+        state = json.loads(raw)
+        return state.get("open", False)
+    except Exception as e:
+        log.warning(f"[copy_trading] Sync circuit breaker check failed (allowing entry): {e}")
+        return False
+
+
 def _execute_single_trade_sync(user_id: int, config: Dict, signal: Dict,
                                target_exchange: str = None) -> Dict:
     """Synchronous wrapper — runs in a thread pool via asyncio.to_thread."""
@@ -1830,12 +1910,32 @@ def _execute_single_trade_sync(user_id: int, config: Dict, signal: Dict,
 async def _execute_single_trade(user_id: int, config: Dict, signal: Dict,
                                 target_exchange: str = None) -> Dict:
     """Async wrapper kept for backward compatibility."""
+    breaker_open = await _check_circuit_breaker_async()
+    if breaker_open:
+        return _record_trade(
+            user_id, signal.get('signal_id', 'unknown'), signal.get('pair', 'UNKNOWN'),
+            signal.get('direction', 'UNKNOWN'), 0, 0, 0, 0, 'error',
+            error_msg='Circuit breaker OPEN — trade entry halted',
+            exchange=target_exchange or 'binance',
+        )
     return await asyncio.to_thread(_execute_single_trade_blocking, user_id, config, signal, target_exchange)
 
 
 def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict,
                                    target_exchange: str = None) -> Dict:
     """Execute a copy-trade for one user on a specific exchange (blocking)."""
+    # ── Circuit Breaker pre-flight check ──
+    if _check_circuit_breaker_sync():
+        exchange = target_exchange or _get_user_exchange(user_id)
+        if exchange == 'both':
+            exchange = 'binance'
+        return _record_trade(
+            user_id, signal.get('signal_id', 'unknown'), signal.get('pair', 'UNKNOWN'),
+            signal.get('direction', 'UNKNOWN'), 0, 0, 0, 0, 'error',
+            error_msg='Circuit breaker OPEN — trade entry halted',
+            exchange=exchange,
+        )
+
     # Determine which exchange to execute on
     exchange = target_exchange or _get_user_exchange(user_id)
     if exchange == 'both':
@@ -1977,6 +2077,10 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict,
             if config.get('scale_with_sqi', 1):
                 sqi_mult = 0.75 + (min(sqi_score, 167) / 167) * 0.5
                 size_usd = max(round(size_usd * sqi_mult, 2), 1.0)
+            # ── ML Confidence scaling (v2) ──
+            ml_conf = _extract_ml_confidence_from_signal(signal.get('features'))
+            if ml_conf is not None:
+                size_usd = max(round(size_usd * ml_conf, 2), 1.0)
         else:
             # Percentage-of-balance mode
             base_pct = config.get('size_pct', 2.0) / 100.0
@@ -1987,6 +2091,10 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict,
                 size_pct_calc = base_pct
             size_pct_calc = min(size_pct_calc, max_pct)
             size_usd = available * size_pct_calc
+            # ── ML Confidence scaling (v2) ──
+            ml_conf = _extract_ml_confidence_from_signal(signal.get('features'))
+            if ml_conf is not None:
+                size_usd = max(round(size_usd * ml_conf, 2), 1.0)
 
         # Guard against truly zero sizes — let the notional-bump logic handle small sizes
         if size_usd <= 0:
@@ -2088,9 +2196,20 @@ def _execute_single_trade_blocking(user_id: int, config: Dict, signal: Dict,
             # Leverage was clamped to pair max — recalculate notional + qty
             leverage = actual_leverage
             notional = size_usd * leverage
-            quantity = round(notional / entry_price, qty_precision)
+            
+            raw_qty = notional / entry_price
+            if step_size > 0:
+                import math as _math
+                quantity = _math.floor(raw_qty / step_size) * step_size
+                quantity = round(quantity, qty_precision)
+            else:
+                quantity = round(raw_qty, qty_precision)
+                
             if min_qty > 0 and quantity < min_qty:
-                quantity = round(min_qty, qty_precision)
+                if step_size > 0:
+                    quantity = round(_math.ceil(min_qty / step_size) * step_size, qty_precision)
+                else:
+                    quantity = round(min_qty, qty_precision)
                 size_usd = (quantity * entry_price) / leverage
 
         # Set margin type to CROSS — cached: only fires once per TTL
@@ -2379,6 +2498,9 @@ def _execute_single_trade_mexc(user_id: int, config: Dict, signal: Dict) -> Dict
             if config.get('scale_with_sqi', 1):
                 sqi_mult = 0.75 + (min(sqi_score, 167) / 167) * 0.5
                 size_usd = max(round(size_usd * sqi_mult, 2), 1.0)
+            ml_conf = _extract_ml_confidence_from_signal(signal.get('features'))
+            if ml_conf is not None:
+                size_usd = max(round(size_usd * ml_conf, 2), 1.0)
         else:
             base_pct = config.get('size_pct', 2.0) / 100.0
             if config.get('scale_with_sqi', 1):
@@ -2388,6 +2510,9 @@ def _execute_single_trade_mexc(user_id: int, config: Dict, signal: Dict) -> Dict
                 size_pct_calc = base_pct
             size_pct_calc = min(size_pct_calc, max_pct)
             size_usd = available * size_pct_calc
+            ml_conf = _extract_ml_confidence_from_signal(signal.get('features'))
+            if ml_conf is not None:
+                size_usd = max(round(size_usd * ml_conf, 2), 1.0)
 
         if size_usd <= 0:
             return _record_trade(user_id, signal_id, pair, direction, 0, 0,
@@ -2643,8 +2768,20 @@ def quick_entry_trade(
         if qe_exchange == 'mexc':
             entry_price = client.get_fair_price(pair)
         else:
-            mark_data = client.futures_mark_price(symbol=pair)
-            entry_price = float(mark_data.get('markPrice', 0))
+            try:
+                mark_data = client.futures_mark_price(symbol=pair)
+                entry_price = float(mark_data.get('markPrice', 0))
+            except Exception as e:
+                # Fallback to MEXC if user has 'both' and the pair isn't on Binance
+                if exchange == 'both' and '-1121' in str(e):
+                    qe_exchange = 'mexc'
+                    mexc_client = _get_futures_client(user_id, 'mexc')
+                    if not mexc_client:
+                        return {"error": "Failed to fallback to MEXC — check API keys"}
+                    entry_price = mexc_client.get_fair_price(pair)
+                else:
+                    raise e
+                    
         if entry_price <= 0:
             return {"error": f"Could not fetch mark price for {pair}"}
     except Exception as e:
@@ -2679,7 +2816,7 @@ def quick_entry_trade(
     log.info(f"[quick_entry] User {user_id} manual entry: {direction} {pair} "
              f"entry≈{entry_price} sl={sl_price} tps={tp_prices} lev={effective_leverage}x")
 
-    result = _execute_single_trade_blocking(user_id, cfg_override, synthetic_signal)
+    result = _execute_single_trade_blocking(user_id, cfg_override, synthetic_signal, target_exchange=qe_exchange)
     result['signal_id'] = signal_id
     result['entry_price_used'] = entry_price
     return result

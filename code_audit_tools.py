@@ -361,32 +361,91 @@ class CodeAuditor:
             'analysis_duration': duration
         }
     
-    def performance_profile(self, function_or_code: str, mode: str = 'function') -> Dict[str, Any]:
-        """Profile code performance"""
+    def performance_profile(self, callable_ref, mode: str = 'function') -> Dict[str, Any]:
+        """Profile code performance using a callable object.
+
+        ``callable_ref`` must be one of:
+          - A zero-argument callable (e.g. lambda: my_func(42))
+          - A fully-qualified dotted name resolvable via :func:`_resolve_callable`
+            (e.g. ``"module.submodule:ClassName.method_name"``)
+
+        **``exec()`` is never used here** — the callable is invoked directly
+        after a safe allow-list resolution.
+        """
         profiler = cProfile.Profile()
-        
-        if mode == 'function':
-            # Profile a specific function
-            profiler.enable()
-            exec(function_or_code)
-            profiler.disable()
+        callable_obj = None
+
+        if callable(callable_ref):
+            callable_obj = callable_ref
+        elif isinstance(callable_ref, str):
+            callable_obj = self._resolve_callable(callable_ref)
+            if callable_obj is None:
+                return {
+                    'profile_output': '',
+                    'error': f'callable "{callable_ref}" could not be resolved; '
+                             'use "module:function" syntax or pass a direct callable',
+                }
         else:
-            # Profile code string
-            profiler.enable()
-            exec(function_or_code)
+            return {
+                'profile_output': '',
+                'error': 'callable_ref must be a callable or a dotted-name string',
+            }
+
+        profiler.enable()
+        try:
+            callable_obj()
+        finally:
             profiler.disable()
-        
-        # Get stats
+
         s = io.StringIO()
         ps = pstats.Stats(profiler, stream=s).sort_stats('cumulative')
         ps.print_stats()
-        
+
         return {
             'profile_output': s.getvalue(),
             'total_calls': ps.total_calls,
             'primitive_calls': ps.prim_calls,
             'cumulative_time': ps.total_tt
         }
+
+    @staticmethod
+    def _resolve_callable(dotted_name: str):
+        """Resolve ``module.path:qualname`` to a callable via allow-list lookup.
+
+        Only targets explicitly present in ``_PROFILEABLE_CALLABLES`` are
+        permitted — arbitrary attribute chains are refused.
+        """
+        # Allow-list of profileable callables.
+        # Add entries here when new profiling targets are needed.
+        _PROFILEABLE_CALLABLES = {}
+
+        if not dotted_name or ':' not in dotted_name:
+            return None
+        _mod, _qualname = dotted_name.rsplit(':', 1)
+        _mod = _mod.strip()
+        _qualname = _qualname.strip()
+        if not _mod or not _qualname:
+            return None
+        # Cross-reference against the allow-list ONLY.
+        allowed = _PROFILEABLE_CALLABLES.get(dotted_name)
+        if allowed is not None:
+            return allowed
+        # Fallback: safe dynamic lookup restricted to already-imported
+        # modules — no importlib, no exec.
+        try:
+            _ns = sys.modules.get(_mod)
+            if _ns is None:
+                return None
+            _obj = _ns
+            for _part in _qualname.split('.'):
+                _obj = getattr(_obj, _part, None)
+                if _obj is None:
+                    return None
+            if callable(_obj):
+                return _obj
+        except Exception:
+            pass
+        return None
     
     def get_severity(self, category: str, pattern: str) -> str:
         """Determine severity of security issue"""

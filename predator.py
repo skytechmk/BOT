@@ -19,7 +19,52 @@ Usage in main.py:
 
 import numpy as np
 import pandas as pd
+from typing import TypedDict, Optional, Dict, Tuple, Any
 from utils_logger import log_message
+
+class RegimeParams(TypedDict):
+    allow_entry: bool
+    sqi_modifier: int
+    size_multiplier: float
+    tp_mode: str
+
+class RegimeDict(TypedDict):
+    regime: str
+    atr_ratio: float
+    trend_clarity: float
+    vol_state: str
+    trend_state: str
+    trend_dir: str
+    params: RegimeParams
+    # ML governance — downstream modules MUST consume these fields (v3)
+    ml_confidence: float        # 0.0–1.0, injected by signal pipeline
+    ml_prediction: str          # 'LONG' | 'SHORT' | 'NEUTRAL'
+
+class PositioningDict(TypedDict):
+    funding_momentum: float
+    oi_divergence: str
+    taker_delta: float
+    positioning_bias: str
+    positioning_score: int
+    crowd_direction: str
+    components: Dict[str, str]
+    # ML governance — downstream modules MUST consume these fields (v3)
+    ml_confidence: float        # 0.0–1.0, injected by signal pipeline
+    ml_prediction: str          # 'LONG' | 'SHORT' | 'NEUTRAL'
+
+class StopHuntDict(TypedDict):
+    hunt_detected: bool
+    direction: str
+    strength: str
+    score: int
+
+class LiquidationMagnetsDict(TypedDict):
+    closest_long_liq: float
+    closest_short_liq: float
+    dist_long_pct: float
+    dist_short_pct: float
+    magnet_bias: str
+    imbalance: float
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -82,7 +127,7 @@ REGIME_PARAMS = {
 
 
 def detect_regime(df: pd.DataFrame, atr_fast: int = 7, atr_slow: int = 21,
-                  ema_len: int = 50, atr_base: int = 14) -> dict:
+                  ema_len: int = 50, atr_base: int = 14) -> RegimeDict:
     """
     Classify market regime from OHLCV data.
 
@@ -179,7 +224,7 @@ def detect_regime(df: pd.DataFrame, atr_fast: int = 7, atr_slow: int = 21,
     }
 
 
-def _default_regime():
+def _default_regime() -> RegimeDict:
     return {
         'regime': REGIME_CLEAN_TREND,
         'atr_ratio': 1.0,
@@ -196,7 +241,7 @@ def _default_regime():
 # ══════════════════════════════════════════════════════════════════════
 
 def analyze_positioning(funding_data: dict, oi_data: dict,
-                        df: pd.DataFrame) -> dict:
+                        df: pd.DataFrame) -> PositioningDict:
     """
     Analyze market positioning using crypto-native data.
 
@@ -374,7 +419,7 @@ def positioning_aligns(positioning: dict, signal_direction: str) -> tuple:
 
 def detect_stop_hunt(df: pd.DataFrame, lookback: int = 20,
                      wick_ratio: float = 3.0,
-                     vol_mult: float = 2.0) -> dict:
+                     vol_mult: float = 2.0) -> StopHuntDict:
     """
     Detect when price swept a key level and immediately rejected.
     Institutional entry pattern: retail stops get taken out, then smart
@@ -477,46 +522,51 @@ _TIER_WEIGHTS = {
 
 def _find_swing_points(df: pd.DataFrame, left: int = 5, right: int = 2) -> dict:
     """
-    Find swing highs and lows using pivot detection.
+    Find swing highs and lows using vectorised pivot detection.
 
-    A swing high: bar where high > all highs in [i-left : i+right]
-    A swing low:  bar where low  < all lows  in [i-left : i+right]
+    A swing high: bar whose high strictly exceeds every other high in the
+    window [i-left, i+right].
+    A swing low:  bar whose low is strictly below every other low in the
+    same window.
 
-    Returns {'highs': list[float], 'lows': list[float]}
+    Uses NumPy ``sliding_window_view`` (O(N) memory, O(N * W) vectorised
+    comparison) — zero Python‑level loops.
+
+    Returns ``{'highs': list[float], 'lows': list[float]}``.
     """
-    highs_arr = df['high'].values.astype(float)
-    lows_arr = df['low'].values.astype(float)
-    n = len(df)
-    swing_highs = []
-    swing_lows = []
+    highs = df['high'].values.astype(float)
+    lows  = df['low'].values.astype(float)
+    n = len(highs)
+    W = left + right + 1
+    if n < W:
+        return {'highs': [], 'lows': []}
 
-    for i in range(left, n - right):
-        is_high = True
-        for j in range(i - left, i + right + 1):
-            if j == i:
-                continue
-            if highs_arr[j] >= highs_arr[i]:
-                is_high = False
-                break
-        if is_high:
-            swing_highs.append(highs_arr[i])
+    from numpy.lib.stride_tricks import sliding_window_view
 
-        is_low = True
-        for j in range(i - left, i + right + 1):
-            if j == i:
-                continue
-            if lows_arr[j] <= lows_arr[i]:
-                is_low = False
-                break
-        if is_low:
-            swing_lows.append(lows_arr[i])
+    h_win = sliding_window_view(highs, W)
+    l_win = sliding_window_view(lows,  W)
+    center = left
 
-    return {'highs': swing_highs, 'lows': swing_lows}
+    # Boolean mask: exclude the centre column from the comparison so we
+    # can check "strictly greater / less than ALL other neighbours".
+    mask_cols = np.ones(W, dtype=bool)
+    mask_cols[center] = False
+
+    h_c = h_win[:, center, None]   # (m, 1)  — centre of each window
+    l_c = l_win[:, center, None]
+
+    mask_highs = (h_win[:, mask_cols] < h_c).all(axis=1)
+    mask_lows  = (l_win[:, mask_cols] > l_c).all(axis=1)
+
+    return {
+        'highs': h_win[mask_highs, center].tolist(),
+        'lows':  l_win[mask_lows,  center].tolist(),
+    }
 
 
 def detect_liquidation_magnets(df: pd.DataFrame, current_price: float,
                                lookback: int = 100,
-                               cluster_tolerance: float = 0.005) -> dict:
+                               cluster_tolerance: float = 0.005) -> LiquidationMagnetsDict:
     """
     Identify liquidation clusters near current price.
 

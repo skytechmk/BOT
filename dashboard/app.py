@@ -3,15 +3,17 @@ Anunnaki World Dashboard — Premium WebSocket-powered real-time monitoring.
 3-tier system: Free (24h delayed) / Plus 53 USDT / Pro 109 USDT
 Subscribes to Binance futures kline_1h streams for ALL USDT perps.
 """
-import sys, os, json, time, asyncio, sqlite3, logging, urllib.request, html
+import sys, os, json, time, random, asyncio, sqlite3, logging, urllib.request, html, uuid
 from pathlib import Path
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+import schemas
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-logger = logging.getLogger(__name__)
+# ── Structured loguru logger — PID + correlation ID per request ──────────
+from utils_logger import logger, log_message as _lm, correlation_id_var
 
 import hmac
 import hashlib
@@ -383,8 +385,9 @@ async def _ws_listener(pairs_chunk, chunk_id):
             break
         except Exception as e:
             _store["ws_connected"] = max(0, _store["ws_connected"] - 1)
-            print(f"[ws-{chunk_id}] Disconnected: {e}, reconnecting in {_backoff}s...")
-            await asyncio.sleep(_backoff)
+            _jitter = random.uniform(0, 5)
+            print(f"[ws-{chunk_id}] Disconnected: {e}, reconnecting in {_backoff + _jitter:.1f}s...")
+            await asyncio.sleep(_backoff + _jitter)
             _backoff = min(_backoff * 2, 60)  # exponential backoff, cap 60s
 
 def _handle_kline(data):
@@ -1087,10 +1090,8 @@ app.add_middleware(NoCacheJSMiddleware)
 
 # ═══ S4 · SecurityHeadersMiddleware — institutional-grade HTTP hardening
 # ═══════════════════════════════════════════════════════════════════════
-# Every response carries the modern browser-security header set. Starts
-# with CSP in Report-Only so we can observe violations for 48h before
-# flipping to enforcing (flip by renaming the header key to
-# "Content-Security-Policy"). All other headers are enforcing from day 1.
+# Every response carries the modern browser-security header set.  CSP is
+# now in ENFORCING mode (after 48 h Report-Only observation).
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: _Req, call_next):
         r = await call_next(request)
@@ -1109,21 +1110,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
             "magnetometer=(), microphone=(), payment=(), usb=()"
         )
-        # CSP — Report-Only mode for the first 48 h. Tuned to our actual
-        # asset sources (TradingView, Google Fonts, inline styles, WSS).
-        # Flip to enforcing by replacing the header name below.
-        #
-        # Allowed external origins (learned from first 48 h of report-only):
+        # CSP — Enforcing mode. Tuned to our actual asset sources:
         #   s3.tradingview.com          — TradingView widget loader
         #   www.google-analytics.com    — GA beacons
-        #   unpkg.com                   — lightweight-charts library (screener/heatmap)
+        #   unpkg.com                   — lightweight-charts (screener/heatmap)
         #   static.cloudflareinsights.com — Cloudflare web-analytics beacon
         #   *.tradingview-widget.com    — TV widget iframes (frame-src only)
+        #   stream.binance.com          — Binance kline WebSocket (frontend charts)
+        #   fstream.binance.com         — Binance Futures WebSocket API
         #
-        # We also set script-src-elem and frame-src EXPLICITLY so the
-        # browser never has to fall back to default-src (which logs
-        # spurious violations for widget iframes).
-        r.headers["Content-Security-Policy-Report-Only"] = (
+        # connect-src is scoped to EXACT WSS origins so a compromised
+        # third-party script cannot silently exfiltrate data through
+        # a rogue WebSocket connection.
+        r.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src  'self' 'unsafe-inline' 'unsafe-eval' "
             "            https://s3.tradingview.com https://www.google-analytics.com "
@@ -1134,7 +1133,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "style-src   'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src    'self' data: https://fonts.gstatic.com; "
             "img-src     'self' data: blob: https:; "
-            "connect-src 'self' wss: https:; "
+            "connect-src 'self' "
+            "            wss://stream.binance.com:9443 "
+            "            wss://fstream.binance.com "
+            "            wss://ws-fapi.binance.com "
+            "            https:; "
             "frame-src   'self' https://*.tradingview.com https://*.tradingview-widget.com; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
@@ -1144,6 +1147,41 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+
+# ═══ S6 · CorrelationIDMiddleware — per-request trace ID ═════════════════
+# Stamps every incoming HTTP request (including SSE streams and WebSocket
+# upgrades) with a short 8-char UUID that is injected into the loguru
+# correlation_id_var contextvars slot.  Every log.info/error/debug call
+# made during that request's stack will automatically include the ID:
+#
+#   2026-04-29 10:12:34.567 | PID:14501 | [REQ:a3f9c1d2] | INFO     | signal fired
+#
+# The ID is also echoed back to the client in X-Correlation-ID so that
+# frontend engineers and Cloudflare logs can cross-reference server traces.
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: _Req, call_next) -> _Resp:
+        # Generate a short, URL-safe 8-char hex token per request
+        req_id = uuid.uuid4().hex[:8]
+        # Stamp the context variable — visible to all loguru sinks instantly
+        token = correlation_id_var.set(f"REQ:{req_id}")
+        try:
+            response = await call_next(request)
+        finally:
+            # Always restore context so pooled workers don't bleed IDs
+            correlation_id_var.reset(token)
+        # Echo the ID back so the client/Cloudflare can correlate
+        response.headers["X-Correlation-ID"] = req_id
+        return response
+
+app.add_middleware(CorrelationIDMiddleware)
+
+# ── Conditional pyinstrument profiling middleware ─────────────────────
+# Activates ONLY when PROFILE_ENGINE=True and request header X-Profile: true
+try:
+    from profiler_engine import ProfileMiddleware
+    app.add_middleware(ProfileMiddleware, profile_dir="logs/profiles")
+except Exception:
+    pass
 
 # ── Public / Frontend Routes ───────────────────────────────────────────
 
@@ -1562,9 +1600,8 @@ async def reset_password_page():
 
 @app.post("/api/auth/forgot-password")
 @_limiter.limit("5/hour")
-async def api_forgot_password(request: Request):
-    body = await request.json()
-    email = body.get("email", "").strip()
+async def api_forgot_password(request: Request, body: schemas.ForgotPasswordRequest):
+    email = body.email.strip()
     if not email or "@" not in email:
         return JSONResponse({"error": "Valid email required"}, status_code=400)
     result = await asyncio.to_thread(request_password_reset, email)
@@ -1572,10 +1609,9 @@ async def api_forgot_password(request: Request):
 
 @app.post("/api/auth/reset-password")
 @_limiter.limit("10/hour")
-async def api_reset_password(request: Request):
-    body = await request.json()
-    token = body.get("token", "").strip()
-    new_password = body.get("password", "")
+async def api_reset_password(request: Request, body: schemas.ResetPasswordRequest):
+    token = body.token.strip()
+    new_password = body.password
     if not token or not new_password:
         return JSONResponse({"error": "Token and password required"}, status_code=400)
     result = await asyncio.to_thread(reset_password_with_token, token, new_password)
@@ -1801,6 +1837,21 @@ async def api_payment_history(user: dict = Depends(get_current_user)):
         return JSONResponse(content={"error": "Login required"}, status_code=401)
     return JSONResponse(content={"payments": get_payment_history(user['id'])})
 
+# ── Secure Admin JS endpoint ──────────────────────────────────────────
+# admin.js is NOT publicly accessible via /static/ — it is served behind
+# an authentication + authorisation wall. Only admin users receive the file.
+
+@app.get("/api/admin/script.js")
+async def api_admin_script(user: dict = Depends(require_admin)):
+    _secure_path = os.path.join(os.path.dirname(__file__), "secure_assets", "admin.js")
+    if not os.path.isfile(_secure_path):
+        return Response("/* admin.js not found */", status_code=404,
+                        media_type="application/javascript")
+    with open(_secure_path, "r") as _af:
+        _script = _af.read()
+    return Response(_script, media_type="application/javascript",
+                    headers={"Cache-Control": "no-store, max-age=0"})
+
 # ── Admin Routes (for payment verification) ──────────────────────────
 
 @app.get("/api/admin/payments/pending")
@@ -1823,16 +1874,12 @@ async def api_admin_users(user: dict = Depends(require_admin)):
 @app.post("/api/admin/users/{user_id}/tier")
 async def api_admin_set_tier(
     user_id: int,
-    request: Request,
+    body: schemas.AdminSetTierRequest,
     user: dict = Depends(require_admin)
 ):
     """Admin: set user tier."""
-    body = await request.json()
-    tier = body.get('tier', 'free')
-    days = body.get('days', 30)
-    # Canonical tier names only (Phase 2 rename applied).
-    if tier not in ('free', 'plus', 'pro', 'ultra'):
-        return JSONResponse(content={"error": "Invalid tier"}, status_code=400)
+    tier = body.tier
+    days = body.days
     result = await asyncio.to_thread(admin_set_tier, user_id, tier, days)
     if result.get('success') and tier != 'free':
         # Auto-credit any pending referral so it doesn't stay 'pending'
@@ -2052,15 +2099,11 @@ async def api_admin_get_settings(user: dict = Depends(require_admin)):
 
 
 @app.post("/api/admin/settings/maintenance")
-async def api_admin_set_maintenance(request: Request, user: dict = Depends(require_admin)):
-    body = await request.json()
-    enabled = bool(body.get("enabled", False))
-    message = (body.get("message") or "").strip()
-    kind = (body.get("kind") or "maintenance").strip()
-    try:
-        eta = int(body.get("eta_minutes") or 0)
-    except Exception:
-        eta = 0
+async def api_admin_set_maintenance(body: schemas.AdminSetMaintenanceRequest, user: dict = Depends(require_admin)):
+    enabled = body.enabled
+    message = (body.message or "").strip()
+    kind = (body.kind or "maintenance").strip()
+    eta = body.eta_minutes
     await asyncio.to_thread(set_maintenance_mode, enabled, message, kind, eta)
     return JSONResponse({"ok": True, "maintenance": get_maintenance_info()})
 
@@ -2078,27 +2121,21 @@ async def api_admin_user_devices(user_id: int, user: dict = Depends(require_admi
 
 
 @app.post("/api/admin/users/{user_id}/device-limit")
-async def api_admin_set_device_limit(user_id: int, request: Request, user: dict = Depends(require_admin)):
+async def api_admin_set_device_limit(user_id: int, body: schemas.AdminSetDeviceLimitRequest, user: dict = Depends(require_admin)):
     """Admin: set explicit device limit (or unlimited) on a user."""
-    body = await request.json()
-    limit = body.get("limit", None)
+    limit = body.limit
     if limit is not None:
-        try:
-            limit = int(limit)
-            if limit < 0:
-                limit = None  # reset to default
-        except (TypeError, ValueError):
-            return JSONResponse({"error": "limit must be integer or null"}, status_code=400)
+        if limit < 0:
+            limit = None
     result = await asyncio.to_thread(admin_set_device_override, user_id, limit)
     return JSONResponse(result)
 
 
 @app.post("/api/admin/users/{user_id}/grant-slots")
-async def api_admin_grant_slots(user_id: int, request: Request, user: dict = Depends(require_admin)):
-    body = await request.json()
-    slots = int(body.get("slots", 1))
-    months = int(body.get("months", 0))
-    note = body.get("note", "")
+async def api_admin_grant_slots(user_id: int, body: schemas.AdminGrantSlotsRequest, user: dict = Depends(require_admin)):
+    slots = body.slots
+    months = body.months
+    note = body.note
     if slots <= 0 or slots > 50:
         return JSONResponse({"error": "slots must be 1..50"}, status_code=400)
     result = await asyncio.to_thread(admin_grant_extra_slots, user_id, slots, months, note)
@@ -2511,7 +2548,8 @@ async def api_stream_live_pnl(request: Request, user: Optional[dict] = Depends(g
                         and s["signal_id"] not in closed_fired):
                     closed_fired.add(s["signal_id"])
                     try:
-                        _close_signal_and_feedback(
+                        await asyncio.to_thread(
+                            _close_signal_and_feedback,
                             s["signal_id"], s["pair"], direction, entry, sl,
                             s["targets"], s["leverage"], cur, targets_hit, sl_hit
                         )
@@ -2849,30 +2887,33 @@ async def api_presignals(user: dict = Depends(require_tier("pro"))):
 
 
 @app.post("/api/presignals/quick-entry")
-async def api_quick_entry(request: Request, user: dict = Depends(require_tier("ultra"))):
+async def api_quick_entry(body: schemas.QuickEntryRequest, user: dict = Depends(require_tier("ultra"))):
     """
     One-click manual trade entry from Pre-Signal Alerts (ULTRA tier only).
     Executes via the user's configured copy-trading Binance API keys.
     """
-    body = await request.json()
-    pair      = str(body.get('pair', '')).upper().strip()
-    direction = str(body.get('direction', '')).upper().strip()
-    sl_price  = float(body.get('sl_price', 0) or 0)
-    tp_prices = [float(x) for x in body.get('tp_prices', []) if x]
-    leverage  = int(body.get('leverage', 0) or 0)
+    pair      = body.pair.upper().strip()
+    direction = body.direction.upper().strip()
+    sl_price  = body.sl_price
+    tp_prices = body.tp_prices
+    leverage  = body.leverage
 
     if not pair or not direction:
+        print("[quick_entry] 400 Error: pair and direction are required")
         return JSONResponse({"error": "pair and direction are required"}, status_code=400)
     if sl_price <= 0:
+        print("[quick_entry] 400 Error: sl_price must be > 0")
         return JSONResponse({"error": "sl_price must be > 0"}, status_code=400)
     if not tp_prices:
+        print("[quick_entry] 400 Error: tp_prices must not be empty")
         return JSONResponse({"error": "tp_prices must not be empty"}, status_code=400)
 
     result = await asyncio.to_thread(
         ct_quick_entry, user['id'], pair, direction, sl_price, tp_prices, leverage
     )
     if result.get('error'):
-        return JSONResponse(result, status_code=400)
+        print(f"[quick_entry] 200 Error from ct_quick_entry: {result['error']}")
+        return JSONResponse(result, status_code=200)
     return JSONResponse(result)
 
 # ── Copy-Trading: UDS Stream Health ────────────────────────────────
@@ -2936,7 +2977,7 @@ async def api_liq_heatmap(
         data = _LIQ_COLLECTOR.get_heatmap(sym)
         data["window_hours"] = hours
     else:
-        data = await asyncio.to_thread(_LIQ_COLLECTOR.get_heatmap_window, sym, hours)
+        data = await _LIQ_COLLECTOR.get_heatmap_window(sym, hours)
     # Plus-tier (rank 1) gets a lower-resolution heatmap; Pro+ gets full.
     from auth import canonicalize_tier as _canon
     if _canon(tier) == "plus" and data["has_data"]:
@@ -3442,47 +3483,56 @@ async def liq_alerts_stream(request: Request):
 # writes only to backtests.db. No risk to the live pipeline.
 
 @app.post("/api/backtest/run")
-async def api_backtest_run(request: Request, user: dict = Depends(get_current_user)):
+async def api_backtest_run(body: schemas.BacktestRequest, user: dict = Depends(get_current_user)):
     """Kick off a backtest.
+
+    Runs in a **ProcessPoolExecutor** so heavy pandas/NumPy work never
+    blocks the Uvicorn event loop or disrupts live WS/SSE trading streams.
 
     Monthly quota (all tiers can access):
         free / plus : 3 runs / month
         pro         : 10 runs / month
         ultra       : 50 runs / month
-
-    Runs synchronously in a worker thread — typical completion < 2 s.
     """
     if not user:
         return JSONResponse({"error": "authentication required"}, status_code=401)
-    from backtest_engine import run_backtest, get_backtest, check_quota
+    from backtest_engine import run_backtest_api, get_backtest, check_quota
+    from concurrent.futures import ProcessPoolExecutor
     # Quota check before we touch the DB. Admins are always allowed.
     tier     = str(user.get("tier", "free"))
     is_admin = bool(check_is_admin(user))
     quota    = await asyncio.to_thread(check_quota, int(user["id"]), tier, is_admin)
     if not quota["allowed"]:
         return JSONResponse({"error": quota["error"], "quota": quota}, status_code=429)
-    try:
-        params = await request.json()
-    except Exception:
-        return JSONResponse({"error": "invalid JSON"}, status_code=400)
-    if not isinstance(params, dict):
-        return JSONResponse({"error": "params must be object"}, status_code=400)
-    try:
-        start = float(params.get("start"))
-        end   = float(params.get("end"))
-    except (TypeError, ValueError):
-        return JSONResponse({"error": "start and end (unix seconds) required"}, status_code=400)
+
+    start = body.start
+    end = body.end
+    params = body.model_dump()
     if end <= start or end - start < 3600:
         return JSONResponse({"error": "end must be > start by at least 1h"}, status_code=400)
     params["start"]    = start
     params["end"]      = end
     params["sim_mode"] = "actual"   # always use recorded outcomes; simulate mode removed from UI
-    run_id = await asyncio.to_thread(run_backtest, int(user["id"]), params)
-    data = await asyncio.to_thread(get_backtest, run_id)
-    if data:
-        data["quota"] = quota   # surface remaining runs to the frontend
-    return JSONResponse(data or {"run_id": run_id, "status": "error",
-                                  "error": "run disappeared"})
+
+    # Offload CPU-bound backtest to a separate process — zero event-loop blocking.
+    loop = asyncio.get_running_loop()
+    with ProcessPoolExecutor(max_workers=1) as pool:
+        results = await loop.run_in_executor(pool, run_backtest_api, params)
+
+    # Wrap results in the same shape the legacy UI expects.
+    # If the caller requested an atr_multiplier sweep, results is a list of
+    # per-sweep KPI dicts; otherwise it's a single-element list with stats.
+    response_payload = {
+        "run_id":  0,           # ephemeral — no DB write
+        "status":  "done",
+        "results": results,
+        "quota":   quota,
+    }
+    # Backward-compat: expose top-level stats + trades for single runs.
+    if results and "trades" not in results[0]:
+        response_payload["stats"] = results[0] if results else {}
+        response_payload["trades"] = []
+    return JSONResponse(response_payload)
 
 
 @app.get("/api/backtest/{run_id:int}")
@@ -3528,33 +3578,25 @@ async def api_push_vapid_public_key():
 
 
 @app.post("/api/push/subscribe")
-async def api_push_subscribe(request: Request, user: dict = Depends(get_current_user)):
+async def api_push_subscribe(body: schemas.PushSubscribeRequest, request: Request, user: dict = Depends(get_current_user)):
     """Register a browser PushSubscription for the current user."""
     from push_notifications import subscribe as _push_subscribe
     if not user:
         return JSONResponse({"ok": False, "error": "auth required"}, status_code=401)
-    try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse({"ok": False, "error": "invalid JSON"}, status_code=400)
-    sub = body.get("subscription") or {}
-    ua  = body.get("user_agent") or request.headers.get("user-agent", "")[:256]
+    sub = body.subscription
+    ua  = body.user_agent or request.headers.get("user-agent", "")[:256]
     result = _push_subscribe(int(user["id"]), sub, user_agent=ua)
     status = 200 if result.get("ok") else 400
     return JSONResponse(result, status_code=status)
 
 
 @app.post("/api/push/unsubscribe")
-async def api_push_unsubscribe(request: Request, user: dict = Depends(get_current_user)):
+async def api_push_unsubscribe(body: schemas.PushUnsubscribeRequest, user: dict = Depends(get_current_user)):
     """Drop a subscription (typically called when the user disables push)."""
     from push_notifications import unsubscribe as _push_unsubscribe
     if not user:
         return JSONResponse({"ok": False, "error": "auth required"}, status_code=401)
-    try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse({"ok": False, "error": "invalid JSON"}, status_code=400)
-    endpoint = str(body.get("endpoint", "")).strip()
+    endpoint = body.endpoint.strip()
     ok = _push_unsubscribe(int(user["id"]), endpoint) if endpoint else False
     return JSONResponse({"ok": ok})
 
@@ -3700,7 +3742,7 @@ def _init_tv_db():
 _init_tv_db()
 
 @app.post("/api/webhook/tradingview")
-async def tv_webhook(request: Request):
+async def tv_webhook(body: schemas.TVWebhookPayload, request: Request):
     """
     Receives TradingView strategy alerts via webhook.
 
@@ -3716,24 +3758,21 @@ async def tv_webhook(request: Request):
 
     Validation: secret must match TV_WEBHOOK_SECRET in .env
     """
-    try:
-        body = await request.json()
-    except Exception:
-        raw = await request.body()
-        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
-
     # Validate secret (body or header) — REQUIRED; reject all if not configured
     if not _TV_SECRET:
         return JSONResponse({"error": "Webhook not configured"}, status_code=503)
-    incoming_secret = body.get("secret", "") or request.headers.get("X-TV-Secret", "")
+    incoming_secret = body.secret or request.headers.get("X-TV-Secret", "")
     if incoming_secret != _TV_SECRET:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
-    symbol   = str(body.get("symbol", "UNKNOWN")).upper().replace(".P", "").replace("BINANCE:", "")
-    action   = str(body.get("action", body.get("side", ""))).upper()
-    price    = float(body.get("price", 0) or 0)
-    strategy = str(body.get("strategy", "TradingView"))
-    message  = str(body.get("message", body.get("comment", "")))
+    symbol   = body.symbol.upper().replace(".P", "").replace("BINANCE:", "")
+    action   = body.action.upper()
+    price    = body.price
+    strategy = body.strategy or "TradingView"
+    
+    # Message parsing could be done via raw model_dump, fallback empty
+    raw_body = body.model_dump()
+    message  = str(raw_body.get("message", raw_body.get("comment", "")))
     received = time.time()
 
     # Persist to SQLite
@@ -3847,18 +3886,80 @@ async def ct_get_config(request: Request, user: dict = Depends(require_tier("pro
 
 
 @app.post("/api/copy-trading/keys")
-async def ct_save_keys(request: Request, user: dict = Depends(require_tier("pro"))):
+async def ct_save_keys(body: schemas.CopyTradeKeysRequest, user: dict = Depends(require_tier("pro"))):
     """Save encrypted exchange API keys (Binance or MEXC)."""
-    body = await request.json()
-    exchange = str(body.get('exchange', 'binance')).lower()
+    exchange = body.exchange.lower()
     if exchange not in ('binance', 'mexc'):
         return JSONResponse({
             "error": "API keys are saved per exchange. Select Binance or MEXC first."
         }, status_code=400)
+
+    api_key = (body.api_key or '').strip()
+    api_secret = (body.api_secret or '').strip()
+
+    if not api_key or not api_secret:
+        return JSONResponse({"error": "API key and secret are required"}, status_code=400)
+
+    # Regex Format Validation
+    import re
+    if exchange == 'binance':
+        if not re.match(r'^[A-Za-z0-9]{64}$', api_key) or not re.match(r'^[A-Za-z0-9]{64}$', api_secret):
+            return JSONResponse({"error": "Invalid API key format."}, status_code=400)
+    elif exchange == 'mexc':
+        if not re.match(r'^mx0[A-Za-z0-9]{33,64}$', api_key) or not re.match(r'^[A-Za-z0-9]{32,64}$', api_secret):
+            return JSONResponse({"error": "Invalid API key format."}, status_code=400)
+
+    # Active Permission Check
+    if exchange == 'binance':
+        def _verify_binance():
+            from binance.client import Client
+            try:
+                client = Client(api_key, api_secret, requests_params={"proxies": {}, "timeout": 15})
+                perms = client.get_account_api_permissions()
+                return perms
+            except Exception as e:
+                return {"error": str(e)}
+
+        perms = await asyncio.to_thread(_verify_binance)
+        if "error" in perms:
+            err_str = perms["error"].lower()
+            if "invalid api-key" in err_str or "signature" in err_str or "unauthorized" in err_str:
+                return JSONResponse({"error": "Invalid API key or secret. Check your credentials."}, status_code=400)
+            return JSONResponse({"error": "Failed to validate Binance key: " + perms["error"]}, status_code=400)
+
+        can_trade = perms.get('enableFutures', False) or perms.get('futuresTradingAllowed', False)
+        can_withdraw = perms.get('enableWithdrawals', False)
+        can_internal = perms.get('enableInternalTransfer', False)
+
+        if can_withdraw:
+            return JSONResponse({"error": "Security check failed. Please disable 'Withdrawal' permissions on your API key before submitting."}, status_code=403)
+        if can_internal:
+            return JSONResponse({"error": "Security check failed. Please disable 'Internal Transfer' permissions on your API key before submitting."}, status_code=403)
+        if not can_trade:
+            return JSONResponse({"error": "This API key does not have futures trading permission. Enable 'Futures' on your Binance API key settings."}, status_code=403)
+
+    elif exchange == 'mexc':
+        def _verify_mexc():
+            import sys
+            import os
+            dash_dir = os.path.dirname(os.path.abspath(__file__))
+            if dash_dir not in sys.path:
+                sys.path.insert(0, dash_dir)
+            from mexc_futures_client import MexcFuturesClient
+            client = MexcFuturesClient(api_key, api_secret)
+            return client.validate_key()
+
+        validation = await asyncio.to_thread(_verify_mexc)
+        if validation.get("error"):
+            err_msg = validation["error"].lower()
+            if "withdrawal" in err_msg or "permission" in err_msg or "invalid api key" in err_msg:
+                return JSONResponse({"error": "Security check failed. " + validation["error"]}, status_code=403)
+            return JSONResponse({"error": validation["error"]}, status_code=400)
+
     result = save_api_keys(
         user_id=user['id'],
-        api_key=body.get('api_key', ''),
-        api_secret=body.get('api_secret', ''),
+        api_key=api_key,
+        api_secret=api_secret,
         size_pct=float(body.get('size_pct', 2.0)),
         max_size_pct=float(body.get('max_size_pct', 5.0)),
         max_leverage=int(body.get('max_leverage', 20)),
@@ -3888,10 +3989,9 @@ async def ct_save_keys(request: Request, user: dict = Depends(require_tier("pro"
 
 
 @app.post("/api/copy-trading/toggle")
-async def ct_toggle_active(request: Request, user: dict = Depends(require_tier("pro"))):
+async def ct_toggle_active(body: schemas.CopyTradeToggleRequest, user: dict = Depends(require_tier("pro"))):
     """Enable or disable copy-trading."""
-    body = await request.json()
-    active = bool(body.get('active', False))
+    active = body.active
     result = ct_toggle(user['id'], active)
     if result.get('error'):
         return JSONResponse(result, status_code=400)
@@ -3908,21 +4008,21 @@ async def ct_toggle_active(request: Request, user: dict = Depends(require_tier("
 
 
 @app.post("/api/copy-trading/settings")
-async def ct_update(request: Request, user: dict = Depends(require_tier("pro"))):
+async def ct_update(body: schemas.CopyTradeSettingsRequest, user: dict = Depends(require_tier("pro"))):
     """Update copy-trading settings."""
-    body = await request.json()
     kwargs = {}
-    if 'size_pct' in body: kwargs['size_pct'] = float(body['size_pct'])
-    if 'max_size_pct' in body: kwargs['max_size_pct'] = float(body['max_size_pct'])
-    if 'max_leverage' in body: kwargs['max_leverage'] = int(body['max_leverage'])
-    if 'scale_with_sqi' in body: kwargs['scale_with_sqi'] = bool(body['scale_with_sqi'])
-    if 'tp_mode' in body: kwargs['tp_mode'] = str(body['tp_mode'])
-    if 'size_mode' in body: kwargs['size_mode'] = str(body['size_mode'])
-    if 'fixed_size_usd' in body: kwargs['fixed_size_usd'] = float(body['fixed_size_usd'])
-    if 'leverage_mode' in body: kwargs['leverage_mode'] = str(body['leverage_mode'])
-    if 'sl_mode' in body: kwargs['sl_mode'] = str(body['sl_mode'])
-    if 'sl_pct' in body: kwargs['sl_pct'] = float(body['sl_pct'])
-    if 'copy_experimental' in body: kwargs['copy_experimental'] = bool(body['copy_experimental'])
+    # Use body model dump and exclude none
+    b_dict = body.model_dump(exclude_none=True)
+    if 'size_pct' in b_dict: kwargs['size_pct'] = float(b_dict['size_pct'])
+    if 'max_size_pct' in b_dict: kwargs['max_size_pct'] = float(b_dict['max_size_pct'])
+    if 'max_leverage' in b_dict: kwargs['max_leverage'] = int(b_dict['max_leverage'])
+    if 'scale_with_sqi' in b_dict: kwargs['scale_with_sqi'] = bool(b_dict['scale_with_sqi'])
+    if 'tp_mode' in b_dict: kwargs['tp_mode'] = str(b_dict['tp_mode'])
+    if 'size_mode' in b_dict: kwargs['size_mode'] = str(b_dict['size_mode'])
+    if 'fixed_size_usd' in b_dict: kwargs['fixed_size_usd'] = float(b_dict['fixed_size_usd'])
+    if 'leverage_mode' in b_dict: kwargs['leverage_mode'] = str(b_dict['leverage_mode'])
+    if 'sl_mode' in b_dict: kwargs['sl_mode'] = str(b_dict['sl_mode'])
+    if 'sl_pct' in b_dict: kwargs['sl_pct'] = float(b_dict['sl_pct'])
     if 'exchange' in body: kwargs['exchange'] = str(body['exchange'])
     result = ct_update_settings(user['id'], **kwargs)
     if result.get('error'):
@@ -4163,12 +4263,11 @@ async def ct_tradefi_signed(user: dict = Depends(require_tier("pro"))):
 
 
 @app.post("/api/copy-trading/filters")
-async def ct_save_pair_filters(request: Request, user: dict = Depends(require_tier("pro"))):
+async def ct_save_pair_filters(body: schemas.CopyTradeFiltersRequest, user: dict = Depends(require_tier("pro"))):
     """Save pair tier/sector filter settings for copy-trading."""
-    body = await request.json()
-    allowed_tiers = body.get('allowed_tiers', 'blue_chip,large_cap,mid_cap,small_cap,high_risk')
-    allowed_sectors = body.get('allowed_sectors', 'all')
-    hot_only = bool(body.get('hot_only', False))
+    allowed_tiers = body.allowed_tiers
+    allowed_sectors = body.allowed_sectors
+    hot_only = body.hot_only
     result = ct_save_filters(user['id'], allowed_tiers, allowed_sectors, hot_only)
     if result.get('error'):
         return JSONResponse(result, status_code=400)
@@ -5285,4 +5384,4 @@ async def catch_all_pairs(path: str):
     raise HTTPException(status_code=404, detail="Not Found")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8050, log_level="info")
+    uvicorn.run("app:app", host="0.0.0.0", port=8050, log_level="info", workers=12)

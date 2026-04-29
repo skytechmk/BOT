@@ -25,6 +25,7 @@ Factor weights derived from win/loss correlation analysis:
 
 import os
 import numpy as np
+from typing import Optional
 from utils_logger import log_message
 from smc_structure import detect_market_structure
 
@@ -583,3 +584,41 @@ def sqi_to_size(sqi, base_size):
         mult = 0.25
 
     return max(1, int(base_size * mult))
+
+
+def _extract_ml_confidence_early(df, pair: str, signal_direction: str) -> Optional[float]:
+    """
+    Lightweight ML confidence extractor for gate override logic.
+
+    Called BEFORE the trend gates in main.py's process_pair() so that
+    high-conviction ML predictions can override directional trend vetoes.
+
+    Runs the full ``predict_ultra()`` pipeline on the latest feature row
+    and returns the calibrated probability ALIGNED with the signal direction,
+    or None if the ML module is unavailable.
+
+    Parameters:
+        df:              OHLCV DataFrame (1h, with TA columns)
+        pair:            e.g. 'BTCUSDT'
+        signal_direction: 'LONG' or 'SHORT'
+
+    Returns:
+        float 0.0–1.0 (calibrated probability aligned with signal direction)
+        or None on failure.
+    """
+    try:
+        from ml_ultra_surface import predict_ultra
+        from ml_engine_archive.feature_engine import build_features
+        _df_feat = build_features(df.copy(), pair=pair or 'UNKNOWN')
+        feat_row = _df_feat.iloc[-1]
+        _p = predict_ultra(feat_row, include_shap=False, shap_top_n=0)
+        if not _p.get('ok'):
+            return None
+        _probs = _p['probs_calibrated']  # [SHORT, NEUTRAL, LONG]
+        is_long = signal_direction.upper() in ('LONG', 'BUY')
+        if is_long:
+            return float(_probs[2])   # calibrated P(LONG)
+        else:
+            return float(_probs[0])   # calibrated P(SHORT)
+    except Exception:
+        return None

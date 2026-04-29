@@ -33,7 +33,7 @@ import asyncio
 import json
 import time
 from collections import defaultdict, deque
-from utils_logger import log_message
+from utils_logger import log_message, set_context
 import websockets
 
 _FUTURES_STREAM_URL = "wss://fstream.binance.com/market/stream?streams={streams}"
@@ -51,40 +51,93 @@ _WINDOWS = {
 }
 
 
+_RECENT_WINDOW = 300     # 5 min — raw tick retention
+_BUCKET_SPAN   = 60      # 1-min bucket granularity for historical data
+_MAX_HISTORY   = 3600    # 1 hour total coverage
+
+
+def _bucket_key(ts: float) -> int:
+    """Floor a unix timestamp to its 1-minute bucket (integer seconds)."""
+    return int(ts) // _BUCKET_SPAN * _BUCKET_SPAN
+
+
 class _SymbolCVD:
-    """Per-symbol rolling CVD state using timestamped trade ring."""
+    """Per-symbol rolling CVD state — hybrid storage architecture.
 
-    __slots__ = ('_trades', '_lock')
+    Raw ticks are kept only for the last 5 minutes (_recent_trades) to
+    serve the 1m and 5m windows at full fidelity.  As ticks age past
+    the 5-min mark they are compressed into 1-minute aggregated buckets
+    (_hist_buckets) keyed by floored minute-timestamp.  The 15m and 1h
+    windows sum across relevant buckets + the raw recent window.
 
-    def __init__(self):
-        # Each element: (timestamp_float, buy_qty_float, sell_qty_float)
-        self._trades: deque = deque()
+    Memory per symbol drops from O(trades_per_hour) to O(recent_5m + 55
+    bucket structs), eliminating the OOM risk on high-volume pairs.
+    """
+
+    __slots__ = ('symbol', '_recent_trades', '_hist_buckets')
+
+    def __init__(self, symbol: str):
+        self.symbol = symbol
+        # Raw ticks: (ts_float, buy_qty_float, sell_qty_float)
+        self._recent_trades: deque = deque()
+        # 1-minute buckets: bucket_key_int → [buy_vol, sell_vol, trade_count]
+        self._hist_buckets: dict[int, list] = {}
 
     def record(self, ts: float, buy_qty: float, sell_qty: float):
-        self._trades.append((ts, buy_qty, sell_qty))
-        # Prune everything older than 1h
-        cutoff = ts - 3600
-        while self._trades and self._trades[0][0] < cutoff:
-            self._trades.popleft()
+        self._recent_trades.append((ts, buy_qty, sell_qty))
+
+        # ── Compress: migrate trades older than 5 min into buckets ────
+        recent_cutoff = ts - _RECENT_WINDOW
+        while self._recent_trades and self._recent_trades[0][0] < recent_cutoff:
+            old_ts, old_bq, old_sq = self._recent_trades.popleft()
+            bk = _bucket_key(old_ts)
+            bucket = self._hist_buckets.get(bk)
+            if bucket is None:
+                self._hist_buckets[bk] = [old_bq, old_sq, 1]
+            else:
+                bucket[0] += old_bq
+                bucket[1] += old_sq
+                bucket[2] += 1
+
+        # ── Prune buckets older than 1 hour ───────────────────────────
+        hist_cutoff = _bucket_key(ts - _MAX_HISTORY)
+        stale = [k for k in self._hist_buckets if k < hist_cutoff]
+        for k in stale:
+            del self._hist_buckets[k]
 
     def snapshot(self) -> dict:
         now = time.time()
         result = {}
+
+        # Pre-compute bucket sums for each window that needs them (15m, 1h).
+        # Buckets cover data >5min old; recent trades cover ≤5min.
         for label, secs in _WINDOWS.items():
             cutoff = now - secs
             bvol = svol = 0.0
             n = 0
-            for (ts, bq, sq) in self._trades:
+
+            # 1) Sum from recent raw trades (covers last 5 min)
+            for (ts, bq, sq) in self._recent_trades:
                 if ts < cutoff:
                     continue
                 bvol += bq
                 svol += sq
                 n += 1
+
+            # 2) For windows > 5 min, also sum from historical buckets
+            if secs > _RECENT_WINDOW:
+                bucket_cutoff = _bucket_key(cutoff)
+                for bk, (bbuy, bsell, bcount) in self._hist_buckets.items():
+                    if bk >= bucket_cutoff:
+                        bvol += bbuy
+                        svol += bsell
+                        n += bcount
+
             total = bvol + svol
-            result[f'cvd_{label}']   = round(bvol - svol, 4)
-            result[f'buy_vol_{label}']  = round(bvol, 4)
-            result[f'sell_vol_{label}'] = round(svol, 4)
-            result[f'trades_{label}'] = n
+            result[f'cvd_{label}']       = round(bvol - svol, 4)
+            result[f'buy_vol_{label}']   = round(bvol, 4)
+            result[f'sell_vol_{label}']  = round(svol, 4)
+            result[f'trades_{label}']    = n
             result[f'delta_pct_{label}'] = round((bvol - svol) / total, 4) if total > 0 else 0.0
 
         # Convenience aliases for the pipeline
@@ -92,6 +145,15 @@ class _SymbolCVD:
         result['total_trades_1m'] = result['trades_1m']
         result['buy_vol_1m']  = result['buy_vol_1m']
         result['sell_vol_1m'] = result['sell_vol_1m']
+        
+        # Async push to Redis cache
+        try:
+            from dashboard.redis_cache import set_cvd_bucket
+            # We push the full snapshot to the 'latest' window key for this symbol
+            asyncio.create_task(set_cvd_bucket(self.symbol, "latest", result))
+        except Exception as e:
+            log_message(f"Failed to dispatch Redis task: {e}")
+            
         return result
 
 
@@ -144,6 +206,7 @@ class CVDFeed:
 
     async def run(self, initial_pairs: list):
         """Main entry — spawn chunk connections, reconnect on drop."""
+        set_context("CVD-MAIN")
         self.running = True
         self._active_pairs = list(dict.fromkeys(initial_pairs))[:_MAX_PAIRS]
         log_message(f"📊 CVDFeed starting for {len(self._active_pairs)} pairs")
@@ -172,6 +235,7 @@ class CVDFeed:
         return urls
 
     async def _run_one(self, url: str):
+        set_context("CVD-TICK")
         delay = _RECONNECT_BASE
         while self.running:
             try:
@@ -203,7 +267,7 @@ class CVDFeed:
                             sell_qty = qty if maker else 0.0
 
                             if sym not in self._data:
-                                self._data[sym] = _SymbolCVD()
+                                self._data[sym] = _SymbolCVD(sym)
                             ts = time.time()
                             self._data[sym].record(ts, buy_qty, sell_qty)
                             self._last_update[sym] = ts

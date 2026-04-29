@@ -44,31 +44,187 @@ _KEY_PREFIX = "anw:"
 
 try:
     import redis as _redis_lib
+    import redis.asyncio as _async_redis_lib
 
+    # Sync client for legacy/backward compat (if needed)
     _candidate = _redis_lib.Redis.from_url(
         _REDIS_URL,
-        socket_connect_timeout=0.5,     # fail fast — don't block dashboard startup
+        socket_connect_timeout=0.5,
         socket_timeout=0.5,
         decode_responses=True,
         health_check_interval=30,
     )
-    # Verify the daemon is actually reachable before we claim to be online.
     _candidate.ping()
     _REDIS = _candidate
-    log.info(f"[redis_cache] connected to {_REDIS_URL}")
+
+    # Async client for non-blocking operations
+    _ASYNC_REDIS = _async_redis_lib.Redis.from_url(
+        _REDIS_URL,
+        socket_connect_timeout=0.5,
+        socket_timeout=0.5,
+        decode_responses=True,
+        health_check_interval=30,
+    )
+    log.info(f"[redis_cache] connected to {_REDIS_URL} (Sync & Async)")
 except Exception as e:
-    # Any failure (lib missing, daemon down, auth wrong, network) → we run
-    # in fallback mode. Callers see the same return values as a cache miss.
     log.warning(
         f"[redis_cache] Redis unavailable ({e!r}) — running in fallback "
         f"mode; all cache ops will no-op and return None."
     )
     _REDIS = None
+    _ASYNC_REDIS = None
 
+import decimal
+import datetime
+from collections import deque
+
+class StrictRedisEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        if isinstance(obj, deque):
+            return list(obj)
+        return str(obj)
 
 def _k(key: str) -> str:
     """Normalise a caller key to the fully-prefixed form."""
     return key if key.startswith(_KEY_PREFIX) else _KEY_PREFIX + key
+
+# ─── Async Helpers for Complex State Management ────────
+
+async def set_signal(signal_id: str, data: dict):
+    if _ASYNC_REDIS is None: return
+    try:
+        payload = json.dumps(data, cls=StrictRedisEncoder)
+        await _ASYNC_REDIS.hset(_k("signals:active"), signal_id, payload)
+    except Exception as e:
+        log.error(f"set_signal error: {e}")
+
+async def get_all_signals() -> dict:
+    if _ASYNC_REDIS is None: return {}
+    try:
+        raw_dict = await _ASYNC_REDIS.hgetall(_k("signals:active"))
+        return {k: json.loads(v) for k, v in raw_dict.items()}
+    except Exception as e:
+        log.error(f"get_all_signals error: {e}")
+        return {}
+
+async def delete_signal(signal_id: str):
+    if _ASYNC_REDIS is None: return
+    try:
+        await _ASYNC_REDIS.hdel(_k("signals:active"), signal_id)
+    except Exception as e:
+        log.error(f"delete_signal error: {e}")
+
+async def set_funding_oi(symbol: str, data: dict):
+    if _ASYNC_REDIS is None: return
+    try:
+        payload = json.dumps(data, cls=StrictRedisEncoder)
+        # 5-minute TTL as required
+        await _ASYNC_REDIS.setex(_k(f"funding_oi:{symbol}"), 300, payload)
+    except Exception as e:
+        log.error(f"set_funding_oi error: {e}")
+
+async def get_funding_oi(symbol: str) -> Optional[dict]:
+    if _ASYNC_REDIS is None: return None
+    try:
+        raw = await _ASYNC_REDIS.get(_k(f"funding_oi:{symbol}"))
+        return json.loads(raw) if raw else None
+    except Exception as e:
+        log.error(f"get_funding_oi error: {e}")
+        return None
+
+async def set_cvd_bucket(symbol: str, window: str, data: dict):
+    if _ASYNC_REDIS is None: return
+    try:
+        payload = json.dumps(data, cls=StrictRedisEncoder)
+        await _ASYNC_REDIS.hset(_k(f"cvd:{symbol}"), window, payload)
+    except Exception as e:
+        log.error(f"set_cvd_bucket error: {e}")
+
+
+# ─── Circuit Breaker (distributed, process-safe) ────────
+
+_CIRCUIT_BREAKER_KEY = "circuit_breaker:trading"
+_CIRCUIT_BREAKER_TTL = 60  # seconds — auto Half-Open transition
+
+
+async def set_circuit_breaker(open_state: bool, reason: str = "") -> bool:
+    """
+    Set the distributed circuit breaker state.
+
+    open_state=True  → Trading HALTED (breaker OPEN)
+    open_state=False → Trading HEALTHY (breaker CLOSED)
+
+    When OPEN, a 60-second TTL is applied so Redis auto-expires the key,
+    transitioning to Half-Open without manual intervention.
+    Thread-safe and process-safe across all Uvicorn workers.
+    """
+    if _ASYNC_REDIS is None:
+        return False
+    try:
+        if open_state:
+            payload = json.dumps({"open": True, "reason": reason, "set_at": time.time()})
+            await _ASYNC_REDIS.setex(_k(_CIRCUIT_BREAKER_KEY), _CIRCUIT_BREAKER_TTL, payload)
+        else:
+            payload = json.dumps({"open": False, "reason": "manual_reset", "set_at": time.time()})
+            await _ASYNC_REDIS.set(_k(_CIRCUIT_BREAKER_KEY), payload)
+        return True
+    except Exception as e:
+        log.error(f"set_circuit_breaker error: {e}")
+        return False
+
+
+async def get_circuit_breaker() -> bool:
+    """
+    Query the distributed circuit breaker.
+
+    Returns True if the breaker is OPEN (trading halted), False if CLOSED (healthy).
+    If Redis is unavailable, returns False (fail-open: allow trading).
+    """
+    if _ASYNC_REDIS is None:
+        return False
+    try:
+        raw = await _ASYNC_REDIS.get(_k(_CIRCUIT_BREAKER_KEY))
+        if raw is None:
+            return False
+        state = json.loads(raw)
+        return state.get("open", False)
+    except Exception as e:
+        log.error(f"get_circuit_breaker error: {e}")
+        return False
+
+
+async def get_circuit_breaker_info() -> dict:
+    """
+    Return full circuit breaker metadata for observability.
+
+    Returns {"open": bool, "reason": str, "set_at": float, "ttl_remaining": float}
+    """
+    if _ASYNC_REDIS is None:
+        return {"open": False, "reason": "redis_unavailable", "set_at": 0, "ttl_remaining": 0}
+    try:
+        key = _k(_CIRCUIT_BREAKER_KEY)
+        raw = await _ASYNC_REDIS.get(key)
+        if raw is None:
+            return {"open": False, "reason": "breaker_closed", "set_at": 0, "ttl_remaining": 0}
+        state = json.loads(raw)
+        ttl = await _ASYNC_REDIS.ttl(key)
+        state["ttl_remaining"] = max(0, ttl)
+        return state
+    except Exception as e:
+        log.error(f"get_circuit_breaker_info error: {e}")
+        return {"open": False, "reason": str(e), "set_at": 0, "ttl_remaining": 0}
+
+
+async def reset_circuit_breaker() -> bool:
+    """
+    Manually reset the circuit breaker to CLOSED (healthy).
+    Useful for admin override after manual intervention.
+    """
+    return await set_circuit_breaker(False, reason="manual_reset")
 
 
 def cache_get(key: str) -> Optional[Any]:

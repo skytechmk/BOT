@@ -19,7 +19,51 @@ Memory Flush: If pair enters WATCH but TSI returns to 0.000 without a CE flip, s
 
 import numpy as np
 import pandas as pd
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TypedDict
+
+class ChandelierExitDict(TypedDict):
+    long_stop: pd.Series
+    short_stop: pd.Series
+    direction: pd.Series
+    buy_signal: pd.Series
+    sell_signal: pd.Series
+
+class TSIExitsDict(TypedDict):
+    exit_top_l1: pd.Series
+    exit_top_l2: pd.Series
+    exit_bot_l1: pd.Series
+    exit_bot_l2: pd.Series
+
+class RHStateDict(TypedDict):
+    state: int
+    extreme_side: int
+    monitoring_entry_bar: int
+    extreme_entry_bar: int
+    recovering_entry_bar: int
+    armed_entry_bar: int
+    last_signal_bar: int
+    tsi_zone: Optional[str]
+
+class RHSignalDict(TypedDict, total=False):
+    pair: str
+    direction: str
+    price: float
+    rsi_1h: float
+    rsi_15m: float
+    tsi_val: float
+    linreg_val: float
+    adx_val: float
+    bb_width: float
+    zone: str
+    vol_surge_ratio: float
+    atr_14: float
+    timestamp: float
+    # ML pipeline integration — mandatory for downstream modules (v3)
+    ml_prediction: str         # 'LONG' | 'SHORT' | 'NEUTRAL'
+    ml_confidence: float       # 0.0–1.0 calibrated probability
+    sqi_score: float
+    sqi_grade: str
+    # Optionally: strategy_type, stop_loss, targets, etc. are injected later
 
 # ══════════════════════════════════════════════════════════════════════
 #  PARAMETERS — Aligned with TradingView "CE Pro Hybrid + REV HUNT [SkyTech]"
@@ -763,7 +807,7 @@ def detect_tsi_exits(tsi_series: pd.Series, l1: float = LEVEL_OB_L1, l2: float =
 #  MAIN ENTRY POINT
 # ══════════════════════════════════════════════════════════════════════
 
-def process_pair(pair: str, df_1h: pd.DataFrame, rust_rh: dict = None) -> Optional[dict]:
+def process_pair(pair: str, df_1h: pd.DataFrame, rust_rh: dict = None) -> Optional[RHSignalDict]:
     """
     Full Dual-Engine Mean Reversion signal pipeline.
 

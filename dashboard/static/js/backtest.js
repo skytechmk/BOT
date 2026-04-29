@@ -91,6 +91,10 @@
       <input type="number" id="bt-fee" value="0.05" min="0" max="0.5" step="0.01">
     </label>
 
+    <label class="bt-lbl">ATR multiplier sweep (comma-separated, optional)
+      <input type="text" id="bt-atr-sweep" placeholder="e.g. 1.5, 2.0, 2.5, 3.0">
+    </label>
+
     <p style="font-size:11px;color:var(--text-dim);margin:0 0 12px;padding:8px 10px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:6px;line-height:1.5">
       📊 Uses the actual recorded outcome of each signal — the same PnL Aladdin computed at close. Results match what you would have seen following every signal on Binance with the sizing below.
     </p>
@@ -293,6 +297,11 @@
             Loading signal outcomes from Binance records…</p>`;
 
         const posMode = document.getElementById('bt-posmode').value;
+        const atrRaw = (document.getElementById('bt-atr-sweep').value || '').trim();
+        const atrSweep = atrRaw
+            ? atrRaw.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0)
+            : null;
+
         const params = {
             start:           epochFromDate(document.getElementById('bt-start').value, false),
             end:             epochFromDate(document.getElementById('bt-end').value,   true),
@@ -302,6 +311,7 @@
             risk_pct:        Number((document.getElementById('bt-risk') || {value: 2}).value),
             leverage:        0,   // actual mode: signal leverage is already in recorded PnL
             fee_pct:         Number(document.getElementById('bt-fee').value),
+            atr_multipliers: atrSweep && atrSweep.length ? atrSweep : null,
         };
 
         try {
@@ -324,7 +334,7 @@
             if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
             _lastRun = data;
             if (data.quota) updateQuotaBadge(data.quota);
-            renderRun(data);
+            renderRunOrSweep(data);
             loadHistory();
         } catch (e) {
             results.innerHTML = `<p style="color:var(--red);text-align:center;padding:30px 0">
@@ -333,6 +343,40 @@
             submit.disabled = false;
             submit.textContent = 'Run backtest';
         }
+    }
+
+    // ── ATR sweep results table (sorted by PnL desc) ────────────────
+    function renderSweepResults(results) {
+        if (!results || !results.length) return '';
+        // Already sorted by pnl_usd desc on the backend.
+        const rows = results.map(r => {
+            const pnlCol = r.pnl_usd >= 0 ? 'bt-pos' : 'bt-neg';
+            return `<tr>
+  <td>${r.atr_multiplier.toFixed(1)}×</td>
+  <td class="${pnlCol}">${fmtUsd(r.pnl_usd)}</td>
+  <td class="${pnlCol}">${fmtPct(r.pnl_pct)}</td>
+  <td class="bt-neg">${r.drawdown.toFixed(2)}%</td>
+  <td>${r.trades}</td>
+  <td>${r.wins}W / ${r.losses}L</td>
+  <td>${r.win_rate.toFixed(1)}%</td>
+  <td>${r.profit_factor.toFixed(2)}</td>
+  <td>${r.sharpe.toFixed(2)}</td>
+  <td>${r.sortino.toFixed(2)}</td>
+</tr>`;
+        }).join('');
+        return `
+<h3 style="font-size:13px;letter-spacing:.04em;color:var(--text-dim);text-transform:uppercase;margin:0 0 10px">
+  ATR Multiplier Sweep — ${results.length} configurations (sorted by PnL ↓)
+</h3>
+<div style="max-height:500px;overflow:auto;border:1px solid var(--border);border-radius:8px">
+  <table class="bt-tbl">
+    <thead><tr>
+      <th>ATR Mult</th><th>PnL $</th><th>PnL %</th><th>Drawdown</th>
+      <th>Trades</th><th>W / L</th><th>Win%</th><th>PF</th><th>Sharpe</th><th>Sortino</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</div>`;
     }
 
     function renderRun(run) {
@@ -357,6 +401,22 @@
             + equityCurveSvg(run.trades || [], p.initial_capital)
             + '</div>'
             + renderTrades(run.trades || []);
+    }
+
+    function renderRunOrSweep(data) {
+        const results = document.getElementById('bt-results');
+        // Sweep path: data.results is a list of per-multiplier KPI dicts
+        if (data.results && data.results.length > 0 && 'atr_multiplier' in data.results[0]) {
+            results.innerHTML = renderSweepResults(data.results);
+            return;
+        }
+        // Legacy path: full run payload with stats + trades
+        if (data.stats) {
+            renderRun(data);
+            return;
+        }
+        results.innerHTML = `<p style="color:var(--red);text-align:center;padding:30px 0">
+            No results returned.</p>`;
     }
 
     // ── History ─────────────────────────────────────────────────────

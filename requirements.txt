@@ -91,7 +91,7 @@ yfinance>=0.2.0  # Alternative data source
 alpha-vantage>=2.3.0  # Alternative data source
 
 # Caching and Performance
-redis>=4.5.0  # Optional Redis caching
+redis>=5.0  # Optional Redis caching (redis.asyncio)
 diskcache>=5.6.0  # Disk-based caching alternative
 
 # Configuration Management
@@ -109,6 +109,7 @@ statsforecast>=1.4.0  # Time series forecasting
 # Network and API
 httpx>=0.24.0  # Modern HTTP client
 websockets>=11.0.0  # WebSocket support for real-time data
+asyncpg>=0.29.0    # Async PostgreSQL driver for TimescaleDB
 tvdatafeed>=2.1.0  # Free TradingView data (USDT.D bootstrap — optional, fails gracefully)
 
 # Data Validation and Cleaning
@@ -125,3 +126,11 @@ redis>=5.0
 # Web Push notifications (Phase 2 · dashboard/push_notifications.py · VAPID)
 # Inert until VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are set in .env.
 pywebpush>=2.0
+
+# CI/CD Enforcement Layer — static analysis & pre-commit hooks
+ruff>=0.9.0
+mypy>=1.14.0
+pre-commit>=4.0.0
+
+# Performance Profiling (env-gated, zero overhead in production)
+pyinstrument>=5.0.0

@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import sqlite3
+import traceback
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone
@@ -20,7 +21,7 @@ from ai_auto_healer import exception_handler
 sys.excepthook = exception_handler
 
 # Modular Components
-from utils_logger import log_message, clear_console
+from utils_logger import log_message, clear_console, set_context
 from technical_indicators import *
 # signal_generator.py — REMOVED: dead code, none of its functions are called
 from data_fetcher import *
@@ -159,6 +160,9 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                  dict with keys: 'signal' (LONG|SHORT), 'strategy' (str)
     exchange: 'binance' or 'mexc' — controls data fetch + signal routing.
     """
+    # Stamp this coroutine so all logs during this scan are grouped by pair.
+    set_context(f"PP:{pair}")
+
     # Guard: if this pair is already being processed (parallel coroutines),
     # skip immediately to prevent duplicate signals.
     if pair in _PAIR_IN_FLIGHT:
@@ -175,8 +179,9 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
             from contract_info_listener import CONTRACT_INFO as _CI
             if _CI.is_delisted(pair):
                 return
-        except Exception:
-            pass
+        except Exception as _dc_e:
+            log_message(f"[pair_filter] delisted check failed for {pair}: {_dc_e}  ::  "
+                        f"{traceback.format_exc()}")
 
     # ── Equity-Perp Market-Hours Gate ──────────────────────────────────
     # Binance lists perps for US stocks / ETFs whose underlying market is
@@ -203,7 +208,8 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 log_message(f"⏱️ MEXC fetch_data timeout (15s) for {pair}")
                 return
             except Exception as _mexc_e:
-                log_message(f"[MEXC] fetch error {pair}: {_mexc_e}")
+                log_message(f"⚠️ MEXC fetch error for {pair}: {_mexc_e}\n"
+                            f"{traceback.format_exc()}")
                 return
         else:
             df_1h = BATCH_PROCESSOR.get_df(pair, '1h')
@@ -225,7 +231,8 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
         if tv_override is None:
             try:
                 _bar_ts_ms = int(df_1h.index[-1].timestamp() * 1000)
-            except Exception:
+            except (ValueError, TypeError, AttributeError, IndexError) as _bts_e:
+                log_message(f"[bar_dedup] timestamp extract failed for {pair}: {type(_bts_e).__name__}: {_bts_e}")
                 _bar_ts_ms = 0
             if _bar_ts_ms and _LAST_BAR_TS_EVALUATED.get(pair) == _bar_ts_ms:
                 return  # already evaluated this 1h bar
@@ -263,8 +270,14 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 if exchange == 'mexc':
                     from mexc_data_fetcher import _to_mexc
                     import requests as _mreq
-                    _mr = _mreq.get(f'https://api.mexc.com/api/v1/contract/fair_price/{_to_mexc(pair)}', timeout=5)
-                    _mrd = _mr.json().get('data', {})
+
+                    def _fetch_mexc_mark():
+                        mr = _mreq.get(f'https://api.mexc.com/api/v1/contract/fair_price/{_to_mexc(pair)}', timeout=5)
+                        return mr.json().get('data', {})
+
+                    _mrd = await asyncio.wait_for(
+                        asyncio.to_thread(_fetch_mexc_mark), timeout=6.0
+                    )
                     _mp = float(_mrd.get('fairPrice', 0) or 0)
                     if _mp > 0:
                         live_price = _mp
@@ -286,8 +299,13 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                         has_live_price = True
                         if _idx > 0 and abs(_idx - live_price) / live_price > 0.02:
                             live_price = _idx
-            except (Exception, asyncio.TimeoutError):
-                pass
+            except asyncio.TimeoutError:
+                pass  # REST mark-price timed out — hard gate below handles missing price
+            except (KeyError, ValueError, TypeError) as _mpv:
+                log_message(f"[mark_price] data error for {pair}: {_mpv}  ::  {traceback.format_exc()}")
+            except Exception as _mpe:
+                log_message(f"[mark_price] REST fallback failed for {pair}: {_mpe}  ::  "
+                            f"{traceback.format_exc()}")
 
         # Hard gate: if we have no real live price, we cannot trust the 1H candle
         # close as entry geometry (it may be days stale on delisted / illiquid pairs).
@@ -495,6 +513,19 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
         # misaligned — the combination is a reliable false-positive pattern.
         # Example: LONG with negative taker delta (-0.40) + liq biased SHORT
         # → price hunts the nearby liquidity below before any upside move.
+        #
+        # ── ML Confidence extraction (early — for gate override logic) ─────
+        ml_conf_gate: Optional[float] = None
+        try:
+            from signal_quality import _extract_ml_confidence_early as _eml
+            ml_conf_gate = await asyncio.wait_for(
+                asyncio.to_thread(_eml, df_1h, pair, final_signal), timeout=6.0
+            )
+        except (asyncio.TimeoutError, Exception) as _ml_err:
+            log_message(f"[ML gate] extraction failed for {pair}: {_ml_err}  ::  "
+                        f"{traceback.format_exc()}")
+
+        _ml_override = ml_conf_gate is not None and ml_conf_gate >= 0.85
         taker_delta_val = positioning.get('taker_delta', 0.0)
         _is_long = final_signal.upper() == 'LONG'
         _counter_flow = (
@@ -502,20 +533,27 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
             (not _is_long and taker_delta_val >= 0.20)
         )
         if _counter_flow and not liq_aligned:
-            _liq_below_pct = nearest_below['distance_pct'] if nearest_below else 99.0
-            _liq_above_pct = nearest_above['distance_pct'] if nearest_above else 99.0
-            _close_liq = (
-                (_is_long and _liq_below_pct < 0.5) or
-                (not _is_long and _liq_above_pct < 0.5)
-            )
-            _reason = (
-                f"counter-flow trap: taker_delta={taker_delta_val:+.3f} opposes {final_signal} | "
-                f"liq_aligned=False | liq_bias={liq_magnets.get('magnet_bias')}"
-            )
-            if _close_liq:
-                _reason += f" | close liq {'below' if _is_long else 'above'} {_liq_below_pct if _is_long else _liq_above_pct:.2f}% — sweep risk"
-            log_message(f"🚫 Signal Rejected for {pair}: {_reason}")
-            return
+            if _ml_override:
+                log_message(
+                    f"[ML OVERRIDE] {pair}: Bypassing counter-flow trap gate. "
+                    f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                    f"(taker_delta={taker_delta_val:+.3f}, liq_aligned={liq_aligned})"
+                )
+            else:
+                _liq_below_pct = nearest_below['distance_pct'] if nearest_below else 99.0
+                _liq_above_pct = nearest_above['distance_pct'] if nearest_above else 99.0
+                _close_liq = (
+                    (_is_long and _liq_below_pct < 0.5) or
+                    (not _is_long and _liq_above_pct < 0.5)
+                )
+                _reason = (
+                    f"counter-flow trap: taker_delta={taker_delta_val:+.3f} opposes {final_signal} | "
+                    f"liq_aligned=False | liq_bias={liq_magnets.get('magnet_bias')}"
+                )
+                if _close_liq:
+                    _reason += f" | close liq {'below' if _is_long else 'above'} {_liq_below_pct if _is_long else _liq_above_pct:.2f}% — sweep risk"
+                log_message(f"🚫 Signal Rejected for {pair}: {_reason}")
+                return
 
         # ── Hard Gates (kept — structural safety) ──
         btc_match, pearson_corr = check_btc_correlation(client, final_signal, pair)
@@ -532,14 +570,21 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
         if final_signal.upper() == 'SHORT':
             fear_greed = MACRO_RISK_ENGINE.state.get('fear_greed', 50)
             if fear_greed < 25:
-                btc_htf = get_btc_htf_regime(client)
-                if btc_htf != 'bearish':
+                if _ml_override:
                     log_message(
-                        f"🚫 Signal Rejected for {pair}: SHORT suppressed — "
-                        f"Extreme Fear (F&G={fear_greed}) without BTC HTF bearish confirmation "
-                        f"(BTC HTF={btc_htf.upper()})"
+                        f"[ML OVERRIDE] {pair}: Bypassing Extreme Fear SHORT gate. "
+                        f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                        f"(F&G={fear_greed})"
                     )
-                    return
+                else:
+                    btc_htf = get_btc_htf_regime(client)
+                    if btc_htf != 'bearish':
+                        log_message(
+                            f"🚫 Signal Rejected for {pair}: SHORT suppressed — "
+                            f"Extreme Fear (F&G={fear_greed}) without BTC HTF bearish confirmation "
+                            f"(BTC HTF={btc_htf.upper()})"
+                        )
+                        return
 
         # ── Extreme Greed LONG Gate ───────────────────────────────────────
         # [UPGRADE 2026-04-19 — Directional Symmetry]
@@ -550,14 +595,21 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
         if final_signal.upper() == 'LONG':
             fear_greed = MACRO_RISK_ENGINE.state.get('fear_greed', 50)
             if fear_greed > 75:
-                btc_htf = get_btc_htf_regime(client)
-                if btc_htf != 'bullish':
+                if _ml_override:
                     log_message(
-                        f"🚫 Signal Rejected for {pair}: LONG suppressed — "
-                        f"Extreme Greed (F&G={fear_greed}) without BTC HTF bullish confirmation "
-                        f"(BTC HTF={btc_htf.upper()})"
+                        f"[ML OVERRIDE] {pair}: Bypassing Extreme Greed LONG gate. "
+                        f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                        f"(F&G={fear_greed})"
                     )
-                    return
+                else:
+                    btc_htf = get_btc_htf_regime(client)
+                    if btc_htf != 'bullish':
+                        log_message(
+                            f"🚫 Signal Rejected for {pair}: LONG suppressed — "
+                            f"Extreme Greed (F&G={fear_greed}) without BTC HTF bullish confirmation "
+                            f"(BTC HTF={btc_htf.upper()})"
+                        )
+                        return
 
         # ── 4H HTF Chandelier Exit Direction Gate ─────────────────────────
         # The Apr-18 massacre (-70% to -93% LONGs) all fired against a clear
@@ -577,17 +629,31 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 )
                 _ce_4h_dir = int(_ce_4h['direction'].iloc[-1])
                 if final_signal.upper() == 'LONG' and _ce_4h_dir != 1:
-                    log_message(
-                        f"🚫 Signal Rejected for {pair}: 4H CE BEARISH — "
-                        f"LONG signal against 4H trend (HTF CE dir={_ce_4h_dir})"
-                    )
-                    return
+                    if _ml_override:
+                        log_message(
+                            f"[ML OVERRIDE] {pair}: Bypassing 4H CE trend gate. "
+                            f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                            f"(4H CE dir={_ce_4h_dir})"
+                        )
+                    else:
+                        log_message(
+                            f"🚫 Signal Rejected for {pair}: 4H CE BEARISH — "
+                            f"LONG signal against 4H trend (HTF CE dir={_ce_4h_dir})"
+                        )
+                        return
                 if final_signal.upper() == 'SHORT' and _ce_4h_dir != -1:
-                    log_message(
-                        f"🚫 Signal Rejected for {pair}: 4H CE BULLISH — "
-                        f"SHORT signal against 4H trend (HTF CE dir={_ce_4h_dir})"
-                    )
-                    return
+                    if _ml_override:
+                        log_message(
+                            f"[ML OVERRIDE] {pair}: Bypassing 4H CE trend gate. "
+                            f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                            f"(4H CE dir={_ce_4h_dir})"
+                        )
+                    else:
+                        log_message(
+                            f"🚫 Signal Rejected for {pair}: 4H CE BULLISH — "
+                            f"SHORT signal against 4H trend (HTF CE dir={_ce_4h_dir})"
+                        )
+                        return
                 log_message(f"✅ 4H CE Gate [{pair}]: dir={_ce_4h_dir} aligns with {final_signal}")
         except (asyncio.TimeoutError, Exception) as _4h_e:
             log_message(f"[4H CE gate] fail-open for {pair}: {_4h_e}")
@@ -619,19 +685,33 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 _usdt_d = _get_usdt_d_state()
                 if _usdt_d.is_ready:
                     if final_signal.upper() == 'LONG' and _usdt_d.state == 'GREED_MAX_PAIN':
-                        log_message(
-                            f"🚫 Signal Rejected for {pair}: USDT.D veto LONG — "
-                            f"TSI={_usdt_d.tsi_scaled:.2f} > +2.1 (alts overheated, "
-                            f"USDT.D={_usdt_d.value_pct:.2f}%)"
-                        )
-                        return
+                        if _ml_override:
+                            log_message(
+                                f"[ML OVERRIDE] {pair}: Bypassing USDT.D veto LONG. "
+                                f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                                f"(USDT.D TSI={_usdt_d.tsi_scaled:.2f}, USDT.D={_usdt_d.value_pct:.2f}%)"
+                            )
+                        else:
+                            log_message(
+                                f"🚫 Signal Rejected for {pair}: USDT.D veto LONG — "
+                                f"TSI={_usdt_d.tsi_scaled:.2f} > +2.1 (alts overheated, "
+                                f"USDT.D={_usdt_d.value_pct:.2f}%)"
+                            )
+                            return
                     if final_signal.upper() == 'SHORT' and _usdt_d.state == 'FEAR_MAX_PAIN':
-                        log_message(
-                            f"🚫 Signal Rejected for {pair}: USDT.D veto SHORT — "
-                            f"TSI={_usdt_d.tsi_scaled:.2f} < -1.8 (fear peaking, "
-                            f"USDT.D={_usdt_d.value_pct:.2f}%)"
-                        )
-                        return
+                        if _ml_override:
+                            log_message(
+                                f"[ML OVERRIDE] {pair}: Bypassing USDT.D veto SHORT. "
+                                f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                                f"(USDT.D TSI={_usdt_d.tsi_scaled:.2f}, USDT.D={_usdt_d.value_pct:.2f}%)"
+                            )
+                        else:
+                            log_message(
+                                f"🚫 Signal Rejected for {pair}: USDT.D veto SHORT — "
+                                f"TSI={_usdt_d.tsi_scaled:.2f} < -1.8 (fear peaking, "
+                                f"USDT.D={_usdt_d.value_pct:.2f}%)"
+                            )
+                            return
             except Exception as _usdt_exc:
                 log_message(f"[usdt_dominance] gate check degraded: {_usdt_exc}")
 
@@ -646,17 +726,31 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 _pm = _get_pair_macro_state(pair)
                 if _pm.is_ready:
                     if final_signal.upper() == 'LONG' and _pm.state == 'SHORT_MAX_PAIN':
-                        log_message(
-                            f"🚫 Signal Rejected for {pair}: PAIR macro veto LONG — "
-                            f"TSI={_pm.tsi_scaled:.2f} ≥ +2.2 (pair at local top, regime={_pm.lr_regime})"
-                        )
-                        return
+                        if _ml_override:
+                            log_message(
+                                f"[ML OVERRIDE] {pair}: Bypassing PAIR macro veto LONG. "
+                                f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                                f"(PAIR TSI={_pm.tsi_scaled:.2f}, regime={_pm.lr_regime})"
+                            )
+                        else:
+                            log_message(
+                                f"🚫 Signal Rejected for {pair}: PAIR macro veto LONG — "
+                                f"TSI={_pm.tsi_scaled:.2f} ≥ +2.2 (pair at local top, regime={_pm.lr_regime})"
+                            )
+                            return
                     if final_signal.upper() == 'SHORT' and _pm.state == 'LONG_MAX_PAIN':
-                        log_message(
-                            f"🚫 Signal Rejected for {pair}: PAIR macro veto SHORT — "
-                            f"TSI={_pm.tsi_scaled:.2f} ≤ -2.2 (pair at local bottom, regime={_pm.lr_regime})"
-                        )
-                        return
+                        if _ml_override:
+                            log_message(
+                                f"[ML OVERRIDE] {pair}: Bypassing PAIR macro veto SHORT. "
+                                f"ML Confidence {ml_conf_gate:.2f} dictates execution. "
+                                f"(PAIR TSI={_pm.tsi_scaled:.2f}, regime={_pm.lr_regime})"
+                            )
+                        else:
+                            log_message(
+                                f"🚫 Signal Rejected for {pair}: PAIR macro veto SHORT — "
+                                f"TSI={_pm.tsi_scaled:.2f} ≤ -2.2 (pair at local bottom, regime={_pm.lr_regime})"
+                            )
+                            return
             except Exception as _pm_exc:
                 log_message(f"[pair_macro] gate check degraded: {_pm_exc}")
 
@@ -988,7 +1082,8 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                     else:
                         log_message(f"🧠 Meta-Labeler [{pair}]: Approved (p_win={p_win:.3f})")
             except Exception as meta_e:
-                log_message(f"[meta_labeler] error: {meta_e}")
+                log_message(f"[meta_labeler] error for {pair}: {meta_e}\n"
+                            f"{traceback.format_exc()}")
 
         # ── Build Telegram message (after all guards so drift flag is final) ──
         _drift_banner = (
@@ -1103,8 +1198,11 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 if _txt:
                     # Trim markdown for safe storage; keep compact.
                     feature_snapshot['ml_explain'] = _txt.replace('*', '').replace('`', '')[:95]
-            except Exception:
-                pass
+            except (KeyError, ValueError, TypeError, AttributeError) as _mlf:
+                log_message(f"[feature_snapshot] ML payload error for {pair}: {type(_mlf).__name__}: {_mlf}")
+            except Exception as _mlfx:
+                log_message(f"[feature_snapshot] ML payload failed for {pair}: {_mlfx}  ::  "
+                            f"{traceback.format_exc()}")
 
         # PREDATOR data
         feature_snapshot['pred_regime'] = regime_name
@@ -1134,8 +1232,9 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 feature_snapshot['usdt_d_linreg'] = _usdt_d_snap.linreg
                 feature_snapshot['usdt_d_state']  = _usdt_d_snap.state
                 feature_snapshot['usdt_d_ready']  = _usdt_d_snap.is_ready
-            except Exception:
-                pass
+            except Exception as _usdtfe:
+                log_message(f"[feature_snapshot] USDT.D state extraction failed: "
+                            f"{type(_usdtfe).__name__}: {_usdtfe}")
 
         # Per-pair macro state (2H, Pine REVERSE HUNT with pair-side params)
         # Used alongside USDT.D for two-layer macro confirmation.
@@ -1148,8 +1247,9 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 feature_snapshot['pair_macro_regime'] = _pm.lr_regime
                 feature_snapshot['pair_macro_ready']  = _pm.is_ready
                 feature_snapshot['pair_macro_long_bias'] = _pair_macro_long_bias(pair)
-            except Exception:
-                pass
+            except Exception as _pmfe:
+                log_message(f"[feature_snapshot] pair macro state extraction failed for {pair}: "
+                            f"{type(_pmfe).__name__}: {_pmfe}")
 
         # Order-book features (collected for analysis; not yet used as gates).
         try:
@@ -1160,8 +1260,12 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                 feature_snapshot['ob_spread_bps']    = _obf['spread_bps']
                 feature_snapshot['ob_bid_depth_usd'] = _obf['bid_depth_usd']
                 feature_snapshot['ob_ask_depth_usd'] = _obf['ask_depth_usd']
-        except Exception:
-            pass
+        except (AttributeError, KeyError, TypeError, ValueError) as _obv:
+            log_message(f"[feature_snapshot] orderbook features error for {pair}: "
+                        f"{type(_obv).__name__}: {_obv}")
+        except Exception as _obe:
+            log_message(f"[feature_snapshot] orderbook features failed for {pair}: {_obe}  ::  "
+                        f"{traceback.format_exc()}")
 
         # Tag tier + zone in feature snapshot (also stored as top-level columns).
         feature_snapshot['signal_tier'] = signal_tier
@@ -1190,7 +1294,8 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                     'exchange': exchange,
                 })
             except Exception as _ct_exc:
-                log_message(f"[copy_trading] execution error: {_ct_exc}")
+                log_message(f"[copy_trading] execution error for {pair}: {_ct_exc}\n"
+                            f"{traceback.format_exc()}")
 
         # ── Store signal in ChromaDB trade memory ─────────────────────────
         try:
@@ -1206,7 +1311,8 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
                        'pearson': round(pearson_corr, 2)}
             )
         except Exception as _mem_exc:
-            log_message(f"[trade_memory] store error: {_mem_exc}")
+            log_message(f"[trade_memory] store error for {pair}: {_mem_exc}\n"
+                        f"{traceback.format_exc()}")
 
         add_open_signal(signal_id, pair, final_signal, current_price,
                          stop_loss=stop_loss, targets=targets, leverage=leverage_val,
@@ -1214,8 +1320,12 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
         
         # realtime_monitor disabled — reconciler handles signal closures
             
+    except asyncio.TimeoutError:
+        log_message(f"Timeout in process_pair for {pair}: {traceback.format_exc()}")
+    except (KeyError, ValueError, TypeError) as _kvt:
+        log_message(f"Data error in process_pair for {pair}: {_kvt}\n{traceback.format_exc()}")
     except Exception as e:
-        log_message(f"Error in process_pair for {pair}: {e}")
+        log_message(f"Error in process_pair for {pair}: {e}\n{traceback.format_exc()}")
     finally:
         _PAIR_IN_FLIGHT.discard(pair)
 
@@ -1226,6 +1336,7 @@ async def process_pair(pair, timeframe='1h', tv_override=None, exchange='binance
 
 async def main_async():
     """Central Automation Engine"""
+    set_context("MAIN-LOOP")
     import concurrent.futures
     loop = asyncio.get_running_loop()
     loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=100))
@@ -1308,8 +1419,12 @@ async def main_async():
                     log_message(f"🤖 GPU pre-flight OK: {_free_gb:.1f}/{_total_gb:.1f}GB free")
                 else:
                     log_message("⚠️ ML Auto-Retrain: GPU unavailable, training on CPU only")
+            except (ImportError, AttributeError, RuntimeError) as _gpu_import:
+                log_message(f"⚠️ ML Auto-Retrain: GPU check failed ({type(_gpu_import).__name__}: {_gpu_import}), training on CPU only\n"
+                            f"{traceback.format_exc()}")
             except Exception as _gpu_e:
-                log_message(f"⚠️ ML Auto-Retrain: GPU check failed ({_gpu_e}), training on CPU only")
+                log_message(f"⚠️ ML Auto-Retrain: GPU check failed ({_gpu_e}), training on CPU only\n"
+                            f"{traceback.format_exc()}")
 
             log_message("🤖 ML Auto-Retrain: starting background training...")
             await send_ops_message("🤖 **ML Auto-Retrain Started**\nTraining BiLSTM+TFT+XGBoost+LightGBM ensemble in background (this takes ~20min).")
@@ -1321,13 +1436,15 @@ async def main_async():
                 _train_env['CUDA_VISIBLE_DEVICES'] = ''
             _train_env['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
+            _PYTHON = sys.executable
+            _ROOT   = os.path.dirname(os.path.abspath(__file__))
             proc = await asyncio.create_subprocess_exec(
-                "/root/miniconda3/bin/python3", "-m", "ml_engine_archive.train",
+                _PYTHON, "-m", "ml_engine_archive.train",
                 "--skip-download", "--epochs", "50", "--months", "36",
                 "--chunk-size", "30", "--resume-checkpoint",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
-                cwd="/home/MAIN_BOT_BETA/MAIN_BOT_OFFICIAL_BETA",
+                cwd=_ROOT,
                 env=_train_env,
             )
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=7200)  # 2h max
@@ -1341,7 +1458,7 @@ async def main_async():
         except asyncio.TimeoutError:
             log_message("⚠️ ML Auto-Retrain: exceeded 2h timeout, killed")
         except Exception as _mle:
-            log_message(f"⚠️ ML Auto-Retrain error: {_mle}")
+            log_message(f"⚠️ ML Auto-Retrain error: {_mle}\n{traceback.format_exc()}")
 
     async def _check_meta_labeler_promotion():
         """Periodically check if meta-labeler has enough data to train."""
@@ -1375,15 +1492,18 @@ async def main_async():
         while True:
             try:
                 if os.path.exists(_TV_ALERTS_DB):
-                    # ── Read pending rows (connection guarded) ──────────────
-                    conn = sqlite3.connect(_TV_ALERTS_DB)
-                    try:
-                        rows = conn.execute(
-                            "SELECT id, symbol, action, strategy FROM tv_alerts "
-                            "WHERE processed=0 ORDER BY received ASC LIMIT 10"
-                        ).fetchall()
-                    finally:
-                        conn.close()
+                    # ── Read pending rows (offloaded to thread) ──────────
+                    def _read_pending():
+                        conn = sqlite3.connect(_TV_ALERTS_DB)
+                        try:
+                            return conn.execute(
+                                "SELECT id, symbol, action, strategy FROM tv_alerts "
+                                "WHERE processed=0 ORDER BY received ASC LIMIT 10"
+                            ).fetchall()
+                        finally:
+                            conn.close()
+
+                    rows = await asyncio.to_thread(_read_pending)
 
                     for row_id, symbol, action, strategy in rows:
                         direction = None
@@ -1401,40 +1521,61 @@ async def main_async():
                                 result_str = 'PROCESSED'
                             except Exception as _tv_e:
                                 result_str = f'ERROR: {_tv_e}'
-                                log_message(f'⚠️ TV queue error for {symbol}: {_tv_e}')
-                        # ── Write result (guarded) ──────────────────────────
-                        conn2 = sqlite3.connect(_TV_ALERTS_DB)
-                        try:
-                            conn2.execute(
-                                "UPDATE tv_alerts SET processed=1, result=? WHERE id=?",
-                                (result_str, row_id)
-                            )
-                            conn2.commit()
-                        finally:
-                            conn2.close()
+                                log_message(f'\u26a0\ufe0f TV queue error for {symbol}: {_tv_e}\n'
+                                            f'{traceback.format_exc()}')
+                        # ── Write result (offloaded to thread) ───────────
+                        def _write_result():
+                            conn2 = sqlite3.connect(_TV_ALERTS_DB)
+                            try:
+                                conn2.execute(
+                                    "UPDATE tv_alerts SET processed=1, result=? WHERE id=?",
+                                    (result_str, row_id)
+                                )
+                                conn2.commit()
+                            finally:
+                                conn2.close()
+
+                        await asyncio.to_thread(_write_result)
                         await asyncio.sleep(2)
 
-                    # ── Periodic cleanup: delete processed rows >7 days ─────
+                    # ── Periodic cleanup: delete processed rows >7 days ──
                     now_t = time.time()
                     if now_t - _tv_last_cleanup > 86400:  # once per day
                         _tv_last_cleanup = now_t
-                        conn3 = sqlite3.connect(_TV_ALERTS_DB)
-                        try:
-                            deleted = conn3.execute(
-                                "DELETE FROM tv_alerts WHERE processed=1 "
-                                "AND received < datetime('now', '-7 days')"
-                            ).rowcount
-                            conn3.commit()
-                            if deleted:
-                                log_message(f"[tv_queue] Pruned {deleted} old processed alerts from DB")
-                        finally:
-                            conn3.close()
+
+                        def _run_cleanup():
+                            conn3 = sqlite3.connect(_TV_ALERTS_DB)
+                            try:
+                                deleted = conn3.execute(
+                                    "DELETE FROM tv_alerts WHERE processed=1 "
+                                    "AND received < datetime('now', '-7 days')"
+                                ).rowcount
+                                conn3.commit()
+                                return deleted
+                            finally:
+                                conn3.close()
+
+                        deleted = await asyncio.to_thread(_run_cleanup)
+                        if deleted:
+                            log_message(f"[tv_queue] Pruned {deleted} old processed alerts from DB")
 
             except Exception as _tv_loop_e:
-                log_message(f'TV queue processor error: {_tv_loop_e}')
+                log_message(f'TV queue processor error: {_tv_loop_e}\n{traceback.format_exc()}')
             await asyncio.sleep(60)
 
     asyncio.create_task(tv_queue_processor())
+
+    # ── Optional pyinstrument profiling window ──────────────────────────
+    try:
+        from profiler_engine import ProfilingContextManager
+        _profiler_ctx = ProfilingContextManager(
+            duration_sec=60.0,
+            max_iterations=1000,
+            output_dir="logs/profiles",
+            filename="main_loop_profile.html",
+        )
+    except Exception:
+        _profiler_ctx = None
 
     # ── WebSocket kline stream for ALL pairs ────────────────────────────
     global _kline_manager
@@ -1460,6 +1601,14 @@ async def main_async():
         log_message("📊 Funding/OI cache refresher started (10min interval)")
     except Exception as _fo_err:
         log_message(f"Funding/OI refresher not started: {_fo_err}")
+
+    # ── Notification listener: Redis Pub/Sub → Telegram / Discord ──────
+    try:
+        from dashboard.notifier import notification_listener
+        asyncio.create_task(notification_listener())
+        log_message("📡 Notification listener started (Redis Pub/Sub → Telegram/Discord)")
+    except Exception as _nl_err:
+        log_message(f"Notification listener not started: {_nl_err}")
 
     async def semaphore_process(p, current_time, exchange='binance'):
         _suspend_key = f"{exchange}:{p}"
@@ -1801,7 +1950,14 @@ async def main_async():
             # they fire, so signal latency is ≤ 1s after candle close.
             elapsed = time.time() - cycle_start
             await asyncio.sleep(max(0, 30 - elapsed))
-            
+
+            # Profiling tick — auto-stops and exports when window expires
+            if _profiler_ctx is not None:
+                try:
+                    await _profiler_ctx.tick()
+                except Exception as _prof_e:
+                    log_message(f"[profiler] tick error: {_prof_e}")
+
         except Exception as e:
             log_message(f"Critical error in main loop: {e}")
             await asyncio.sleep(60)

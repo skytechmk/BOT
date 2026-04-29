@@ -148,7 +148,7 @@ function updateUI() {
             if (!document.getElementById('admin-js-loaded')) {
                 const s = document.createElement('script');
                 s.id = 'admin-js-loaded';
-                s.src = '/static/js/admin.js?v=20260425-reboot';
+                s.src = '/api/admin/script.js?v=20260429-secure';
                 document.head.appendChild(s);
             }
         } else {

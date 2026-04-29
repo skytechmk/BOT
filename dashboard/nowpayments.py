@@ -220,7 +220,7 @@ def verify_ipn_signature(raw_body: bytes, signature_header: str) -> bool:
         logger.warning("verify_ipn_signature: invalid JSON")
         return False
 
-    canonical = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    canonical = json.dumps(payload, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
     expected  = hmac.new(
         _IPN_SECRET.encode("utf-8"),
         canonical.encode("utf-8"),

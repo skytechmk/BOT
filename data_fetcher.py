@@ -5,6 +5,7 @@ import asyncio
 import os
 import sqlite3
 import threading
+from typing import TypedDict, Optional
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 from requests.exceptions import ConnectTimeout
@@ -754,7 +755,18 @@ def get_funding_rate_history(pair, limit=10):
         log_message(f"Error fetching funding rate history for {pair}: {e}")
         return [], []
 
-def analyze_funding_rate_sentiment(pair):
+class FundingSentimentDict(TypedDict, total=False):
+    current_rate: float
+    current_rate_pct: float
+    sentiment: str
+    strength: float
+    signal_bias: str
+    confidence_adjustment: float
+    funding_trend: str
+    extreme_funding: bool
+    high_volatility: bool
+
+def analyze_funding_rate_sentiment(pair) -> FundingSentimentDict:
     """Analyze funding rate to determine market sentiment and signal strength"""
     try:
         # Get current funding rate
@@ -1016,7 +1028,11 @@ API_PERMISSIONS = {
 _OI_CACHE = {}
 _OI_CACHE_TTL = 300  # 5 minutes
 
-def get_open_interest_change(symbol):
+class OpenInterestDict(TypedDict):
+    oi_change: float
+    oi_current: float
+
+def get_open_interest_change(symbol) -> OpenInterestDict:
     """Get Open Interest change to detect crowded positioning or weak rallies."""
     try:
         now = time.time()

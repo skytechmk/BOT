@@ -471,6 +471,17 @@ function _applyLivePnl(pnlMap) {
             const tpRow = document.getElementById(`tprow-${sid}-${n}`);
             if (tpRow) tpRow.classList.toggle('tp-hit', tHit >= n);
         }
+        // ── Dynamic Trailing SL DOM sync ──
+        const trailSl = info.trail_sl;
+        if (trailSl && typeof formatPrice === 'function') {
+            const slPriceEl = document.querySelector(`#livepnl-${sid} .sl-value`);
+            if (slPriceEl) slPriceEl.textContent = formatPrice(trailSl);
+            const slRowEl = document.querySelector(`#tprow-${sid}-sl .pl-price`);
+            if (slRowEl) slRowEl.textContent = formatPrice(trailSl);
+            if (typeof _updateChartTrailSl === 'function') {
+                _updateChartTrailSl(info.pair, trailSl);
+            }
+        }
     }
 }
 

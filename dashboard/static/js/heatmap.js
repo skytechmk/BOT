@@ -568,7 +568,7 @@ function renderLiqHeatmap(data, vpData) {
     ctx.beginPath(); ctx.moveTo(centerX, padT); ctx.lineTo(centerX, padT + chartH); ctx.stroke();
 
     // Liquidation bars
-    var rowH = Math.max(2, chartH / n - 0.5);
+    var rowH = Math.min(18, Math.max(2, chartH / n - 0.5));
     visBuckets.forEach(function(b) {
         var yCenter = priceToY(b.price);
         var longW2  = (b.long_liq_usd  / maxUsd) * halfW;

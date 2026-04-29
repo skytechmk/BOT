@@ -34,3 +34,18 @@ aiohttp==3.9.1
 
 # Development Tools
 tqdm==4.66.1
+loguru>=0.7.0
+
+# Async Operations
+aiohttp==3.9.1
+
+# Caching and Performance
+redis>=5.0
+
+# Performance Profiling (env-gated)
+pyinstrument>=5.0.0
+
+# CI/CD Enforcement Layer
+ruff>=0.9.0
+mypy>=1.14.0
+pre-commit>=4.0.0

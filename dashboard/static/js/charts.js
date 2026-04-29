@@ -52,6 +52,7 @@ function _newSlotState(slotId) {
         linregSeries: null,
         entryLine: null,
         slLine: null,
+        trailSlSeries: null,
         tpLines: [],
         ceMarkers: [],
         markerPlugin: null,
@@ -80,6 +81,7 @@ function _syncPrimaryGlobals() {
     _linregSeries  = s.linregSeries;
     _entryLine     = s.entryLine;
     _slLine        = s.slLine;
+    _trailSlSeries = s.trailSlSeries;
     _tpLines       = s.tpLines;
     _ceMarkers     = s.ceMarkers;
 }
@@ -438,7 +440,7 @@ async function _loadChartSlot(slotId, pair, interval) {
     if (s.priceChart) { try { s.priceChart.remove(); } catch(e) {} s.priceChart = null; }
     if (s.indChart)   { try { s.indChart.remove();   } catch(e) {} s.indChart   = null; }
     s.candleSeries = s.volSeries = s.ceLineSeries = s.ceCloudSeries = null;
-    s.tsiSeries = s.linregSeries = s.entryLine = s.slLine = null;
+    s.tsiSeries = s.linregSeries = s.entryLine = s.slLine = s.trailSlSeries = null;
     s.tpLines = []; s.ceMarkers = []; s.markerPlugin = null;
     s.liveLastBar = null;
 
@@ -514,7 +516,8 @@ function _chartNum(v) {
 
 function _chartTime(t) {
     if (typeof t === 'number') {
-        const sec = t > 1000000000000 ? Math.floor(t / 1000) : Math.floor(t);
+        const sec = t > 1000000000000 ? Math.floor(t / 1000) : (t > 1000000000 ? Math.floor(t) : null);
+        if (sec === null) return null;
         return Number.isFinite(sec) && sec > 0 ? sec + (_SERVER_TZ_OFFSET || 0) : null;
     }
     if (typeof t === 'string') {
@@ -526,6 +529,33 @@ function _chartTime(t) {
         return Math.floor(ms / 1000) + (_SERVER_TZ_OFFSET || 0);
     }
     return null;
+}
+
+// ── Unified tick normalizer: Binance {k: {...}} or REST OHLCV row → chart bar ──
+function _normalizeTick(raw, exchange) {
+    if (exchange === 'binance') {
+        if (!raw || !raw.t) return null;
+        return {
+            time:    _chartTime(raw.t),
+            open:    _chartNum(raw.o),
+            high:    _chartNum(raw.h),
+            low:     _chartNum(raw.l),
+            close:   _chartNum(raw.c),
+            volume:  _chartNum(raw.v),
+            isFinal: raw.x === true,
+        };
+    }
+    // MEXC REST format: raw is an object with OHLCV fields from /api/chart/
+    if (!raw || raw.close === undefined) return null;
+    return {
+        time:    _chartTime(raw.timestamp),
+        open:    _chartNum(raw.open),
+        high:    _chartNum(raw.high),
+        low:     _chartNum(raw.low),
+        close:   _chartNum(raw.close),
+        volume:  _chartNum(raw.volume),
+        isFinal: false,   // MEXC REST polls are always potential live updates
+    };
 }
 
 function _chartDedupeSort(rows) {
@@ -829,6 +859,18 @@ function overlaySignalLinesSlot(slotId, d) {
         priceFormat: _spf, title: `─ SL ${slPct}` });
     s.slLine.setData(mkLine(sig.stop_loss));
 
+    // ── Dynamic Trailing SL (Chandelier Exit / ATR High Water Mark) ──
+    const trailSl = sig.trail_sl || 0;
+    if (trailSl > 0 && Number.isFinite(trailSl)) {
+        s.trailSlSeries = _add(s.priceChart, LC.LineSeries, {
+            color: '#ff1744', lineWidth: 2, lineStyle: LC.LineStyle.Dotted,
+            priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
+            priceFormat: _spf, title: '\u2500\u2500 Trail SL' });
+        s.trailSlSeries.setData(mkLine(trailSl));
+    } else {
+        s.trailSlSeries = null;
+    }
+
     const tpGreen = ['#00c47a', '#00d68f', '#4fffb8'];
     s.tpLines = [];
     (sig.targets || []).forEach((tp, i) => {
@@ -919,14 +961,22 @@ function _connectLiveWsSlot(slotId, pair, interval) {
                 const d = await res.json();
                 if (!d.error && d.close && d.close.length > 0 && s.candleSeries) {
                     const lastIdx = d.close.length - 1;
-                    const bar = _chartOhlc(d.timestamps[lastIdx], d.open[lastIdx], d.high[lastIdx], d.low[lastIdx], d.close[lastIdx]);
-                    if (bar) {
+                    const tick = _normalizeTick({
+                        timestamp: d.timestamps[lastIdx],
+                        open:     d.open[lastIdx],
+                        high:     d.high[lastIdx],
+                        low:      d.low[lastIdx],
+                        close:    d.close[lastIdx],
+                        volume:   d.volume[lastIdx],
+                    }, 'mexc');
+                    if (tick && tick.time) {
+                        const bar = { time: tick.time, open: tick.open, high: tick.high, low: tick.low, close: tick.close };
                         s.candleSeries.update(bar);
-                        const vol = _chartNum(d.volume[lastIdx]) ?? 0;
-                        if (s.volSeries && vol >= 0) s.volSeries.update({
-                            time: bar.time, value: vol,
+                        if (s.volSeries && tick.volume >= 0) s.volSeries.update({
+                            time: bar.time, value: tick.volume,
                             color: bar.close >= bar.open ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)'
                         });
+                        s.liveLastBar = bar;
                     }
                 }
             } catch(_) {}
@@ -957,7 +1007,8 @@ function _connectLiveWsSlot(slotId, pair, interval) {
             try {
                 const msg = JSON.parse(evt.data);
                 const k   = (msg.data || msg).k;
-                if (k) _onLiveTickSlot(slotId, pair, interval, k);
+                const tick = k ? _normalizeTick(k, 'binance') : null;
+                if (tick) _onLiveTickSlot(slotId, pair, interval, tick);
             } catch(_) {}
         };
         ws.onerror = () => {};
@@ -977,14 +1028,21 @@ function _connectLiveWsSlot(slotId, pair, interval) {
             const res  = await fetch(`/api/chart/${pair}?interval=${interval}&bars=${bars}`, { headers: authHeaders() });
             const d    = await res.json();
             if (!d.error && s.candleSeries && d.close && d.close.length > 0) {
-                // Update last candle
                 const lastIdx = d.close.length - 1;
-                const bar = _chartOhlc(d.timestamps[lastIdx], d.open[lastIdx], d.high[lastIdx], d.low[lastIdx], d.close[lastIdx]);
-                if (bar) {
+                const tick = _normalizeTick({
+                    timestamp: d.timestamps[lastIdx],
+                    open:     d.open[lastIdx],
+                    high:     d.high[lastIdx],
+                    low:      d.low[lastIdx],
+                    close:    d.close[lastIdx],
+                    volume:   d.volume[lastIdx],
+                }, 'rest');
+                if (tick && tick.time) {
+                    const bar = { time: tick.time, open: tick.open, high: tick.high, low: tick.low, close: tick.close };
                     s.candleSeries.update(bar);
-                    const vol = _chartNum(d.volume[lastIdx]) ?? 0;
-                    if (s.volSeries && vol >= 0) s.volSeries.update({
-                        time: bar.time, value: vol,
+                    s.liveLastBar = bar;
+                    if (s.volSeries && tick.volume >= 0) s.volSeries.update({
+                        time: bar.time, value: tick.volume,
                         color: bar.close >= bar.open ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)'
                     });
                 }
@@ -994,6 +1052,20 @@ function _connectLiveWsSlot(slotId, pair, interval) {
                 if (s.ceLineSeries && d.ce_line_dir) s.ceLineSeries.setData(_chartLineData(d, i => d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i], i => d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a', true));
                 if (s.ceCloudSeries && d.ce_cloud_dir) s.ceCloudSeries.setData(_chartLineData(d, i => d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i], i => d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)', true));
                 renderChartStatusSlot(slotId, d);
+
+                // ── Reactive Trailing SL delta update ──
+                if (s.trailSlSeries && d.trail_sl && Number.isFinite(d.trail_sl) && d.trail_sl > 0) {
+                    const tFirst = _chartTime(d.timestamps[0]);
+                    const tLast  = _chartTime(d.timestamps[d.timestamps.length - 1]);
+                    if (tFirst !== null && tLast !== null) {
+                        s.trailSlSeries.setData([
+                            { time: tFirst, value: d.trail_sl },
+                            { time: tLast,  value: d.trail_sl }
+                        ]);
+                    }
+                } else if (s.trailSlSeries && (!d.trail_sl || d.trail_sl <= 0)) {
+                    s.trailSlSeries.setData([]);
+                }
             }
         } catch(_) {}
     }, 30000);
@@ -1030,59 +1102,94 @@ function _disconnectAllLiveWs() {
     for (const id of _slots.keys()) _disconnectLiveWsSlot(id);
 }
 
-async function _onLiveTickSlot(slotId, pair, interval, k) {
+async function _onLiveTickSlot(slotId, pair, interval, tick) {
     const s = _slots.get(slotId);
-    if (!s || !s.candleSeries || !s.priceChart) return;
+    if (!s) return;
+    if (!s.candleSeries || !s.priceChart) return;
 
-    const bar = _chartOhlc(k.t, k.o, k.h, k.l, k.c);
-    const v = _chartNum(k.v);
-    if (!bar) return;
+    // tick is the normalized object from _normalizeTick:
+    //   { time, open, high, low, close, volume, isFinal }
 
-    try {
-        s.candleSeries.update(bar);
-        if (s.volSeries && v !== null && v >= 0) s.volSeries.update({
-            time: bar.time, value: v,
-            color: bar.close >= bar.open ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)'
-        });
-    } catch(_) {}
+    if (tick.time === null || tick.open === null || tick.close === null) return;
+
+    const bar = { time: tick.time, open: tick.open, high: tick.high, low: tick.low, close: tick.close };
+    s.candleSeries.update(bar);
+    if (tick.volume !== null && tick.volume >= 0) s.volSeries.update({
+        time: bar.time, value: tick.volume,
+        color: bar.close >= bar.open ? 'rgba(0,214,143,0.15)' : 'rgba(255,77,106,0.15)'
+    });
     s.liveLastBar = bar;
 
-    if (k.x && !s.liveRefreshPending) {
-        s.liveRefreshPending = true;
-        setTimeout(async () => {
-            try {
-                const bars = _TF_BARS[interval] || 500;
-                const res  = await fetch(`/api/chart/${pair}?interval=${interval}&bars=${bars}`, { headers: authHeaders() });
-                const d    = await res.json();
-                if (!d.error && s.candleSeries) {
-                    if (s.tsiSeries && d.tsi) {
-                        s.tsiSeries.setData(_chartLineData(d, i => d.tsi[i]));
-                    }
-                    if (s.linregSeries && d.linreg) {
-                        s.linregSeries.setData(_chartLineData(d, i => d.linreg[i], i => _chartNum(d.linreg[i]) >= 0 ? 'rgba(0,214,143,0.28)' : 'rgba(255,77,106,0.28)'));
-                    }
-                    if (s.ceLineSeries && d.ce_line_dir) {
-                        s.ceLineSeries.setData(_chartLineData(
-                            d,
-                            i => d.ce_line_dir[i] === 1 ? d.ce_line_long_stop[i] : d.ce_line_short_stop[i],
-                            i => d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a',
-                            true
-                        ));
-                    }
-                    if (s.ceCloudSeries && d.ce_cloud_dir) {
-                        s.ceCloudSeries.setData(_chartLineData(
-                            d,
-                            i => d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i],
-                            i => d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)',
-                            true
-                        ));
-                    }
-                    renderChartStatusSlot(slotId, d);
+    // Bar-close indicator refresh (only for final/candidate kline)
+    if (!tick.isFinal || s.liveRefreshPending) return;
+    s.liveRefreshPending = true;
+    setTimeout(async () => {
+        try {
+            if (!s.candleSeries) { s.liveRefreshPending = false; return; }
+            const bars = _TF_BARS[interval] || 500;
+            const res = await fetch(`/api/chart/${pair}?interval=${interval}&bars=${bars}`, { headers: authHeaders() });
+            const d = await res.json();
+            if (s.candleSeries && !d.error && d.close && d.close.length > 0) {
+                const lastIdx = d.close.length - 1;
+                const lastBar = _chartOhlc(d.timestamps[lastIdx], d.open[lastIdx], d.high[lastIdx], d.low[lastIdx], d.close[lastIdx]);
+                if (lastBar) { s.candleSeries.update(lastBar); s.liveLastBar = lastBar; }
+                if (s.volSeries && d.volume) {
+                    const lastVol = _chartNum(d.volume[lastIdx]);
+                    if (lastVol !== null && lastVol >= 0) s.volSeries.update({ time: lastBar.time, value: lastVol, color: 'rgba(255,255,255,0.06)' });
                 }
-            } catch(_) {}
-            s.liveRefreshPending = false;
-        }, 1500);
+                if (s.tsiSeries   && d.tsi)   s.tsiSeries.setData(_chartLineData(d, d.tsi,   '#00d68f'));
+                if (s.linregSeries && d.linreg) s.linregSeries.setData(_chartLineData(d, d.linreg, '#5c7cfa'));
+                if (s.ceLineSeries   && d.ce_line)   s.ceLineSeries.setData(_chartLineData(d, i => d.ce_line[i], d.ce_line_dir ? (i => d.ce_line_dir[i] === 1 ? '#00d68f' : '#ff4d6a') : '#ff4d6a'));
+                if (s.ceCloudSeries  && d.ce_cloud_dir) s.ceCloudSeries.setData(_chartLineData(d, i => d.ce_cloud_dir[i] === 1 ? d.ce_cloud_long_stop[i] : d.ce_cloud_short_stop[i], i => d.ce_cloud_dir[i] === 1 ? 'rgba(0,214,143,0.45)' : 'rgba(255,77,106,0.45)', true));
+                renderChartStatusSlot(slotId, d);
+                if (s.trailSlSeries && d.trail_sl && Number.isFinite(d.trail_sl) && d.trail_sl > 0) {
+                    const tFirst = _chartTime(d.timestamps[0]); const tLast = _chartTime(d.timestamps[d.timestamps.length-1]);
+                    if (tFirst !== null && tLast !== null) s.trailSlSeries.setData([{ time: tFirst, value: d.trail_sl }, { time: tLast, value: d.trail_sl }]);
+                } else if (s.trailSlSeries && (!d.trail_sl || d.trail_sl <= 0)) s.trailSlSeries.setData([]);
+            }
+        } catch(_) {}
+        s.liveRefreshPending = false;
+    }, 1500);
+}
+
+// ═════════════════════════════════════════════════════════════════
+//  TRAILING SL — Public helper for SSE-driven delta updates
+//  Called by signals.js _applyLivePnl when trail_sl arrives via SSE.
+//  Uses .update() for zero-reflow delta writes.
+// ═════════════════════════════════════════════════════════════════
+
+function _updateChartTrailSl(pair, trailSlPrice) {
+    let targetSlot = null;
+    for (const s of _slots.values()) {
+        if (s.pair === pair) { targetSlot = s; break; }
     }
+    if (!targetSlot || !targetSlot.priceChart) return;
+
+    if (!trailSlPrice || trailSlPrice <= 0 || !Number.isFinite(trailSlPrice)) {
+        if (targetSlot.trailSlSeries) {
+            targetSlot.trailSlSeries.setData([]);
+        }
+        return;
+    }
+
+    if (!targetSlot.trailSlSeries) {
+        const LC = LightweightCharts;
+        const _spf = { type: 'price', ...targetSlot.precFmt };
+        targetSlot.trailSlSeries = targetSlot.priceChart.addSeries(LC.LineSeries, {
+            color: '#ff1744',
+            lineWidth: 2,
+            lineStyle: LC.LineStyle.Dotted,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            crosshairMarkerVisible: false,
+            priceFormat: _spf,
+            title: '\u2500\u2500 Trail SL',
+        });
+    }
+
+    const lastBar = targetSlot.liveLastBar || null;
+    const now = lastBar ? lastBar.time : Math.floor(Date.now() / 1000) + (_SERVER_TZ_OFFSET || 0);
+    targetSlot.trailSlSeries.update({ time: now, value: trailSlPrice });
 }
 
 // ═════════════════════════════════════════════════════════════════

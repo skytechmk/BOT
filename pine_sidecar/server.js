@@ -69,6 +69,7 @@ app.post('/supertrend', async (req, res) => {
     period   = 10,
     multiplier = 3.0,
     bars     = 100,
+    candles  = null,
   } = req.body;
 
   const script = `
@@ -82,8 +83,13 @@ plotchar(dir == -1, "Down", "", location.bottom, color.red)
 
   try {
     const { PineTS, Provider } = await getPineTS();
-    const sym = symbol.replace('USDT', '') + 'USDT';
-    const pine = new PineTS(Provider.Binance, sym, interval, bars);
+    let pine;
+    if (candles && Array.isArray(candles)) {
+      pine = new PineTS(candles);
+    } else {
+      const sym = symbol.replace('USDT', '') + 'USDT';
+      pine = new PineTS(Provider.Binance, sym, interval, bars);
+    }
     const { plots } = await pine.run(script);
 
     const stData  = plots['ST']?.data   || [];
@@ -103,7 +109,7 @@ plotchar(dir == -1, "Down", "", location.bottom, color.red)
 
 // ── RSI + MACD shortcut ───────────────────────────────────────────────────────
 app.post('/indicators', async (req, res) => {
-  const { symbol = 'BTCUSDT', interval = '1h', bars = 100 } = req.body;
+  const { symbol = 'BTCUSDT', interval = '1h', bars = 100, candles = null } = req.body;
 
   const script = `
 //@version=5
@@ -119,8 +125,13 @@ plot(ta.ema(close, 50), "EMA50")
 
   try {
     const { PineTS, Provider } = await getPineTS();
-    const sym = symbol.replace('USDT', '') + 'USDT';
-    const pine = new PineTS(Provider.Binance, sym, interval, bars);
+    let pine;
+    if (candles && Array.isArray(candles)) {
+      pine = new PineTS(candles);
+    } else {
+      const sym = symbol.replace('USDT', '') + 'USDT';
+      pine = new PineTS(Provider.Binance, sym, interval, bars);
+    }
     const { plots } = await pine.run(script);
 
     const last = (name) => {
@@ -142,6 +153,6 @@ plot(ta.ema(close, 50), "EMA50")
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`[pine-sidecar] listening on http://127.0.0.1:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[pine-sidecar] bound to 0.0.0.0:${PORT} — Proxmox firewall + Cloudflare Tunnel for isolation`);
 });

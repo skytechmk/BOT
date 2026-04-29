@@ -28,7 +28,6 @@ feature_engine never produces NaN/None for the ML pipeline.
 from __future__ import annotations
 
 import os
-import sqlite3
 import time
 import threading
 import concurrent.futures as _futures
@@ -51,8 +50,6 @@ except Exception:
         return {}
 
 
-_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        'funding_oi_cache.db')
 
 _FAPI_BASE = 'https://fapi.binance.com'
 
@@ -65,34 +62,10 @@ _OI_RETENTION_HOURS     = 72      # prune anything older
 _REQUEST_TIMEOUT = 10
 _MAX_WORKERS     = 30             # parallel proxied requests
 
-_db_lock = threading.Lock()
 
 
-# ──────────────────────────────────── DB ────────────────────────────────────
-
-def _conn():
-    c = sqlite3.connect(_DB_PATH, timeout=10, check_same_thread=False)
-    c.execute('PRAGMA journal_mode=WAL')
-    c.execute('PRAGMA synchronous=NORMAL')
-    return c
-
-
-def _ensure_funding_table(conn, pair: str):
-    conn.execute(f'''
-        CREATE TABLE IF NOT EXISTS "funding_{pair}" (
-            funding_time  INTEGER PRIMARY KEY,
-            funding_rate  REAL
-        )''')
-
-
-def _ensure_oi_table(conn, pair: str):
-    conn.execute(f'''
-        CREATE TABLE IF NOT EXISTS "oi_{pair}" (
-            ts              INTEGER PRIMARY KEY,
-            open_interest   REAL,
-            notional        REAL
-        )''')
-
+import asyncio
+from dashboard.redis_cache import set_funding_oi, get_funding_oi
 
 # ──────────────────────────── Raw HTTP fetchers ─────────────────────────────
 
@@ -132,35 +105,54 @@ def _fetch_oi_raw(pair: str, period: str = '5m', limit: int = _OI_LIMIT_PER_CALL
     except Exception:
         return []
 
-
 # ───────────────────────────── Batch refresh ────────────────────────────────
 
-def _upsert_funding(pair: str, rows: list):
-    if not rows:
+async def refresh_funding(pairs: Iterable[str], workers: int = _MAX_WORKERS) -> int:
+    """Batch fetch funding history for `pairs`. Returns total rows written."""
+    pairs = list(pairs)
+    if not pairs:
         return 0
-    with _db_lock:
-        conn = _conn()
-        try:
-            _ensure_funding_table(conn, pair)
+    total = 0
+    
+    loop = asyncio.get_event_loop()
+    with _futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        tasks = [loop.run_in_executor(pool, _fetch_funding_raw, p) for p in pairs]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+    for p, rows in zip(pairs, results):
+        if isinstance(rows, Exception):
+            log_message(f"funding refresh failed for {p}: {rows}")
+            continue
+        if rows:
             tuples = [(int(r['fundingTime']), float(r['fundingRate'])) for r in rows
                       if 'fundingTime' in r and 'fundingRate' in r]
-            conn.executemany(
-                f'INSERT OR REPLACE INTO "funding_{pair}" (funding_time, funding_rate) VALUES (?,?)',
-                tuples,
-            )
-            conn.commit()
-            return len(tuples)
-        finally:
-            conn.close()
+            
+            # Get existing cache to not overwrite OI data
+            data = await get_funding_oi(p) or {}
+            data['funding'] = tuples
+            await set_funding_oi(p, data)
+            total += len(tuples)
+            
+    return total
 
 
-def _upsert_oi(pair: str, rows: list):
-    if not rows:
+async def refresh_oi(pairs: Iterable[str], workers: int = _MAX_WORKERS) -> int:
+    """Batch fetch 5m OI history for `pairs`. Returns total rows written."""
+    pairs = list(pairs)
+    if not pairs:
         return 0
-    with _db_lock:
-        conn = _conn()
-        try:
-            _ensure_oi_table(conn, pair)
+    total = 0
+    
+    loop = asyncio.get_event_loop()
+    with _futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        tasks = [loop.run_in_executor(pool, _fetch_oi_raw, p) for p in pairs]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+    for p, rows in zip(pairs, results):
+        if isinstance(rows, Exception):
+            log_message(f"OI refresh failed for {p}: {rows}")
+            continue
+        if rows:
             tuples = []
             for r in rows:
                 try:
@@ -171,91 +163,44 @@ def _upsert_oi(pair: str, rows: list):
                         tuples.append((ts, oi, notional))
                 except Exception:
                     continue
-            conn.executemany(
-                f'INSERT OR REPLACE INTO "oi_{pair}" (ts, open_interest, notional) VALUES (?,?,?)',
-                tuples,
-            )
-            # Prune anything older than retention window
-            cutoff_ms = int((time.time() - _OI_RETENTION_HOURS * 3600) * 1000)
-            conn.execute(f'DELETE FROM "oi_{pair}" WHERE ts < ?', (cutoff_ms,))
-            conn.commit()
-            return len(tuples)
-        finally:
-            conn.close()
-
-
-def refresh_funding(pairs: Iterable[str], workers: int = _MAX_WORKERS) -> int:
-    """Batch fetch funding history for `pairs`. Returns total rows written."""
-    pairs = list(pairs)
-    if not pairs:
-        return 0
-    total = 0
-    with _futures.ThreadPoolExecutor(max_workers=workers) as pool:
-        future_to_pair = {pool.submit(_fetch_funding_raw, p): p for p in pairs}
-        for fut in _futures.as_completed(future_to_pair):
-            p = future_to_pair[fut]
-            try:
-                rows = fut.result()
-                total += _upsert_funding(p, rows)
-            except Exception as e:
-                log_message(f"funding refresh failed for {p}: {e}")
-    return total
-
-
-def refresh_oi(pairs: Iterable[str], workers: int = _MAX_WORKERS) -> int:
-    """Batch fetch 5m OI history for `pairs`. Returns total rows written."""
-    pairs = list(pairs)
-    if not pairs:
-        return 0
-    total = 0
-    with _futures.ThreadPoolExecutor(max_workers=workers) as pool:
-        future_to_pair = {pool.submit(_fetch_oi_raw, p): p for p in pairs}
-        for fut in _futures.as_completed(future_to_pair):
-            p = future_to_pair[fut]
-            try:
-                rows = fut.result()
-                total += _upsert_oi(p, rows)
-            except Exception as e:
-                log_message(f"OI refresh failed for {p}: {e}")
+                    
+            data = await get_funding_oi(p) or {}
+            data['oi'] = tuples
+            await set_funding_oi(p, data)
+            total += len(tuples)
+            
     return total
 
 
 # ─────────────────────────────── Readers ────────────────────────────────────
 
-def get_funding_history(pair: str, hours: int = 168):
+async def get_funding_history(pair: str, hours: int = 168):
     """Return [(ts_ms, rate), ...] for the last `hours` hours, oldest → newest."""
     cutoff = int((time.time() - hours * 3600) * 1000)
     try:
-        conn = _conn()
-        try:
-            _ensure_funding_table(conn, pair)
-            cur = conn.execute(
-                f'SELECT funding_time, funding_rate FROM "funding_{pair}" '
-                f'WHERE funding_time >= ? ORDER BY funding_time ASC',
-                (cutoff,),
-            )
-            return cur.fetchall()
-        finally:
-            conn.close()
+        data = await get_funding_oi(pair)
+        if not data or 'funding' not in data:
+            return []
+        
+        history = data['funding']
+        # Filter by cutoff and sort
+        filtered = [row for row in history if row[0] >= cutoff]
+        return sorted(filtered, key=lambda x: x[0])
     except Exception:
         return []
 
 
-def get_oi_history(pair: str, hours: int = 24):
+async def get_oi_history(pair: str, hours: int = 24):
     """Return [(ts_ms, oi, notional), ...] for the last `hours`, oldest → newest."""
     cutoff = int((time.time() - hours * 3600) * 1000)
     try:
-        conn = _conn()
-        try:
-            _ensure_oi_table(conn, pair)
-            cur = conn.execute(
-                f'SELECT ts, open_interest, notional FROM "oi_{pair}" '
-                f'WHERE ts >= ? ORDER BY ts ASC',
-                (cutoff,),
-            )
-            return cur.fetchall()
-        finally:
-            conn.close()
+        data = await get_funding_oi(pair)
+        if not data or 'oi' not in data:
+            return []
+            
+        history = data['oi']
+        filtered = [row for row in history if row[0] >= cutoff]
+        return sorted(filtered, key=lambda x: x[0])
     except Exception:
         return []
 
@@ -277,10 +222,10 @@ _NEUTRAL_OI = {
 }
 
 
-def funding_features(pair: str) -> dict:
+async def funding_features(pair: str) -> dict:
     """Derive funding-based ML features. Returns neutral dict on any failure."""
     try:
-        hist = get_funding_history(pair, hours=168)
+        hist = await get_funding_history(pair, hours=168)
         if len(hist) < 4:
             return dict(_NEUTRAL_FUNDING)
         rates = np.array([r[1] for r in hist], dtype=float)
@@ -306,10 +251,10 @@ def funding_features(pair: str) -> dict:
         return dict(_NEUTRAL_FUNDING)
 
 
-def oi_features(pair: str, df_1h: pd.DataFrame | None = None) -> dict:
+async def oi_features(pair: str, df_1h: pd.DataFrame | None = None) -> dict:
     """Derive OI-based ML features. Needs df_1h for price divergence; optional."""
     try:
-        hist = get_oi_history(pair, hours=48)
+        hist = await get_oi_history(pair, hours=48)
         if len(hist) < 15:  # need ~1h of 5-min bars
             return dict(_NEUTRAL_OI)
         oi_arr = np.array([r[1] for r in hist], dtype=float)
@@ -365,8 +310,8 @@ async def periodic_refresh(fetch_pairs_fn, interval_sec: int = 600):
             pairs = await asyncio.to_thread(fetch_pairs_fn)
             if pairs:
                 t0 = time.time()
-                f_rows = await asyncio.to_thread(refresh_funding, pairs)
-                o_rows = await asyncio.to_thread(refresh_oi, pairs)
+                f_rows = await refresh_funding(pairs)
+                o_rows = await refresh_oi(pairs)
                 log_message(
                     f"📊 Funding/OI refresh: {len(pairs)} pairs | "
                     f"funding_rows={f_rows} oi_rows={o_rows} | "

@@ -19,7 +19,33 @@ Usage:
 
 import asyncio
 import aiohttp
+import pandas as pd
 from utils_logger import log_message
+
+
+def _df_to_candles(df: pd.DataFrame) -> list[dict]:
+    """
+    Convert OHLCV DataFrame to the array-of-dicts format that PineTS expects.
+
+    PineTS accepts either:
+      • Provider.Binance(symbol, interval, bars) — live fetch (slow)
+      • An array of candle objects: [{time, open, high, low, close, volume}, …]
+
+    Column renaming is inserted here so callers can pass a raw DataFrame
+    with any case conventions and we normalise the keys.
+    """
+    _df = df.copy()
+    _rename = {
+        'open': 'open', 'Open': 'open', 'OPEN': 'open',
+        'high': 'high', 'High': 'high', 'HIGH': 'high',
+        'low':  'low',  'Low':  'low',  'LOW':  'low',
+        'close':'close','Close':'close','CLOSE':'close',
+        'volume':'volume','Volume':'volume','VOLUME':'volume',
+    }
+    _df.rename(columns={k: v for k, v in _rename.items() if k in _df.columns}, inplace=True)
+    if 'time' not in _df.columns:
+        _df['time'] = _df.index.astype('int64') // 10**6  # ns → ms timestamp
+    return _df[['time', 'open', 'high', 'low', 'close', 'volume']].to_dict('records')
 
 SIDECAR_URL = "http://127.0.0.1:3141"
 _SESSION: aiohttp.ClientSession | None = None
@@ -59,29 +85,47 @@ async def run_pine_script(script: str, symbol: str = "BTCUSDT",
 
 async def get_supertrend(symbol: str = "BTCUSDT", interval: str = "1h",
                          period: int = 10, multiplier: float = 3.0,
-                         bars: int = 100) -> dict | None:
-    """Supertrend shortcut: returns {direction: 1|-1, line: float}."""
-    return await _post("/supertrend", {
+                         bars: int = 100,
+                         df: pd.DataFrame | None = None) -> dict | None:
+    """
+    Supertrend shortcut.
+
+    If ``df`` is provided, the DataFrame is converted to PineTS candle format
+    and sent inline — no duplicate Binance fetch occurs.
+    Otherwise the sidecar fetches fresh data via Provider.Binance.
+    """
+    payload: dict = {
         "symbol": symbol, "interval": interval,
         "period": period, "multiplier": multiplier, "bars": bars
-    })
+    }
+    if df is not None and not df.empty:
+        payload["candles"] = _df_to_candles(df)
+    return await _post("/supertrend", payload)
 
 
 async def get_indicators(symbol: str = "BTCUSDT", interval: str = "1h",
-                         bars: int = 100,
-                         df=None) -> dict | None:
+                          bars: int = 100,
+                          df: pd.DataFrame | None = None) -> dict | None:
     """
     RSI + MACD + EMA21/50 + BB + Supertrend.
 
-    If a pandas DataFrame `df` is provided, uses PyneCore (pure Python, fast).
-    Otherwise calls the Node.js PineTS sidecar via HTTP.
+    Priority:
+      1. If ``df`` is provided, try fast Python‑native ``pine_core_bridge`` first.
+      2. If that fails (or is unavailable), forward the pre‑fetched data as
+         ``candles`` to the Node.js sidecar so it does NOT perform its own
+         duplicate Binance HTTP call.
+      3. If no ``df``, delegate entirely to the sidecar (live fetch).
     """
-    if df is not None:
+    if df is not None and not df.empty:
         try:
             from pine_core_bridge import get_pine_indicators
             return get_pine_indicators(df)
         except Exception:
             pass
+        # Fallback: sidecar, but with pre‑fetched candles — zero duplicate fetch.
+        payload: dict = {"symbol": symbol, "interval": interval, "bars": bars}
+        payload["candles"] = _df_to_candles(df)
+        return await _post("/indicators", payload)
     return await _post("/indicators", {
         "symbol": symbol, "interval": interval, "bars": bars
     })

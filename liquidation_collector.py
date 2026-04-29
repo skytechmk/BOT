@@ -1,13 +1,13 @@
 """
-Liquidation Collector — Real-time forced liquidation data from Binance
+Liquidation Collector — Real-time forced liquidation data from Binance → TimescaleDB
 
 Subscribes to wss://fstream.binance.com/ws/!forceOrder@arr
 ONE connection covers ALL USDT perpetual pairs (~700 symbols).
 
-Data structure per symbol:
-  buckets: dict[price_band -> {long_liq_usd, short_liq_usd, count, last_ts}]
-  price_band = round(price to nearest BUCKET_PCT% of price)
-  Rolling 24h window — events older than 24h are pruned hourly.
+Storage: asyncpg → TimescaleDB hypertable with automatic 24h retention policy.
+In-memory hot cache (defaultdict buckets) is kept for fast reads by the
+dashboard API; it is rebuilt from DB on startup and updated live on each
+incoming WebSocket event.
 
 Usage (from app.py):
   from liquidation_collector import LiquidationCollector
@@ -20,11 +20,12 @@ Usage (from app.py):
 import asyncio
 import json
 import time
-import sqlite3
 import os
-from collections import defaultdict
-from pathlib import Path
+from collections import defaultdict, deque
+from datetime import datetime, timezone
 from typing import Optional
+
+import asyncpg
 
 try:
     import websockets
@@ -33,14 +34,46 @@ except ImportError:
 
 # ── Config ──────────────────────────────────────────────────────────────
 _WS_URL = "wss://fstream.binance.com/market/ws/!forceOrder@arr"
-_BUCKET_PCT = 0.0025      # 0.25% price bands
-_WINDOW_HOURS = 24        # Rolling window
-_PRUNE_INTERVAL = 3600    # Prune old events every 1h
-_PERSIST_INTERVAL = 300   # SQLite batch write every 5 min
-_DB_PATH = Path(__file__).parent / "liquidation_history.db"
-_MAX_EVENTS_PER_SYMBOL = 10000  # Safety cap per symbol in memory
-_ALERT_MIN_USD = 50_000         # Minimum USD for the large-event ring buffer
-_ALERT_RING_SIZE = 2000         # Max events kept in the alert ring buffer
+_BUCKET_PCT = 0.0025       # 0.25% price bands
+_WINDOW_HOURS = 24         # Rolling window
+_ALERT_MIN_USD = 50_000    # Minimum USD for the large-event ring buffer
+_ALERT_RING_SIZE = 2000    # Max events kept in the alert ring buffer
+_INSERT_BATCH_SIZE = 50    # Flush to DB every N events (or every _FLUSH_INTERVAL)
+_FLUSH_INTERVAL = 5.0      # Max seconds between DB flushes
+_LOG_INTERVAL = 3600       # Stats log every 1h
+
+# Postgres connection — reads from env or falls back to local dev defaults
+_PG_DSN = os.getenv(
+    "TIMESCALE_DSN",
+    "postgresql://aladdin:aladdin_ts_2026@localhost:5432/aladdin"
+)
+_PG_MIN_POOL = 2
+_PG_MAX_POOL = 10
+
+# ── SQL ─────────────────────────────────────────────────────────────────
+_SQL_CREATE = """
+CREATE TABLE IF NOT EXISTS liquidations (
+    symbol      TEXT             NOT NULL,
+    side        TEXT             NOT NULL,
+    price       DOUBLE PRECISION NOT NULL,
+    qty         DOUBLE PRECISION NOT NULL,
+    notional    DOUBLE PRECISION NOT NULL,
+    timestamp   TIMESTAMPTZ      NOT NULL
+);
+"""
+_SQL_HYPERTABLE = """
+SELECT create_hypertable('liquidations', 'timestamp', if_not_exists => TRUE);
+"""
+_SQL_RETENTION = """
+SELECT add_retention_policy('liquidations', INTERVAL '24 hours', if_not_exists => TRUE);
+"""
+_SQL_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_liq_sym_ts ON liquidations (symbol, timestamp DESC);
+"""
+_SQL_INSERT = """
+INSERT INTO liquidations (symbol, side, price, qty, notional, timestamp)
+VALUES ($1, $2, $3, $4, $5, $6);
+"""
 
 
 def _price_bucket(price: float) -> float:
@@ -54,17 +87,14 @@ def _price_bucket(price: float) -> float:
 class LiquidationCollector:
     """
     Collects real liquidation events from Binance forceOrder stream.
-    Maintains an in-memory rolling 24h heatmap per symbol.
+    Persists to TimescaleDB via asyncpg.  In-memory cache for fast reads.
     """
 
     def __init__(self):
-        # symbol -> {bucket_price -> {long_liq_usd, short_liq_usd, count, last_ts}}
+        # In-memory hot cache: symbol -> {bucket_price -> {long_liq_usd, short_liq_usd, count, last_ts}}
         self._buckets: dict[str, dict[float, dict]] = defaultdict(lambda: defaultdict(
             lambda: {"long_liq_usd": 0.0, "short_liq_usd": 0.0, "count": 0, "last_ts": 0}
         ))
-
-        # Raw event log for 24h window pruning: symbol -> [(ts, bucket, side, usd)]
-        self._events: dict[str, list] = defaultdict(list)
 
         # Summary stats
         self._total_events = 0
@@ -72,90 +102,138 @@ class LiquidationCollector:
         self._connected = False
 
         # Ring buffer of large liquidation events for watchlist alerts
-        from collections import deque as _deque
-        self._large_events: _deque = _deque(maxlen=_ALERT_RING_SIZE)
-        self._last_prune = time.time()
-        self._last_persist = time.time()
+        self._large_events: deque = deque(maxlen=_ALERT_RING_SIZE)
+
+        # Recent events kept in memory for velocity calculations (last 30 min)
+        self._recent_events: deque = deque(maxlen=50_000)
+
         self._start_time = time.time()
+        self._last_log = 0.0
 
-        self._init_db()
+        # asyncpg pool (initialized in run())
+        self._pool: Optional[asyncpg.Pool] = None
 
-    # ── SQLite Persistence ───────────────────────────────────────────────
+        # Write buffer
+        self._write_buf: list = []
+        self._last_flush = time.time()
 
-    def _init_db(self):
-        conn = sqlite3.connect(_DB_PATH)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS liquidations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                symbol TEXT NOT NULL,
-                side TEXT NOT NULL,
-                price REAL NOT NULL,
-                quantity REAL NOT NULL,
-                notional_usd REAL NOT NULL,
-                timestamp INTEGER NOT NULL
-            )
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_liq_symbol_ts ON liquidations(symbol, timestamp)")
-        conn.commit()
-        conn.close()
+    # ── AsyncPG Pool & Schema ────────────────────────────────────────────
 
-    def _persist_recent(self, batch: list):
-        """Write a batch of events to SQLite."""
-        if not batch:
+    async def _ensure_pool(self):
+        """Create or reconnect the asyncpg connection pool."""
+        if self._pool is not None:
+            try:
+                async with self._pool.acquire() as conn:
+                    await conn.fetchval("SELECT 1")
+                return  # pool is alive
+            except Exception:
+                try:
+                    await self._pool.close()
+                except Exception:
+                    pass
+                self._pool = None
+
+        for attempt in range(5):
+            try:
+                self._pool = await asyncpg.create_pool(
+                    dsn=_PG_DSN,
+                    min_size=_PG_MIN_POOL,
+                    max_size=_PG_MAX_POOL,
+                    command_timeout=15,
+                )
+                print(f"[liq_collector] ✅ asyncpg pool created ({_PG_MIN_POOL}-{_PG_MAX_POOL} conns)")
+                return
+            except Exception as e:
+                wait = 2 ** attempt
+                print(f"[liq_collector] Pool create failed (attempt {attempt+1}): {e} — retry in {wait}s")
+                await asyncio.sleep(wait)
+
+        print("[liq_collector] ❌ Could not create asyncpg pool after 5 attempts")
+
+    async def _init_schema(self):
+        """Create table, hypertable, retention policy, and index."""
+        if not self._pool:
             return
         try:
-            conn = sqlite3.connect(_DB_PATH)
-            conn.executemany(
-                "INSERT INTO liquidations (symbol, side, price, quantity, notional_usd, timestamp) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                batch
-            )
-            conn.commit()
-            conn.close()
+            async with self._pool.acquire() as conn:
+                await conn.execute(_SQL_CREATE)
+                await conn.execute(_SQL_HYPERTABLE)
+                await conn.execute(_SQL_RETENTION)
+                await conn.execute(_SQL_INDEX)
+            print("[liq_collector] ✅ TimescaleDB schema initialized (24h retention)")
         except Exception as e:
-            print(f"[liq_collector] DB write error: {e}")
+            print(f"[liq_collector] Schema init error: {e}")
 
-    def load_from_db(self, hours: int = 24):
-        """Bootstrap in-memory buckets from SQLite on startup."""
-        cutoff = int(time.time() * 1000) - (hours * 3600 * 1000)
+    async def _load_from_db(self):
+        """Bootstrap in-memory cache from TimescaleDB on startup."""
+        if not self._pool:
+            return
         try:
-            conn = sqlite3.connect(_DB_PATH)
-            rows = conn.execute(
-                "SELECT symbol, side, price, notional_usd, timestamp FROM liquidations WHERE timestamp > ?",
-                (cutoff,)
-            ).fetchall()
-            conn.close()
+            async with self._pool.acquire() as conn:
+                rows = await conn.fetch(
+                    "SELECT symbol, side, price, notional, timestamp "
+                    "FROM liquidations WHERE timestamp > NOW() - INTERVAL '24 hours'"
+                )
 
-            for symbol, side, price, notional, ts in rows:
+            for row in rows:
+                symbol = row['symbol']
+                side = row['side']
+                price = row['price']
+                notional = row['notional']
+                ts_sec = row['timestamp'].timestamp()
                 bucket = _price_bucket(price)
-                ts_sec = ts / 1000
-                self._events[symbol].append((ts_sec, bucket, side, notional))
-                if side == "SELL":  # SELL = long got liquidated
+
+                if side == "SELL":
                     self._buckets[symbol][bucket]["long_liq_usd"] += notional
-                else:               # BUY = short got liquidated
+                else:
                     self._buckets[symbol][bucket]["short_liq_usd"] += notional
                 self._buckets[symbol][bucket]["count"] += 1
                 self._buckets[symbol][bucket]["last_ts"] = max(
                     self._buckets[symbol][bucket]["last_ts"], ts_sec
                 )
+                self._total_events += 1
+                self._total_usd += notional
 
-            print(f"[liq_collector] Loaded {len(rows)} events from DB ({len(self._buckets)} symbols)")
+                # Populate recent events for velocity
+                self._recent_events.append((ts_sec, bucket, side, notional, symbol))
+
+            print(f"[liq_collector] Loaded {len(rows)} events from TimescaleDB ({len(self._buckets)} symbols)")
         except Exception as e:
             print(f"[liq_collector] DB load error: {e}")
+
+    # ── Async DB Writer ──────────────────────────────────────────────────
+
+    async def _flush_writes(self):
+        """Flush the write buffer to TimescaleDB."""
+        if not self._write_buf or not self._pool:
+            return
+        batch = self._write_buf.copy()
+        self._write_buf.clear()
+        self._last_flush = time.time()
+        try:
+            async with self._pool.acquire() as conn:
+                await conn.executemany(_SQL_INSERT, batch)
+        except Exception as e:
+            print(f"[liq_collector] DB write error ({len(batch)} rows): {e}")
+            # Re-enqueue on failure (cap to prevent infinite growth)
+            if len(self._write_buf) < 10_000:
+                self._write_buf.extend(batch)
+
+    async def _record_to_db(self, symbol: str, side: str, price: float,
+                            qty: float, notional: float, ts_ms: int):
+        """Buffer an event for async batch INSERT."""
+        ts_dt = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+        self._write_buf.append((symbol, side, price, qty, notional, ts_dt))
+
+        now = time.time()
+        if len(self._write_buf) >= _INSERT_BATCH_SIZE or (now - self._last_flush) >= _FLUSH_INTERVAL:
+            await self._flush_writes()
 
     # ── Event Processing ─────────────────────────────────────────────────
 
     def _process_event(self, msg: dict) -> Optional[tuple]:
         """
         Parse a forceOrder event. Returns (symbol, side, price, qty, notional, ts_ms) or None.
-
-        Event structure:
-          e: "forceOrder"
-          o.s: symbol (e.g. "BTCUSDT")
-          o.S: side ("SELL" = long liq, "BUY" = short liq)
-          o.ap: average fill price
-          o.q: original quantity
-          o.T: trade timestamp (ms)
         """
         try:
             if msg.get("e") != "forceOrder":
@@ -179,22 +257,23 @@ class LiquidationCollector:
 
     def _add_event(self, symbol: str, side: str, price: float,
                    qty: float, notional: float, ts_ms: int):
-        """Add a parsed event to in-memory buckets."""
+        """Add a parsed event to in-memory cache (hot path — no I/O)."""
         bucket = _price_bucket(price)
         ts_sec = ts_ms / 1000
 
-        self._events[symbol].append((ts_sec, bucket, side, notional))
-
         b = self._buckets[symbol][bucket]
-        if side == "SELL":   # long liquidated
+        if side == "SELL":
             b["long_liq_usd"] += notional
-        else:                # short liquidated
+        else:
             b["short_liq_usd"] += notional
         b["count"] += 1
         b["last_ts"] = max(b["last_ts"], ts_sec)
 
         self._total_events += 1
         self._total_usd += notional
+
+        # Recent events for velocity
+        self._recent_events.append((ts_sec, bucket, side, notional, symbol))
 
         # Buffer large events for watchlist alert delivery
         if notional >= _ALERT_MIN_USD:
@@ -207,43 +286,7 @@ class LiquidationCollector:
                 'ts':       ts_sec,
             })
 
-        # Safety cap
-        if len(self._events[symbol]) > _MAX_EVENTS_PER_SYMBOL:
-            self._events[symbol] = self._events[symbol][-_MAX_EVENTS_PER_SYMBOL:]
-
-    # ── Rolling Window Pruning ────────────────────────────────────────────
-
-    def _prune_old_events(self):
-        """Remove events older than 24h from memory and rebuild buckets."""
-        cutoff = time.time() - (_WINDOW_HOURS * 3600)
-        pruned_symbols = 0
-
-        for symbol in list(self._events.keys()):
-            events = self._events[symbol]
-            fresh = [(ts, b, side, usd) for ts, b, side, usd in events if ts >= cutoff]
-
-            if len(fresh) == len(events):
-                continue  # Nothing to prune
-
-            # Rebuild buckets for this symbol
-            pruned_symbols += 1
-            self._events[symbol] = fresh
-            self._buckets[symbol] = defaultdict(
-                lambda: {"long_liq_usd": 0.0, "short_liq_usd": 0.0, "count": 0, "last_ts": 0}
-            )
-            for ts, bucket, side, notional in fresh:
-                b = self._buckets[symbol][bucket]
-                if side == "SELL":
-                    b["long_liq_usd"] += notional
-                else:
-                    b["short_liq_usd"] += notional
-                b["count"] += 1
-                b["last_ts"] = max(b["last_ts"], ts)
-
-        if pruned_symbols:
-            print(f"[liq_collector] Pruned {pruned_symbols} symbols (24h window)")
-
-    # ── Public API ───────────────────────────────────────────────────────
+    # ── Public API (unchanged signatures & return schemas) ───────────────
 
     def get_heatmap(self, symbol: str, max_buckets: int = 100) -> dict:
         """
@@ -276,7 +319,6 @@ class LiquidationCollector:
         total_short = sum(b["short_liq_usd"] for b in buckets_raw.values())
         total_events = sum(b["count"] for b in buckets_raw.values())
 
-        # Sort by price, keep top max_buckets by total volume
         all_buckets = [
             {
                 "price": price,
@@ -289,7 +331,6 @@ class LiquidationCollector:
             for price, b in buckets_raw.items()
         ]
 
-        # Sort by total volume desc, take top N, then sort by price for display
         all_buckets.sort(key=lambda x: x["total_usd"], reverse=True)
         top_buckets = all_buckets[:max_buckets]
         top_buckets.sort(key=lambda x: x["price"])
@@ -336,21 +377,23 @@ class LiquidationCollector:
         result.sort(key=lambda x: x["total_usd"], reverse=True)
         return result[:top_n]
 
-    def get_heatmap_window(self, symbol: str, hours: int, max_buckets: int = 100) -> dict:
+    async def get_heatmap_window(self, symbol: str, hours: int, max_buckets: int = 100) -> dict:
         """
-        Return liquidation heatmap for any time window using SQLite.
-        For windows <= 24h this supplements in-memory data.
-        For windows > 24h this is the only source.
+        Return liquidation heatmap for any time window using TimescaleDB.
         """
-        cutoff = int((time.time() - hours * 3600) * 1000)
+        if not self._pool:
+            return {"symbol": symbol, "buckets": [], "total_long_24h": 0,
+                    "total_short_24h": 0, "total_events_24h": 0,
+                    "window_hours": hours, "has_data": False}
         try:
-            conn = sqlite3.connect(_DB_PATH)
-            rows = conn.execute(
-                "SELECT side, price, notional_usd FROM liquidations WHERE symbol=? AND timestamp > ?",
-                (symbol, cutoff)
-            ).fetchall()
-            conn.close()
+            async with self._pool.acquire() as conn:
+                rows = await conn.fetch(
+                    "SELECT side, price, notional FROM liquidations "
+                    "WHERE symbol=$1 AND timestamp > NOW() - $2::INTERVAL",
+                    symbol, f"{hours} hours"
+                )
         except Exception as e:
+            print(f"[liq_collector] heatmap_window query error: {e}")
             return {"symbol": symbol, "buckets": [], "total_long_24h": 0,
                     "total_short_24h": 0, "total_events_24h": 0,
                     "window_hours": hours, "has_data": False}
@@ -363,12 +406,12 @@ class LiquidationCollector:
         buckets_raw: dict[float, dict] = defaultdict(
             lambda: {"long_liq_usd": 0.0, "short_liq_usd": 0.0, "count": 0}
         )
-        for side, price, notional in rows:
-            bucket = _price_bucket(price)
-            if side == "SELL":
-                buckets_raw[bucket]["long_liq_usd"] += notional
+        for row in rows:
+            bucket = _price_bucket(row['price'])
+            if row['side'] == "SELL":
+                buckets_raw[bucket]["long_liq_usd"] += row['notional']
             else:
-                buckets_raw[bucket]["short_liq_usd"] += notional
+                buckets_raw[bucket]["short_liq_usd"] += row['notional']
             buckets_raw[bucket]["count"] += 1
 
         total_long  = sum(b["long_liq_usd"]  for b in buckets_raw.values())
@@ -400,15 +443,14 @@ class LiquidationCollector:
     def get_velocity(self, symbol: str, window_minutes: int = 10) -> dict:
         """
         Return per-minute liquidation rate for the last window_minutes.
-        Uses in-memory events — fast, no DB query.
+        Uses in-memory recent events deque — fast, no DB query.
         """
         now = time.time()
         cutoff = now - window_minutes * 60
-        events = self._events.get(symbol, [])
 
         by_minute: dict[int, dict] = {}
-        for ts, bucket, side, notional in events:
-            if ts < cutoff:
+        for ts, bucket, side, notional, sym in self._recent_events:
+            if sym != symbol or ts < cutoff:
                 continue
             mkey = int(ts // 60)
             if mkey not in by_minute:
@@ -466,10 +508,13 @@ class LiquidationCollector:
             print("[liq_collector] websockets package not installed, skipping")
             return
 
-        # Bootstrap from DB on startup
-        self.load_from_db()
+        # Initialize asyncpg pool & schema
+        await self._ensure_pool()
+        await self._init_schema()
 
-        persist_batch = []
+        # Bootstrap hot cache from DB
+        await self._load_from_db()
+
         backoff = 1
 
         while True:
@@ -492,23 +537,17 @@ class LiquidationCollector:
                             parsed = self._process_event(msg)
                             if parsed:
                                 symbol, side, price, qty, notional, ts_ms = parsed
+                                # Update hot cache (sync, fast)
                                 self._add_event(symbol, side, price, qty, notional, ts_ms)
-                                persist_batch.append((symbol, side, price, qty, notional, ts_ms))
+                                # Async write to TimescaleDB
+                                await self._record_to_db(symbol, side, price, qty, notional, ts_ms)
                         except Exception:
                             pass
 
+                        # Periodic stats log
                         now = time.time()
-
-                        # Batch persist to SQLite
-                        if now - self._last_persist >= _PERSIST_INTERVAL and persist_batch:
-                            await asyncio.to_thread(self._persist_recent, persist_batch.copy())
-                            persist_batch.clear()
-                            self._last_persist = now
-
-                        # Prune old events
-                        if now - self._last_prune >= _PRUNE_INTERVAL:
-                            await asyncio.to_thread(self._prune_old_events)
-                            self._last_prune = now
+                        if now - self._last_log >= _LOG_INTERVAL:
+                            self._last_log = now
                             stats = self.get_stats()
                             summary = self.get_summary(5)
                             top = ", ".join(f"{s['symbol']}=${s['total_usd']/1e6:.1f}M" for s in summary)
@@ -519,11 +558,12 @@ class LiquidationCollector:
             except Exception as e:
                 self._connected = False
                 print(f"[liq_collector] Disconnected: {e} — reconnecting in {backoff}s")
-                if persist_batch:
-                    await asyncio.to_thread(self._persist_recent, persist_batch.copy())
-                    persist_batch.clear()
+                # Flush any remaining writes
+                await self._flush_writes()
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)
+                # Re-check pool health on reconnect
+                await self._ensure_pool()
 
 
 # ── Singleton ─────────────────────────────────────────────────────────

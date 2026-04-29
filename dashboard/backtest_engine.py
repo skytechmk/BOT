@@ -622,3 +622,93 @@ def list_backtests(user_id: int, limit: int = 25) -> List[Dict[str, Any]]:
         d["stats"]  = json.loads(d.pop("stats_json")  or "{}")
         out.append(d)
     return out
+
+
+# ─────────────────── API-driven, ProcessPoolExecutor-safe ─────────────
+
+def run_backtest_api(params: dict) -> list[dict]:
+    """
+    Production-ready, non-persisting backtest entry point.
+
+    Designed for invocation via ``ProcessPoolExecutor.run()`` so that
+    heavy pandas/NumPy work never touches the Uvicorn event loop.
+
+    Parameters:
+        params dict with keys matching DEFAULT_PARAMS, plus optional:
+            atr_multipliers: list[float] — if provided, sweep over each
+                value and return one aggregate KPI dict per multiplier.
+
+    Returns:
+        List of dicts.
+        - If atr_multipliers is provided: one KPI dict per multiplier,
+          sorted by net_pnl_usd descending.
+        - Otherwise: a single-element list containing the aggregate stats
+          dict for the one run.
+
+    Does NOT write to backtests.db. Pure computation → return.
+    """
+    sweep = params.get("atr_multipliers")
+    if sweep:
+        results: List[dict] = []
+        for mult in sweep:
+            p = dict(params)
+            p["atr_multiplier"] = float(mult)
+            run_result = _run_single(p)
+            if run_result is None:
+                continue
+            stats, _trades = run_result
+            results.append({
+                "atr_multiplier": float(mult),
+                "pnl_pct":        stats["net_pnl_pct"],
+                "pnl_usd":        stats["net_pnl_usd"],
+                "drawdown":       -stats["max_drawdown_pct"],
+                "trades":         stats["trades"],
+                "wins":           stats["wins"],
+                "losses":         stats["losses"],
+                "win_rate":       stats["win_rate"],
+                "profit_factor":  stats["profit_factor"],
+                "sharpe":         stats["sharpe"],
+                "sortino":        stats["sortino"],
+                "final_equity":   stats["final_equity"],
+                "best_trade_usd": stats["best_trade_usd"],
+                "worst_trade_usd":stats["worst_trade_usd"],
+                "avg_win_usd":    stats["avg_win_usd"],
+                "avg_loss_usd":   stats["avg_loss_usd"],
+            })
+        results.sort(key=lambda x: x["pnl_usd"], reverse=True)
+        return results
+
+    # Single run — return aggregate stats wrapped in a list.
+    result = _run_single(params)
+    if result is None:
+        return [{"error": "no signals found for the given parameters"}]
+    stats, _trades = result
+    return [stats]
+
+
+def _run_single(params: dict):
+    """
+    Execute one backtest replay. Returns (stats_dict, trades_list) or None.
+
+    Reuses the existing _load_signals / _simulate_actual / _simulate /
+    _aggregate pipeline — zero modification to the simulation math.
+    """
+    cfg = _normalise_params(params)
+    sigs = _load_signals(cfg["start"], cfg["end"], cfg["pairs"])
+    if not sigs:
+        return None
+
+    equity = float(cfg["initial_capital"])
+    trades: List[Dict[str, Any]] = []
+    _dispatch = _simulate_actual if cfg["sim_mode"] == "actual" else _simulate
+
+    for s in sigs:
+        cfg["__equity"] = equity
+        t = _dispatch(s, cfg)
+        if t is None:
+            continue
+        equity += t["pnl_usd"]
+        trades.append(t)
+
+    stats = _aggregate(trades, float(cfg["initial_capital"]))
+    return stats, trades

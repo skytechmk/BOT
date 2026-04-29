@@ -1,86 +1,67 @@
 import asyncio
 import json
 import os
-import websockets
 import time
 from datetime import datetime
 from typing import Dict, List, Optional, Callable
 import logging
 
+from live_price_feed import LIVE_FEED
+
+# Poll interval for the price-check loop (seconds).  1 s gives sub-second
+# reaction time without measurable CPU cost — we're just reading a dict.
+_POLL_INTERVAL = 1.0
+
+# How often to re-sync the monitored pair set from disk (seconds).
+_PAIR_SYNC_INTERVAL = 10.0
+
+
 class BinanceWebSocketMonitor:
-    """Real-time WebSocket monitoring for open positions"""
-    
+    """Real-time signal monitoring via the global LIVE_FEED singleton.
+
+    Instead of opening a dedicated WebSocket per pair, this class polls the
+    in-memory LIVE_FEED dictionary (populated by live_price_feed.py which
+    already runs multiplexed !markPrice@arr@1s + !bookTicker streams for
+    every USDT-M perp symbol).  This reduces connection count from O(pairs)
+    to exactly 2 shared WebSockets regardless of how many signals are open.
+    """
+
     def __init__(self, signal_manager, telegram_sender):
         self.signal_manager = signal_manager
         self.telegram_sender = telegram_sender
-        self.websocket_connections = {}
-        self.monitored_pairs = set()
+        self.monitored_pairs: set = set()
         self.running = False
-        self.reconnect_delay = 5
-        self.max_reconnect_attempts = 10
-        
+
         # Setup logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-        
+
     async def start_monitoring(self):
-        """Start the WebSocket monitoring system"""
+        """Start the monitoring system"""
         self.running = True
-        self.logger.info("🚀 Starting WebSocket monitoring system...")
-        
-        # Start monitoring task
-        asyncio.create_task(self.monitor_open_signals())
-        
+        self.logger.info("🚀 Starting signal monitor (LIVE_FEED polling mode)...")
+        asyncio.create_task(self._price_poll_loop())
+
     async def stop_monitoring(self):
-        """Stop the WebSocket monitoring system"""
+        """Stop the monitoring system"""
         self.running = False
-        self.logger.info("🛑 Stopping WebSocket monitoring system...")
-        
-        # Close all WebSocket connections
-        for pair, ws in self.websocket_connections.items():
-            try:
-                await ws.close()
-                self.logger.info(f"Closed WebSocket connection for {pair}")
-            except Exception as e:
-                self.logger.error(f"Error closing WebSocket for {pair}: {e}")
-        
-        self.websocket_connections.clear()
         self.monitored_pairs.clear()
-        
+        self.logger.info("🛑 Signal monitor stopped")
+
+    # ── Pair set management ──────────────────────────────────────────────
+
     async def add_pair_monitoring(self, pair: str, signal_data: Dict):
-        """Add a trading pair to real-time monitoring"""
-        try:
-            if pair not in self.monitored_pairs:
-                self.monitored_pairs.add(pair)
-                
-                # Start WebSocket connection for this pair
-                asyncio.create_task(self.connect_pair_websocket(pair))
-                
-                self.logger.info(f"📡 Added {pair} to real-time monitoring")
-                
-        except Exception as e:
-            self.logger.error(f"Error adding {pair} to monitoring: {e}")
-            
+        """Add a trading pair to the monitored set"""
+        if pair not in self.monitored_pairs:
+            self.monitored_pairs.add(pair)
+            self.logger.info(f"📡 Added {pair} to real-time monitoring")
+
     async def remove_pair_monitoring(self, pair: str):
-        """Remove a trading pair from monitoring"""
-        try:
-            if pair in self.monitored_pairs:
-                self.monitored_pairs.remove(pair)
-                
-                # Close WebSocket connection
-                if pair in self.websocket_connections:
-                    try:
-                        await self.websocket_connections[pair].close()
-                    except Exception as close_error:
-                        self.logger.warning(f"Error closing WebSocket for {pair}: {close_error}")
-                    finally:
-                        del self.websocket_connections[pair]
-                
-                self.logger.info(f"📡 Removed {pair} from real-time monitoring")
-                
-        except Exception as e:
-            self.logger.error(f"Error removing {pair} from monitoring: {e}")
-            
+        """Remove a trading pair from the monitored set"""
+        if pair in self.monitored_pairs:
+            self.monitored_pairs.discard(pair)
+            self.logger.info(f"📡 Removed {pair} from real-time monitoring")
+
     async def check_pair_should_be_monitored(self, pair: str) -> bool:
         """Check if a pair should still be monitored based on open signals"""
         try:
@@ -89,68 +70,71 @@ class BinanceWebSocketMonitor:
         except Exception as e:
             self.logger.error(f"Error checking if {pair} should be monitored: {e}")
             return False
-            
-    async def connect_pair_websocket(self, pair: str):
-        """Connect to Binance WebSocket for a specific pair"""
-        stream_name = f"{pair.lower()}@ticker"
-        uri = f"wss://stream.binance.com:9443/ws/{stream_name}"
-        
-        reconnect_attempts = 0
-        
-        while self.running and pair in self.monitored_pairs and reconnect_attempts < self.max_reconnect_attempts:
+
+    # ── Core polling loop (replaces per-pair WebSocket tasks) ────────────
+
+    async def _price_poll_loop(self):
+        """Single async loop: syncs the pair set periodically and polls
+        LIVE_FEED for every monitored pair each second."""
+
+        last_pair_sync = 0.0
+
+        while self.running:
             try:
-                self.logger.info(f"🔌 Connecting to WebSocket for {pair}...")
-                
-                async with websockets.connect(uri) as websocket:
-                    self.websocket_connections[pair] = websocket
-                    reconnect_attempts = 0  # Reset on successful connection
-                    
-                    self.logger.info(f"✅ WebSocket connected for {pair}")
-                    
-                    async for message in websocket:
-                        if not self.running or pair not in self.monitored_pairs:
-                            break
-                            
-                        try:
-                            data = json.loads(message)
-                            await self.process_price_update(pair, data)
-                            
-                        except json.JSONDecodeError as e:
-                            self.logger.error(f"JSON decode error for {pair}: {e}")
-                        except Exception as e:
-                            self.logger.error(f"Error processing message for {pair}: {e}")
-                            
-            except websockets.exceptions.ConnectionClosed:
-                self.logger.warning(f"WebSocket connection closed for {pair}")
-                reconnect_attempts += 1
-                
+                now = time.time()
+
+                # ── Periodic pair-set sync (every _PAIR_SYNC_INTERVAL) ───
+                if now - last_pair_sync >= _PAIR_SYNC_INTERVAL:
+                    await self._sync_monitored_pairs()
+                    last_pair_sync = now
+
+                # ── Price check for every monitored pair ─────────────────
+                for pair in list(self.monitored_pairs):
+                    price_data = LIVE_FEED.get(pair)
+                    if price_data is None:
+                        continue  # no data yet or stale — skip this tick
+
+                    current_price = price_data.get('mark') or price_data.get('mid')
+                    timestamp = price_data.get('mark_ts', now)
+
+                    if current_price and current_price > 0:
+                        await self.check_signal_targets(pair, float(current_price), float(timestamp))
+
+                await asyncio.sleep(_POLL_INTERVAL)
+
             except Exception as e:
-                self.logger.error(f"WebSocket error for {pair}: {e}")
-                reconnect_attempts += 1
-                
-            if reconnect_attempts < self.max_reconnect_attempts and self.running and pair in self.monitored_pairs:
-                wait_time = min(self.reconnect_delay * (2 ** reconnect_attempts), 60)
-                self.logger.info(f"🔄 Reconnecting to {pair} in {wait_time} seconds...")
-                await asyncio.sleep(wait_time)
-                
-        if reconnect_attempts >= self.max_reconnect_attempts:
-            self.logger.error(f"❌ Max reconnection attempts reached for {pair}")
-            
-    async def process_price_update(self, pair: str, data: Dict):
-        """Process real-time price updates from WebSocket"""
+                self.logger.error(f"Error in price poll loop: {e}")
+                await asyncio.sleep(2)
+
+        self.logger.info("📊 Price poll loop stopped")
+
+    async def _sync_monitored_pairs(self):
+        """Reload signals from disk and reconcile the monitored pair set."""
         try:
-            if 'c' not in data:  # 'c' is the current price in Binance ticker data
-                return
-                
-            current_price = float(data['c'])
-            timestamp = int(data['E']) / 1000  # Event time in seconds
-            
-            # Check if this pair has open signals
-            await self.check_signal_targets(pair, current_price, timestamp)
-            
+            self.signal_manager.load_signals()
+            open_signals = self.signal_manager.get_all_open_signals()
+
+            active_pairs = {sd['pair'] for sd in open_signals.values()}
+
+            # Add new pairs
+            for pair in active_pairs - self.monitored_pairs:
+                await self.add_pair_monitoring(pair, {})
+
+            # Remove stale pairs
+            for pair in self.monitored_pairs - active_pairs:
+                await self.remove_pair_monitoring(pair)
+
+            if active_pairs:
+                self.logger.debug(
+                    f"📈 Monitoring {len(open_signals)} signals across "
+                    f"{len(self.monitored_pairs)} pairs via LIVE_FEED"
+                )
+
         except Exception as e:
-            self.logger.error(f"Error processing price update for {pair}: {e}")
-            
+            self.logger.error(f"Error syncing monitored pairs: {e}")
+
+    # ── Signal target evaluation (unchanged) ─────────────────────────────
+
     async def check_signal_targets(self, pair: str, current_price: float, timestamp: float):
         """Check if current price hits any targets or stop loss for open signals"""
         try:
@@ -355,58 +339,6 @@ class BinanceWebSocketMonitor:
             
         except Exception as e:
             self.logger.error(f"Error handling all targets hit for {signal_id}: {e}")
-            
-    async def monitor_open_signals(self):
-        """Main monitoring loop for open signals"""
-        self.logger.info("📊 Starting signal monitoring loop...")
-        
-        while self.running:
-            try:
-                # Reload signals from file to ensure cache synchronization
-                self.signal_manager.load_signals()
-                
-                # Get all open signals
-                open_signals = self.signal_manager.get_all_open_signals()
-                
-                self.logger.debug(f"📈 Monitoring {len(open_signals)} open signals across {len(self.monitored_pairs)} pairs")
-                
-                # Add new pairs to monitoring
-                new_pairs_added = 0
-                for signal_id, signal_data in open_signals.items():
-                    pair = signal_data['pair']
-                    if pair not in self.monitored_pairs:
-                        await self.add_pair_monitoring(pair, signal_data)
-                        new_pairs_added += 1
-                
-                if new_pairs_added > 0:
-                    self.logger.info(f"📡 Added {new_pairs_added} new pairs to monitoring")
-                
-                # Remove pairs that no longer have open signals
-                pairs_to_remove = []
-                for pair in self.monitored_pairs.copy():  # Use copy to avoid modification during iteration
-                    if not await self.check_pair_should_be_monitored(pair):
-                        pairs_to_remove.append(pair)
-                
-                pairs_removed = 0
-                for pair in pairs_to_remove:
-                    await self.remove_pair_monitoring(pair)
-                    pairs_removed += 1
-                
-                if pairs_removed > 0:
-                    self.logger.info(f"📡 Removed {pairs_removed} pairs from monitoring (no open signals)")
-                
-                # Log current monitoring status
-                if len(open_signals) > 0:
-                    self.logger.debug(f"🔄 Currently monitoring: {list(self.monitored_pairs)}")
-                
-                # Wait before next check
-                await asyncio.sleep(10)  # Check every 10 seconds
-                
-            except Exception as e:
-                self.logger.error(f"Error in monitoring loop: {e}")
-                await asyncio.sleep(5)  # Wait before retrying
-        
-        self.logger.info("📊 Signal monitoring loop stopped")
 
 
 class EnhancedSignalManager:

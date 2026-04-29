@@ -124,7 +124,9 @@ async function loadPreSignals() {
 function _calcQuickEntryTargets(p) {
     const entry     = p.price;
     const isLong    = p.expected_signal === 'LONG';
-    const ceDist    = Math.abs(p.ce_distance_pct != null ? p.ce_distance_pct : (p.ce_dist || 3));
+    let ceDistRaw   = p.ce_distance_pct != null ? p.ce_distance_pct : (p.ce_dist || 3);
+    let ceDist      = Math.abs(ceDistRaw);
+    if (ceDist < 0.25) ceDist = 0.5; // Enforce minimum 0.5% risk to prevent SL=Entry errors
     const riskAmt   = entry * (ceDist / 100);
     // SL = CE level (natural stop)
     const sl        = isLong ? entry - riskAmt : entry + riskAmt;
@@ -206,7 +208,7 @@ function openQuickEntryModal(p) {
       <!-- Warning -->
       <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;
                   padding:10px 12px;font-size:11px;color:#fcd34d;margin-bottom:18px;line-height:1.5">
-        ⚠️ This will immediately execute a <strong>${p.expected_signal}</strong> market order on your connected Binance account
+        ⚠️ This will immediately execute a <strong>${p.expected_signal}</strong> market order on your connected exchange account
         using your copy-trading size settings.
       </div>
 
